@@ -43,6 +43,7 @@ export function testEnv(databaseUrl: string): RuntimeEnv {
     SMTP_HOST: '',
     EMAIL_FROM: '',
     QR_DATA_DIR: 'data/qr-test',
+    AVATAR_DATA_DIR: 'data/avatars-test',
   })
 }
 

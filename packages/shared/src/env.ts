@@ -47,6 +47,10 @@ export const runtimeEnvSchema = z
       (value) => (value === undefined || value === '' ? 'data/qr-logos' : value),
       z.string().min(1),
     ),
+    AVATAR_DATA_DIR: z.preprocess(
+      (value) => (value === undefined || value === '' ? 'data/avatars' : value),
+      z.string().min(1),
+    ),
   })
   .superRefine((value, ctx) => {
     const prefixError = validatePrefix(value.SHORT_URL_PREFIX)

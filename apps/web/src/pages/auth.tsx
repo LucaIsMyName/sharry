@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate, useRevalidator, useSearchParams } from 'react-router'
 import { api, type Me } from '../api.ts'
 import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
@@ -113,11 +113,14 @@ export function PasswordPage() {
 }
 
 export function AccountPage() {
+  const revalidator = useRevalidator()
   const [me, setMe] = useState<Me | null>(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [avatarError, setAvatarError] = useState('')
+  const [avatarKey, setAvatarKey] = useState(0)
   const [setup, setSetup] = useState<{ secret: string } | null>(null)
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState<string[] | null>(null)
@@ -144,12 +147,61 @@ export function AccountPage() {
     }
   }
 
+  async function refreshAccount() {
+    setMe(await api<Me>('/api/auth/me'))
+    await revalidator.revalidate()
+  }
+
+  async function uploadAvatar(file: File) {
+    setAvatarError('')
+    const body = new FormData()
+    body.set('file', file)
+    try {
+      await api('/api/auth/avatar', { method: 'POST', body })
+      setAvatarKey((key) => key + 1)
+      await refreshAccount()
+    } catch (caught) {
+      setAvatarError(caught instanceof Error ? caught.message : 'Could not save the thumbnail')
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarError('')
+    try {
+      await api('/api/auth/avatar', { method: 'DELETE' })
+      await refreshAccount()
+    } catch (caught) {
+      setAvatarError(caught instanceof Error ? caught.message : 'Could not remove the thumbnail')
+    }
+  }
+
+  const initial = me?.user.username.trim().charAt(0).toUpperCase() || '?'
+
   return (
     <section className="grid gap-4">
       <div className="mb-1">
         <h1 className="font-heading text-4xl font-medium tracking-tight">Account</h1>
         <p className="text-sm text-muted-foreground">{me?.user.email}</p>
       </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-4">
+          {me?.user.hasAvatar ? (
+            <img src={`/api/auth/avatar?v=${encodeURIComponent(me.user.updatedAt)}`} alt="" className="size-16 rounded-full object-cover" />
+          ) : (
+            <span className="flex size-16 items-center justify-center rounded-full bg-muted text-xl font-medium">{initial}</span>
+          )}
+          <div className="grid gap-2">
+            <Field label="Thumbnail">
+              <Input key={avatarKey} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (file) void uploadAvatar(file)
+              }} />
+            </Field>
+            {me?.user.hasAvatar ? <Button variant="outline" type="button" onClick={() => void removeAvatar()}>Remove thumbnail</Button> : null}
+            {avatarError ? <p className="text-sm text-destructive">{avatarError}</p> : null}
+          </div>
+        </CardContent>
+      </Card>
       <Card>
       <CardContent>
       <form className="grid gap-3" onSubmit={(event) => void submit(event)}>

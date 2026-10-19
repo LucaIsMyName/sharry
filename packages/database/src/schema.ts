@@ -24,6 +24,7 @@ export const users = pgTable(
     totpEnabled: boolean('totp_enabled').notNull().default(false),
     mustChangePassword: boolean('must_change_password').notNull().default(false),
     isActive: boolean('is_active').notNull().default(true),
+    avatarPath: text('avatar_path'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -16,7 +16,7 @@ export const destinationSchema = z
     }
   }, 'Enter a valid http or https URL')
 
-const utmField = z.string().trim().max(200).optional().or(z.literal(''))
+const utmField = z.string().trim().max(200).nullish()
 
 export const utmSchema = z.object(
   Object.fromEntries(UTM_KEYS.map((key) => [key, utmField])) as Record<

@@ -1,6 +1,9 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { eq, sql } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Secret, TOTP } from 'otpauth'
+import sharp from 'sharp'
 import {
   passwordResetTokens,
   recoveryCodes,
@@ -98,7 +101,50 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
   app.get('/api/auth/me', async (request) => {
     const actor = await requireUser(app, request, ['full', 'password_change', 'mfa_enroll', 'mfa_challenge'])
     const settings = await getSettings(app.db, app.env)
-    return { user: actor, scope: actor.scope, mfaRequired: settings.mfaRequired, mailConfigured: smtpSource(settings, app.env) === 'app' }
+    const record = await requireRecord(app.db, actor.id)
+    return {
+      user: { ...actor, hasAvatar: Boolean(record.avatarPath), updatedAt: record.updatedAt.toISOString() },
+      scope: actor.scope,
+      mfaRequired: settings.mfaRequired,
+      mailConfigured: smtpSource(settings, app.env) === 'app',
+    }
+  })
+
+  app.post('/api/auth/avatar', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const file = await request.file()
+    if (!file) throw new AppError(400, 'Choose a PNG, JPEG, or WebP image')
+    const buffer = await file.toBuffer()
+    if (buffer.length > 512 * 1024) throw new AppError(400, 'Images must be 512 KB or smaller')
+    const meta = await sharp(buffer).metadata().catch(() => null)
+    if (!meta?.format || !['png', 'jpeg', 'webp'].includes(meta.format)) {
+      throw new AppError(400, 'Use a PNG, JPEG, or WebP image')
+    }
+    const resized = await sharp(buffer).resize(256, 256, { fit: 'cover' }).webp({ quality: 80 }).toBuffer()
+    const filename = `${actor.id}.webp`
+    const user = await requireRecord(app.db, actor.id)
+    await fs.mkdir(app.env.AVATAR_DATA_DIR, { recursive: true })
+    if (user.avatarPath && user.avatarPath !== filename) await removeAvatarFile(app.env.AVATAR_DATA_DIR, user.avatarPath)
+    await fs.writeFile(path.join(app.env.AVATAR_DATA_DIR, filename), resized)
+    const updatedAt = new Date()
+    await app.db.update(users).set({ avatarPath: filename, updatedAt }).where(eq(users.id, actor.id))
+    return { hasAvatar: true, updatedAt: updatedAt.toISOString() }
+  })
+
+  app.delete('/api/auth/avatar', async (request, reply) => {
+    const actor = await requireUser(app, request, ['full'])
+    const user = await requireRecord(app.db, actor.id)
+    await removeAvatarFile(app.env.AVATAR_DATA_DIR, user.avatarPath)
+    await app.db.update(users).set({ avatarPath: null, updatedAt: new Date() }).where(eq(users.id, actor.id))
+    return reply.code(204).send()
+  })
+
+  app.get('/api/auth/avatar', async (request, reply) => {
+    const actor = await requireUser(app, request, ['full'])
+    const user = await requireRecord(app.db, actor.id)
+    if (!user.avatarPath) throw new AppError(404, 'No thumbnail is set')
+    const file = await readAvatar(app.env.AVATAR_DATA_DIR, user.avatarPath)
+    return reply.header('cache-control', 'private, no-cache').type(file.mime).send(file.buffer)
   })
 
   app.post('/api/auth/change-password', async (request, reply) => {
@@ -400,6 +446,18 @@ async function replaceRecoveryCodes(app: FastifyInstance, userId: string): Promi
     })),
   )
   return codes
+}
+
+async function removeAvatarFile(directory: string, filename: string | null): Promise<void> {
+  if (!filename || filename.includes('/') || filename.includes('..')) return
+  await fs.rm(path.join(directory, filename), { force: true })
+}
+
+async function readAvatar(directory: string, filename: string): Promise<{ buffer: Buffer; mime: string }> {
+  if (filename.includes('/') || filename.includes('..')) throw new AppError(400, 'Invalid image')
+  const buffer = await fs.readFile(path.join(directory, filename))
+  const mime = filename.endsWith('.jpg') ? 'image/jpeg' : filename.endsWith('.webp') ? 'image/webp' : 'image/png'
+  return { buffer, mime }
 }
 
 function formatRecoveryCode(token: string): string {

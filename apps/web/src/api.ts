@@ -32,6 +32,8 @@ export type Me = {
     role: 'admin' | 'user'
     totpEnabled: boolean
     mustChangePassword: boolean
+    hasAvatar: boolean
+    updatedAt: string
   }
   scope: Scope
   mfaRequired: boolean

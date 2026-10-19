@@ -1,8 +1,11 @@
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import sharp from 'sharp'
 import { Secret, TOTP } from 'otpauth'
 import { buildApp } from '../src/server.ts'
 import { provisionAdmin } from '../src/provision.ts'
-import { getContext, useTestApp } from './helpers.ts'
+import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 import { decryptString } from '../src/support.ts'
 import { appSettings } from '@sharry/database'
 import { eq } from 'drizzle-orm'
@@ -190,7 +193,52 @@ describe('authentication', () => {
     })
     expect(again.json().scope).toBe('mfa_enroll')
   })
+
+  it('stores a square thumbnail and reports it on the current user', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const before = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: user.cookie } })
+    expect(before.json().user.hasAvatar).toBe(false)
+    const missing = await ctx.app.inject({ method: 'GET', url: '/api/auth/avatar', headers: { cookie: user.cookie } })
+    expect(missing.statusCode).toBe(404)
+    const png = await sharp({
+      create: { width: 32, height: 16, channels: 3, background: { r: 12, g: 80, b: 40 } },
+    }).png().toBuffer()
+    const uploaded = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/avatar',
+      headers: { cookie: user.cookie, ...multipart(png).headers },
+      payload: multipart(png).payload,
+    })
+    expect(uploaded.statusCode).toBe(200)
+    expect(uploaded.json().hasAvatar).toBe(true)
+    const me = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: user.cookie } })
+    expect(me.json().user.hasAvatar).toBe(true)
+    const image = await ctx.app.inject({ method: 'GET', url: '/api/auth/avatar', headers: { cookie: user.cookie } })
+    expect(image.statusCode).toBe(200)
+    expect(image.headers['content-type']).toContain('image/webp')
+    const meta = await sharp(image.rawPayload).metadata()
+    expect(meta.width).toBe(256)
+    expect(meta.height).toBe(256)
+    const removed = await ctx.app.inject({ method: 'DELETE', url: '/api/auth/avatar', headers: { cookie: user.cookie } })
+    expect(removed.statusCode).toBe(204)
+    const after = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: user.cookie } })
+    expect(after.json().user.hasAvatar).toBe(false)
+    await expect(fs.access(path.join(ctx.env.AVATAR_DATA_DIR, `${user.id}.webp`))).rejects.toThrow()
+  })
 })
+
+function multipart(file: Buffer): { payload: Buffer; headers: { 'content-type': string } } {
+  const boundary = '----sharry-avatar'
+  return {
+    payload: Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="avatar.png"\r\nContent-Type: image/png\r\n\r\n`),
+      file,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]),
+    headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+  }
+}
 
 function cookieFrom(response: { headers: { 'set-cookie'?: unknown } }): string {
   const header = response.headers['set-cookie']

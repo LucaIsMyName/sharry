@@ -137,6 +137,46 @@ describe('short links', () => {
     expect(open.headers.location).toBe('https://example.com/secret')
   })
 
+  it('changes and clears a slug when empty UTM fields are null', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/custom' },
+    })
+    const id = created.json().id as string
+    const randomSlug = created.json().slug as string
+    const utm = {
+      utm_source: null,
+      utm_medium: null,
+      utm_campaign: null,
+      utm_id: null,
+      utm_term: null,
+      utm_content: null,
+    }
+    const custom = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: user.cookie },
+      payload: { slug: 'summer-sale', utm },
+    })
+    expect(custom.statusCode).toBe(200)
+    expect(custom.json().slug).toBe('summer-sale')
+    const cleared = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: user.cookie },
+      payload: { slug: '', utm },
+    })
+    expect(cleared.statusCode).toBe(200)
+    const slug = cleared.json().slug as string
+    expect(slug).not.toBe('summer-sale')
+    expect(slug).not.toBe(randomSlug)
+    expect(slug).toHaveLength(5)
+  })
+
   it('assigns a random slug when a saved slug is cleared', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
