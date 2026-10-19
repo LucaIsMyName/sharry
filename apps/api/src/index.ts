@@ -26,9 +26,15 @@ try {
     error: (message) => console.error(message),
   })
 } catch (error) {
-  console.error(error instanceof Error ? error.message : 'Sharry failed to start')
+  console.error(startupMessage(error))
   await pool.end()
   process.exit(1)
+}
+
+function startupMessage(error: unknown): string {
+  if (!(error instanceof Error)) return 'Sharry failed to start'
+  const cause = error.cause instanceof Error ? error.cause.message : ''
+  return cause && !error.message.includes(cause) ? `${error.message}\n${cause}` : error.message
 }
 
 const app = await buildApp({ env, db, pool })

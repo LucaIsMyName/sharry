@@ -11,7 +11,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"tsx watch apps/api/src/index.ts\" \"npm run dev -w @sharry/web\"",
+    "dev": "tsx scripts/dev.ts",
     "build": "npm run build -w @sharry/web && npm run build -w @sharry/api",
     "start": "node apps/api/dist/index.js",
     "typecheck": "tsc -p packages/shared/tsconfig.json --noEmit && tsc -p packages/database/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit && tsc -p tsconfig.json --noEmit",

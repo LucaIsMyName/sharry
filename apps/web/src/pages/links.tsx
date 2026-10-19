@@ -367,7 +367,7 @@ export function LinkDetailPage() {
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <Field label="Redirect">
             <Select value={redirectType} options={redirectOptions.map(({ value, label }) => ({ value, label }))} onValueChange={setRedirectType} />
-            <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
+            <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
           </Field>
           <Field label="Status">
             <Select value={status} options={[...statusOptions]} onValueChange={setStatus} />
@@ -384,7 +384,7 @@ export function LinkDetailPage() {
             placeholder={link?.hasPassword ? 'Leave blank to keep it.' : 'Optional'}
             autoComplete="new-password"
           />
-          <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+          <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">
             Visitors must enter this password before the short link redirects.
             {link?.hasPassword ? ' A password is already saved.' : ''}
           </p>

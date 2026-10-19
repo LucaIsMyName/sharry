@@ -1,9 +1,11 @@
 import { createDb, runMigrations } from '@sharry/database'
 import { parseRuntimeEnv } from '@sharry/shared'
 import { createAdditionalAdmin } from '../apps/api/src/provision.ts'
+import { ensureLocalDatabase, stopLocalDatabase } from './dev-db.ts'
 import { loadEnvFile } from './env-file.ts'
 
 loadEnvFile()
+await ensureLocalDatabase()
 const env = parseRuntimeEnv(process.env)
 if (!env.INITIAL_ADMIN_USERNAME || !env.INITIAL_ADMIN_EMAIL || !env.INITIAL_ADMIN_PASSWORD) {
   console.error('Set INITIAL_ADMIN_USERNAME, INITIAL_ADMIN_EMAIL, and INITIAL_ADMIN_PASSWORD before creating an administrator.')
@@ -23,4 +25,5 @@ try {
   process.exitCode = 1
 } finally {
   await pool.end()
+  await stopLocalDatabase()
 }

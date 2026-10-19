@@ -4,7 +4,9 @@ Sharry is a self-hosted link shortener. One Node.js process serves the dashboard
 
 ## Local development
 
-Requires Node.js 22 or newer and PostgreSQL 16 or newer. The app does not use Docker.
+Requires Node.js 22 or newer. The app does not use Docker.
+
+`npm run dev` starts the dashboard, the API, and a local PostgreSQL when `DATABASE_URL` points at this machine and nothing is listening there. That database keeps its data in `data/pg-dev`. Closing the terminal stops it. The next `npm run dev` starts it again, then the API applies migrations. A server install still uses its own PostgreSQL.
 
 ```bash
 cp .env.example .env
