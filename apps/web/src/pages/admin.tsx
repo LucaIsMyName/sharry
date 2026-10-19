@@ -42,7 +42,7 @@ type Settings = {
   smtpSource: 'app' | 'environment' | 'none'
 }
 
-type AuditEntry = { id: string; action: string; entityType: string; createdAt: string; metadata: Record<string, unknown> }
+type AuditEntry = { id: string; actorUsername: string | null; action: string; entityType: string; createdAt: string; metadata: Record<string, unknown> }
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -182,8 +182,8 @@ export function AdminSettingsPage() {
         <Field label="Analytics retention, days"><Input type="number" min={0} value={settings.analyticsRetentionDays} onChange={(event) => setSettings({ ...settings, analyticsRetentionDays: Number(event.target.value) })} /></Field>
         <Field label="Session length, hours"><Input type="number" min={1} value={settings.sessionTtlHours} onChange={(event) => setSettings({ ...settings, sessionTtlHours: Number(event.target.value) })} /></Field>
         <p>Registration is closed. Administrators create every account.</p>
-        <Toggle checked={settings.mfaRequired} onChange={(mfaRequired) => setSettings({ ...settings, mfaRequired })} label="Require a two-factor code for every account" />
-        <p className="text-sm text-muted-foreground">When this is off, each person can turn a code on from Account. When it is on, sign-in asks for an authenticator until they enroll.</p>
+        <Toggle checked={settings.mfaRequired} disabled={settings.smtpSource !== 'app'} onChange={(mfaRequired) => setSettings({ ...settings, mfaRequired })} label="Require a two-factor code for every account" />
+        <p className="text-sm text-muted-foreground">{settings.smtpSource === 'app' ? 'When this is off, each person can turn a code on from Account. When it is on, sign-in asks for an authenticator until they enroll.' : 'Save a mail server below before requiring a code. Until then, people cannot turn two-factor authentication on.'}</p>
         <h2>Email</h2>
         <Field label="SMTP host"><Input value={settings.smtpHost} onChange={(event) => setSettings({ ...settings, smtpHost: event.target.value })} placeholder="smtp.example.com" /></Field>
         <Field label="SMTP port"><Input type="number" min={1} max={65535} value={settings.smtpPort} onChange={(event) => setSettings({ ...settings, smtpPort: Number(event.target.value) })} /></Field>
@@ -232,11 +232,12 @@ export function AdminAuditPage() {
       <h1 className="font-heading text-4xl font-medium tracking-tight">Audit</h1>
       <Card><CardContent>
         <Table>
-          <TableHeader><TableRow><TableHead>When</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>When</TableHead><TableHead>User</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead></TableRow></TableHeader>
           <TableBody>
             {entries.map((entry) => (
               <TableRow key={entry.id}>
                 <TableCell className="whitespace-normal">{new Date(entry.createdAt).toLocaleString()}</TableCell>
+                <TableCell>{entry.actorUsername ?? '—'}</TableCell>
                 <TableCell>{entry.action}</TableCell>
                 <TableCell className="text-muted-foreground">{entry.entityType}</TableCell>
               </TableRow>

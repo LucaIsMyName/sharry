@@ -2,6 +2,7 @@
   "name": "sharry",
   "private": true,
   "type": "module",
+  "version": "0.0.2",
   "engines": {
     "node": ">=22"
   },

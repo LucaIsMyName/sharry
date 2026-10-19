@@ -7,6 +7,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
+  confirmDisabled = false,
+  destructive = false,
   onConfirm,
   onOpenChange,
   children,
@@ -15,6 +17,8 @@ export function ConfirmDialog({
   title: string
   description: string
   confirmLabel: string
+  confirmDisabled?: boolean
+  destructive?: boolean
   onConfirm: () => void
   onOpenChange: (open: boolean) => void
   children?: ReactNode
@@ -29,7 +33,7 @@ export function ConfirmDialog({
         {children}
         <DialogFooter className="border-0 bg-transparent sm:justify-start">
           <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" onClick={onConfirm}>{confirmLabel}</Button>
+          <Button variant={destructive ? 'destructive' : 'default'} type="button" disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

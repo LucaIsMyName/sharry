@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge.tsx'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
 import { Checkbox } from '../components/ui/checkbox.tsx'
+import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
 import { Select } from '../components/ui/choice-select.tsx'
 import { copyText } from '../components/ui/copy.ts'
 import { Field } from '../components/ui/field.tsx'
@@ -179,6 +180,8 @@ export function LinkDetailPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteText, setDeleteText] = useState('')
   const copiedTimer = useRef<number | null>(null)
 
   useEffect(() => {
@@ -347,7 +350,7 @@ export function LinkDetailPage() {
           <Button variant="outline" type="button" disabled={!link?.shortUrl} onClick={() => void copyShortUrl()}>
             {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
           </Button>
-          <Button variant="destructive" type="button" onClick={() => void remove()}><Trash2 size={16} /> Delete</Button>
+          <Button variant="destructive" type="button" onClick={() => setConfirmDelete(true)}><Trash2 size={16} /> Delete</Button>
         </div>
       </div>
       <Card><CardContent>
@@ -363,7 +366,7 @@ export function LinkDetailPage() {
         </Field>
         <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <Field label="Redirect">
-            <Select value={redirectType} options={[...redirectOptions]} onValueChange={setRedirectType} />
+            <Select value={redirectType} options={redirectOptions.map(({ value, label }) => ({ value, label }))} onValueChange={setRedirectType} />
             <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
           </Field>
           <Field label="Status">
@@ -470,6 +473,23 @@ export function LinkDetailPage() {
           <Breakdown title="QR codes" rows={analytics.qrCodes.map((row) => ({ name: row.name, clicks: row.clicks }))} />
         </div>
       ) : null}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this short link?"
+        description="Type delete to remove the short link. Printed codes and saved URLs will stop working."
+        confirmLabel="Delete link"
+        destructive
+        confirmDisabled={deleteText !== 'delete'}
+        onOpenChange={(open) => {
+          setConfirmDelete(open)
+          if (!open) setDeleteText('')
+        }}
+        onConfirm={() => void remove()}
+      >
+        <Field label="Type delete">
+          <Input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} autoComplete="off" />
+        </Field>
+      </ConfirmDialog>
     </section>
   )
 }

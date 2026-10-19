@@ -190,11 +190,27 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     const query = request.query as { limit?: string; offset?: string }
     const limit = Math.min(200, Math.max(1, Number(query.limit) || 50))
     const offset = Math.max(0, Number(query.offset) || 0)
-    const rows = await app.db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit).offset(offset)
+    const rows = await app.db
+      .select({
+        id: auditLogs.id,
+        actorUserId: auditLogs.actorUserId,
+        actorUsername: users.username,
+        action: auditLogs.action,
+        entityType: auditLogs.entityType,
+        entityId: auditLogs.entityId,
+        metadata: auditLogs.metadata,
+        createdAt: auditLogs.createdAt,
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit)
+      .offset(offset)
     return {
       entries: rows.map((row) => ({
         id: row.id,
         actorUserId: row.actorUserId,
+        actorUsername: row.actorUsername,
         action: row.action,
         entityType: row.entityType,
         entityId: row.entityId,

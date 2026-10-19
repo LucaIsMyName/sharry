@@ -19,7 +19,7 @@ import {
 import { writeAudit } from './audit.ts'
 import type { Mailer } from './mail.ts'
 import { hashPassword, verifyPassword } from './passwords.ts'
-import { mailerFor } from './mail.ts'
+import { mailerFor, smtpSource } from './mail.ts'
 import { getSettings } from './settings-store.ts'
 import { AppError, decryptString, encryptString, hashToken, parseBody, randomToken } from './support.ts'
 
@@ -98,7 +98,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
   app.get('/api/auth/me', async (request) => {
     const actor = await requireUser(app, request, ['full', 'password_change', 'mfa_enroll', 'mfa_challenge'])
     const settings = await getSettings(app.db, app.env)
-    return { user: actor, scope: actor.scope, mfaRequired: settings.mfaRequired }
+    return { user: actor, scope: actor.scope, mfaRequired: settings.mfaRequired, mailConfigured: smtpSource(settings, app.env) === 'app' }
   })
 
   app.post('/api/auth/change-password', async (request, reply) => {
@@ -178,6 +178,10 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     const actor = await requireUser(app, request, ['full', 'mfa_enroll'])
     const user = await requireRecord(app.db, actor.id)
     if (user.totpEnabled) throw new AppError(400, 'Two-factor authentication is already on')
+    const settings = await getSettings(app.db, app.env)
+    if (actor.scope !== 'mfa_enroll' && smtpSource(settings, app.env) !== 'app') {
+      throw new AppError(400, 'An administrator needs to save a mail server in Settings before two-factor authentication can be turned on.')
+    }
     const secret = new Secret({ size: 20 })
     const totp = buildTotp(app, user.email, secret)
     await app.db

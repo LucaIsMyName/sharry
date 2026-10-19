@@ -25,7 +25,7 @@ export function Shell() {
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
         <p className="font-heading text-3xl font-medium tracking-tight">sharry</p>
         {navigation}
-        <AccountFoot username={me.user.username} onLogout={() => void logout()} />
+        <AccountFoot username={me.user.username} onLogout={() => void logout()} onNavigate={() => setOpen(false)} />
       </aside>
       <main className="min-h-svh p-5 md:ml-60 md:p-7">
         <div className="mb-3 md:hidden">
@@ -36,7 +36,7 @@ export function Shell() {
             <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs">
               <p className="font-heading px-1 pt-2 text-3xl font-medium tracking-tight">sharry</p>
               {navigation}
-              <AccountFoot username={me.user.username} onLogout={() => void logout()} />
+              <AccountFoot username={me.user.username} onLogout={() => void logout()} onNavigate={() => setOpen(false)} />
             </SheetContent>
           </Sheet>
         </div>
@@ -53,7 +53,6 @@ function Navigation({ admin, onNavigate }: { admin: boolean; onNavigate: () => v
       <Item to="/links" icon={<Link size={18} />}>Links</Item>
       <Item to="/campaigns" icon={<Megaphone size={18} />}>Campaigns</Item>
       <Item to="/analytics" icon={<ChartColumn size={18} />}>Analytics</Item>
-      <Item to="/account" icon={<CircleUser size={18} />}>Account</Item>
       {admin ? <Item to="/admin/users" icon={<Users size={18} />}>Users</Item> : null}
       {admin ? <Item to="/admin/settings" icon={<Settings size={18} />}>Settings</Item> : null}
       {admin ? <Item to="/admin/audit" icon={<ScrollText size={18} />}>Audit</Item> : null}
@@ -77,10 +76,11 @@ function Item({ to, end, icon, children }: { to: string; end?: boolean; icon: Re
   )
 }
 
-function AccountFoot({ username, onLogout }: { username: string; onLogout: () => void }) {
+function AccountFoot({ username, onLogout, onNavigate }: { username: string; onLogout: () => void; onNavigate: () => void }) {
   return (
-    <div className="mt-auto grid gap-2.5">
+    <div className="mt-auto grid gap-2.5" onClick={onNavigate}>
       <span className="truncate text-sm text-[#d9d1c5]">{username}</span>
+      <Item to="/account" icon={<CircleUser size={18} />}>Account</Item>
       <Button variant="outline" className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white" type="button" onClick={onLogout}>
         Sign out
       </Button>

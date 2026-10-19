@@ -170,6 +170,7 @@ export function AccountPage() {
       <CardContent className="grid gap-3">
         <h2 className="text-lg font-medium">Two-factor authentication</h2>
         {me?.mfaRequired ? <p className="text-sm text-muted-foreground">An administrator requires a code at sign-in.</p> : <p className="text-sm text-muted-foreground">Optional. Turn it on for this account when you want a code at sign-in.</p>}
+        {me && !me.mailConfigured && !me.user.totpEnabled ? <p className="text-sm text-muted-foreground">An administrator needs to save a mail server in Settings before two-factor authentication can be turned on.</p> : null}
         {me?.user.totpEnabled ? (
           <form
             className="grid gap-3"
@@ -199,7 +200,7 @@ export function AccountPage() {
           </>
         ) : (
           <>
-            {!setup ? <Button type="button" onClick={() => void api<{ secret: string }>('/api/auth/mfa/setup', { method: 'POST' }).then(setSetup).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not start setup'))}>Turn on</Button> : null}
+            {!setup && me?.mailConfigured ? <Button type="button" onClick={() => void api<{ secret: string }>('/api/auth/mfa/setup', { method: 'POST' }).then(setSetup).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not start setup'))}>Turn on</Button> : null}
             {setup ? (
               <form
                 className="grid gap-3"
@@ -235,6 +236,11 @@ export function EnrollPage() {
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState<string[] | null>(null)
   const [error, setError] = useState('')
+  const [mailConfigured, setMailConfigured] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    void api<Me>('/api/auth/me').then((me) => setMailConfigured(me.mailConfigured)).catch(() => setMailConfigured(false))
+  }, [])
 
   async function begin() {
     setError('')
@@ -268,7 +274,8 @@ export function EnrollPage() {
         </>
       ) : (
         <>
-          {!setup ? <Button type="button" onClick={() => void begin()}>Generate secret</Button> : null}
+          {!setup && mailConfigured ? <Button type="button" onClick={() => void begin()}>Generate secret</Button> : null}
+          {!setup && mailConfigured === false ? <p className="text-sm text-muted-foreground">An administrator needs to save a mail server in Settings before two-factor authentication can be turned on.</p> : null}
           {setup ? (
             <form onSubmit={(event) => void confirm(event)}>
               <p>Add this secret to your authenticator app:</p>

@@ -35,6 +35,16 @@ describe('authentication', () => {
     const enrollCookie = cookieFrom(changed)
     const open = await app.inject({ method: 'GET', url: '/api/links', headers: { cookie: enrollCookie } })
     expect(open.statusCode).toBe(200)
+    const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: enrollCookie } })
+    expect(me.json().mailConfigured).toBe(false)
+    const blockedSetup = await app.inject({ method: 'POST', url: '/api/auth/mfa/setup', headers: { cookie: enrollCookie } })
+    expect(blockedSetup.statusCode).toBe(400)
+    await app.inject({
+      method: 'PATCH',
+      url: '/api/admin/settings',
+      headers: { cookie: enrollCookie },
+      payload: { smtpHost: 'smtp.example.com', emailFrom: 'sharry@example.com' },
+    })
     const setup = await app.inject({ method: 'POST', url: '/api/auth/mfa/setup', headers: { cookie: enrollCookie } })
     expect(setup.statusCode).toBe(200)
     const confirm = await app.inject({

@@ -35,6 +35,7 @@ export type Me = {
   }
   scope: Scope
   mfaRequired: boolean
+  mailConfigured: boolean
 }
 
 export type ShortLink = {

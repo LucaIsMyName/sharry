@@ -1,10 +1,20 @@
 import { Label } from './label.tsx'
 import { Switch } from './switch.tsx'
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+  disabled?: boolean
+}) {
   return (
     <Label className="w-fit">
-      <Switch checked={checked} onCheckedChange={onChange} />
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
       <span>{label}</span>
     </Label>
   )
