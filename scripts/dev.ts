@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ensureLocalDatabase } from './dev-db.ts'
+import { ensureLocalDatabase, stopLocalDatabase } from './dev-db.ts'
 
 await ensureLocalDatabase()
 
@@ -13,6 +13,28 @@ const child = spawn(
   { stdio: 'inherit' },
 )
 
+let shuttingDown = false
+
+async function shutdown(code: number): Promise<void> {
+  if (shuttingDown) return
+  shuttingDown = true
+  try {
+    await stopLocalDatabase()
+  } finally {
+    process.exit(code)
+  }
+}
+
 child.on('exit', (code) => {
-  process.exit(code ?? 0)
+  void shutdown(code ?? 0)
 })
+
+function stopChild(signal: NodeJS.Signals) {
+  child.kill(signal)
+  setTimeout(() => {
+    void shutdown(1)
+  }, 5000).unref()
+}
+
+process.on('SIGINT', () => stopChild('SIGINT'))
+process.on('SIGTERM', () => stopChild('SIGTERM'))

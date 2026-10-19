@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { qrCodes, trackingConfigs, trackingVariants, type LinkRecord } from '@sharry/database'
 import { applyUtm, cleanUtm, mergeUtm, validatePrefix, type UtmParams } from '@sharry/shared'
 import { recordClick, type ClickDraft } from './analytics.ts'
@@ -41,12 +41,16 @@ export async function tryShortLink(
   }
   if (link.passwordHash && !unlockValid(request.cookies[UNLOCK_COOKIE], link.id, app.env.SESSION_SECRET)) {
     if (request.method === 'POST') {
+      if (!allowLinkPasswordAttempt(request.ip)) {
+        reply.code(429).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'limited'))
+        return true
+      }
       const password = typeof request.body === 'object' && request.body && 'password' in request.body
         ? String((request.body as { password?: string }).password ?? '')
         : ''
       const ok = password ? await verifyPassword(link.passwordHash, password) : false
       if (!ok) {
-        reply.code(401).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, true))
+        reply.code(401).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'failed'))
         return true
       }
       reply.setCookie(UNLOCK_COOKIE, signUnlock(link.id, app.env.SESSION_SECRET), {
@@ -57,7 +61,7 @@ export async function tryShortLink(
         maxAge: 15 * 60,
       })
     } else {
-      reply.code(200).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, false))
+      reply.code(200).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'prompt'))
       return true
     }
   }
@@ -106,9 +110,17 @@ async function resolveVariant(app: FastifyInstance, linkId: string, query: URLSe
     const qr = found[0]
     if (qr && qr.linkId === linkId) return qr.trackingVariantId
   }
-  const variantId = query.get('v')
-  if (variantId && isUuid(variantId)) return variantId
-  return null
+  return variantOwnedByLink(app, linkId, query.get('v'))
+}
+
+async function variantOwnedByLink(app: FastifyInstance, linkId: string, variantId: string | null): Promise<string | null> {
+  if (!variantId || !isUuid(variantId)) return null
+  const found = await app.db
+    .select({ id: trackingVariants.id })
+    .from(trackingVariants)
+    .where(and(eq(trackingVariants.id, variantId), eq(trackingVariants.linkId, linkId)))
+    .limit(1)
+  return found[0]?.id ?? null
 }
 
 async function clickDraft(
@@ -132,7 +144,7 @@ async function clickDraft(
       trackingVariantId = found[0].trackingVariantId
     }
   }
-  if (!trackingVariantId && variantFromQuery && isUuid(variantFromQuery)) trackingVariantId = variantFromQuery
+  if (!trackingVariantId) trackingVariantId = await variantOwnedByLink(app, link.id, variantFromQuery)
   return {
     linkId: link.id,
     trackingVariantId,
@@ -163,8 +175,14 @@ export function sendSpa(reply: FastifyReply, nodeEnv: string): void {
   reply.type('text/html').send(fs.readFileSync(indexPath, 'utf8'))
 }
 
-function passwordPage(slug: string, prefix: string, failed: boolean): string {
+function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' | 'limited'): string {
   const action = `${prefix}/${encodeURIComponent(slug)}`
+  const message =
+    state === 'failed'
+      ? 'That password is incorrect.'
+      : state === 'limited'
+        ? 'Too many attempts. Try again shortly.'
+        : 'This short link is password protected.'
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -185,7 +203,7 @@ function passwordPage(slug: string, prefix: string, failed: boolean): string {
 <body>
   <form method="post" action="${escapeHtml(action)}">
     <h1>sharry</h1>
-    <p class="${failed ? 'error' : ''}">${failed ? 'That password is incorrect.' : 'This short link is password protected.'}</p>
+    <p class="${state === 'prompt' ? '' : 'error'}">${message}</p>
     <label for="link-password">Password</label>
     <input id="link-password" type="password" name="password" autocomplete="current-password" required autofocus/>
     <button type="submit">Continue</button>
@@ -211,6 +229,26 @@ function unlockValid(token: string | undefined, linkId: string, secret: string):
   const left = Buffer.from(sig)
   const right = Buffer.from(expected)
   return left.length === right.length && crypto.timingSafeEqual(left, right)
+}
+
+const PASSWORD_WINDOW_MS = 60_000
+const PASSWORD_MAX_ATTEMPTS = 10
+const passwordAttempts = new Map<string, number[]>()
+
+export function clearLinkPasswordAttempts(): void {
+  passwordAttempts.clear()
+}
+
+function allowLinkPasswordAttempt(ip: string): boolean {
+  const now = Date.now()
+  const recent = (passwordAttempts.get(ip) ?? []).filter((time) => now - time < PASSWORD_WINDOW_MS)
+  if (recent.length >= PASSWORD_MAX_ATTEMPTS) {
+    passwordAttempts.set(ip, recent)
+    return false
+  }
+  recent.push(now)
+  passwordAttempts.set(ip, recent)
+  return true
 }
 
 function isUuid(value: string): boolean {

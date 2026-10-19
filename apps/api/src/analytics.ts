@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { clickEvents, type Database } from '@sharry/database'
-import { requireUser, type Actor } from './auth.ts'
+import { requireUser } from './auth.ts'
 import { getLinkForActor } from './links.ts'
 import { rowsOf } from './settings-store.ts'
 import { AppError } from './support.ts'
@@ -228,8 +228,4 @@ function rowCount(result: unknown): number {
     return result.rowCount
   }
   return 0
-}
-
-export function assertAnalyticsOwner(actor: Actor, userId: string): void {
-  if (actor.role !== 'admin' && actor.id !== userId) throw new AppError(404, 'Link not found')
 }

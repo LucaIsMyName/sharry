@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { trackingCampaigns, trackingVariants, type Database } from '@sharry/database'
 import {

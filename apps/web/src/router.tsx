@@ -12,7 +12,7 @@ async function loadMe(): Promise<Me> {
   return api<Me>('/api/auth/me')
 }
 
-async function appLoader() {
+async function requireSession(): Promise<Me> {
   try {
     const me = await loadMe()
     if (me.scope === 'password_change') throw redirect('/account/password')
@@ -23,6 +23,16 @@ async function appLoader() {
     if (error instanceof Response) throw error
     throw redirect('/login')
   }
+}
+
+async function appLoader() {
+  return requireSession()
+}
+
+async function adminLoader() {
+  const me = await requireSession()
+  if (me.user.role !== 'admin') throw redirect('/')
+  return me
 }
 
 async function scopeLoader(scope: Me['scope']) {
@@ -55,9 +65,9 @@ export const router = createBrowserRouter([
       { path: 'campaigns/:id', element: <CampaignDetailPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
       { path: 'account', element: <AccountPage /> },
-      { path: 'admin/users', element: <AdminUsersPage /> },
-      { path: 'admin/settings', element: <AdminSettingsPage /> },
-      { path: 'admin/audit', element: <AdminAuditPage /> },
+      { path: 'admin/users', loader: adminLoader, element: <AdminUsersPage /> },
+      { path: 'admin/settings', loader: adminLoader, element: <AdminSettingsPage /> },
+      { path: 'admin/audit', loader: adminLoader, element: <AdminAuditPage /> },
     ],
   },
 ])

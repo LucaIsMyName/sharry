@@ -185,42 +185,66 @@ export function LinkDetailPage() {
   const copiedTimer = useRef<number | null>(null)
 
   useEffect(() => {
-    void load()
+    let cancelled = false
+    void (async () => {
+      try {
+        const [next, codes, stats] = await Promise.all([
+          api<ShortLink>(`/api/links/${id}`),
+          api<{ qrCodes: QrCode[] }>(`/api/links/${id}/qr`),
+          api<Analytics>(`/api/links/${id}/analytics`),
+        ])
+        if (cancelled) return
+        setError('')
+        setLink(next)
+        setDestinationUrl(next.destinationUrl)
+        setSlug(next.slug)
+        setTitle(next.title ?? '')
+        setRedirectType(next.redirectType)
+        setStatus(next.status)
+        setExpiresAt(next.expiresAt ? next.expiresAt.slice(0, 16) : '')
+        setUtm(next.utm)
+        setQrCodes(codes.qrCodes)
+        setAnalytics(stats)
+        let nextLogo: string | null = null
+        const saved = codes.qrCodes[0]
+        if (saved) {
+          setActiveQr(saved)
+          setStyle(saved.style)
+          setQrName(saved.name)
+          if (saved.hasLogo) {
+            const response = await fetch(`/api/qr/${saved.id}/logo`, { credentials: 'include' })
+            if (cancelled) return
+            if (response.ok) nextLogo = URL.createObjectURL(await response.blob())
+          }
+        } else {
+          setActiveQr(null)
+        }
+        if (cancelled) {
+          if (nextLogo) URL.revokeObjectURL(nextLogo)
+          return
+        }
+        setLogoUrl(nextLogo)
+        setLogoFile(null)
+      } catch (caught) {
+        if (!cancelled) setError(caught instanceof Error ? caught.message : 'Could not load this link')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [id])
+
+  useEffect(() => {
+    if (!logoUrl?.startsWith('blob:')) return
+    const current = logoUrl
+    return () => URL.revokeObjectURL(current)
+  }, [logoUrl])
 
   useEffect(() => {
     return () => {
       if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
     }
   }, [])
-
-  async function load() {
-    const [next, codes, stats] = await Promise.all([
-      api<ShortLink>(`/api/links/${id}`),
-      api<{ qrCodes: QrCode[] }>(`/api/links/${id}/qr`),
-      api<Analytics>(`/api/links/${id}/analytics`),
-    ])
-    setLink(next)
-    setDestinationUrl(next.destinationUrl)
-    setSlug(next.slug)
-    setTitle(next.title ?? '')
-    setRedirectType(next.redirectType)
-    setStatus(next.status)
-    setExpiresAt(next.expiresAt ? next.expiresAt.slice(0, 16) : '')
-    setUtm(next.utm)
-    setQrCodes(codes.qrCodes)
-    setAnalytics(stats)
-    const saved = codes.qrCodes[0]
-    if (saved) {
-      setActiveQr(saved)
-      setStyle(saved.style)
-      setQrName(saved.name)
-      if (saved.hasLogo) {
-        const response = await fetch(`/api/qr/${saved.id}/logo`, { credentials: 'include' })
-        if (response.ok) setLogoUrl(URL.createObjectURL(await response.blob()))
-      }
-    }
-  }
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -327,7 +351,6 @@ export function LinkDetailPage() {
         return
       }
     }
-    if (logoUrl?.startsWith('blob:')) URL.revokeObjectURL(logoUrl)
     setLogoFile(null)
     setLogoUrl(null)
     setLogoInputKey((key) => key + 1)
