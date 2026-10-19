@@ -104,6 +104,9 @@ a { color: inherit; }
 a.short-url:hover { color: #0c6b4d; }
 .page-head a.short-url { display: block; margin-top: 6px; text-underline-offset: 3px; }
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: 0;
   border-radius: 999px;
   padding: 11px 16px;
@@ -139,6 +142,9 @@ a.short-url:hover { color: #0c6b4d; }
 .sidebar .brand { color: #f6f3ec; font-size: 34px; }
 .nav { display: grid; gap: 4px; align-content: start; min-height: 0; overflow: auto; }
 .nav a, .sidebar button.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-decoration: none;
   color: #d9d1c5;
   border-radius: 10px;

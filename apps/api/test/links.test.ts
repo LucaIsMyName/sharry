@@ -92,6 +92,51 @@ describe('short links', () => {
     ).rejects.toThrow(/unique slug/)
   })
 
+  it('asks for a link password and redirects again after it is removed', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/secret', slug: 'gated', redirectType: '301' },
+    })
+    const saved = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${created.json().id}`,
+      headers: { cookie: user.cookie },
+      payload: { password: 'poster-secret' },
+    })
+    expect(saved.json().hasPassword).toBe(true)
+    const gated = await ctx.app.inject({ method: 'GET', url: '/s/gated' })
+    expect(gated.statusCode).toBe(200)
+    expect(gated.body).toContain('password protected')
+    expect(gated.headers['cache-control']).toBe('no-store')
+    const wrong = await ctx.app.inject({ method: 'POST', url: '/s/gated', payload: { password: 'nope' } })
+    expect(wrong.statusCode).toBe(401)
+    expect(wrong.body).toContain('incorrect')
+    const right = await ctx.app.inject({ method: 'POST', url: '/s/gated', payload: { password: 'poster-secret' } })
+    expect(right.statusCode).toBe(301)
+    expect(right.headers.location).toBe('https://example.com/secret')
+    expect(right.headers['cache-control']).toBe('no-store')
+    const unlocked = await ctx.app.inject({
+      method: 'GET',
+      url: '/s/gated',
+      headers: { cookie: cookieHeader(right.headers['set-cookie']) },
+    })
+    expect(unlocked.statusCode).toBe(301)
+    const cleared = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${created.json().id}`,
+      headers: { cookie: user.cookie },
+      payload: { password: null },
+    })
+    expect(cleared.json().hasPassword).toBe(false)
+    const open = await ctx.app.inject({ method: 'GET', url: '/s/gated' })
+    expect(open.statusCode).toBe(301)
+    expect(open.headers.location).toBe('https://example.com/secret')
+  })
+
   it('assigns a random slug when a saved slug is cleared', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
@@ -185,4 +230,9 @@ async function waitForClicks(db: Awaited<ReturnType<typeof getContext>>['db'], c
     rows = await db.select().from(clickEvents)
   }
   return rows
+}
+
+function cookieHeader(header: unknown): string {
+  const value = Array.isArray(header) ? header[0] : header
+  return typeof value === 'string' ? (value.split(';')[0] ?? '') : ''
 }

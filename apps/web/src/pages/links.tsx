@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { Check, Copy, Save, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { applyUtm, defaultQrStyle, qrWarnings, utmConflicts, type QrStyle, type UtmParams } from '@sharry/shared'
 import { api, type Analytics, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
@@ -168,10 +169,18 @@ export function LinkDetailPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<number | null>(null)
 
   useEffect(() => {
     void load()
   }, [id])
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
+    }
+  }, [])
 
   async function load() {
     const [next, codes, stats] = await Promise.all([
@@ -225,6 +234,36 @@ export function LinkDetailPage() {
       setMessage(slug.trim() ? 'Saved. The short URL keeps this slug.' : 'Saved. A random slug replaced the empty one.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save')
+    }
+  }
+
+  async function clearPassword() {
+    setError('')
+    setMessage('')
+    try {
+      const updated = await api<ShortLink>(`/api/links/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ password: null }),
+      })
+      setLink(updated)
+      setPassword('')
+      setMessage('Password removed. The short link redirects directly.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not remove the password')
+    }
+  }
+
+  async function copyShortUrl() {
+    if (!link?.shortUrl) return
+    setError('')
+    try {
+      await copyText(link.shortUrl)
+      setCopied(true)
+      if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current)
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 2000)
+    } catch (caught) {
+      setCopied(false)
+      setError(caught instanceof Error ? caught.message : 'Could not copy the short URL')
     }
   }
 
@@ -291,15 +330,18 @@ export function LinkDetailPage() {
     <section className="stack">
       <div className="page-head">
         <div>
-          <h1>{link?.slug ?? 'Link'}</h1>
+          <h1>{link?.title?.trim() || link?.slug || 'Link'}</h1>
           {link ? <a className="short-url" href={link.shortUrl} target="_blank" rel="noreferrer">{link.shortUrl}</a> : null}
         </div>
         <div className="btn-row">
-          <Button variant="ghost" type="button" onClick={() => void copyText(link?.shortUrl ?? '')}>Copy</Button>
-          <Button variant="danger" type="button" onClick={() => void remove()}>Delete</Button>
+          <Button form="link-editor" variant="accent" type="submit"><Save size={16} /> Save</Button>
+          <Button variant="ghost" type="button" disabled={!link?.shortUrl} onClick={() => void copyShortUrl()}>
+            {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
+          </Button>
+          <Button variant="danger" type="button" onClick={() => void remove()}><Trash2 size={16} /> Delete</Button>
         </div>
       </div>
-      <form className="card stack" onSubmit={(event) => void save(event)}>
+      <form id="link-editor" className="card stack" onSubmit={(event) => void save(event)}>
         <Field label="Destination">
           <input className="input" value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
         </Field>
@@ -322,8 +364,20 @@ export function LinkDetailPage() {
           <input className="input" type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
         </Field>
         <Field label={link?.hasPassword ? 'Replace password' : 'Password'}>
-          <input className="input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Optional" />
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder={link?.hasPassword ? 'Leave blank to keep it.' : 'Optional'}
+            autoComplete="new-password"
+          />
+          <p className="hint">
+            Visitors must enter this password before the short link redirects.
+            {link?.hasPassword ? ' A password is already saved.' : ''}
+          </p>
         </Field>
+        {link?.hasPassword ? <Button variant="ghost" type="button" onClick={() => void clearPassword()}>Remove password</Button> : null}
         <UtmFields utm={utm} onChange={setUtm} />
         {conflicts.length > 0 ? <p className="error">This will replace {conflicts.join(', ')} on the destination.</p> : null}
         <p className="muted">Tracked URL: {previewDestination(destinationUrl, utm)}</p>

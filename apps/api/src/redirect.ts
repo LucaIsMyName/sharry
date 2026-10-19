@@ -46,18 +46,18 @@ export async function tryShortLink(
         : ''
       const ok = password ? await verifyPassword(link.passwordHash, password) : false
       if (!ok) {
-        reply.code(401).type('text/html').send(passwordPage(slug, prefix, true))
+        reply.code(401).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, true))
         return true
       }
       reply.setCookie(UNLOCK_COOKIE, signUnlock(link.id, app.env.SESSION_SECRET), {
         httpOnly: true,
         secure: app.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        path: `${prefix}/${encodeURIComponent(link.slug)}`,
+        path: '/',
         maxAge: 15 * 60,
       })
     } else {
-      reply.code(200).type('text/html').send(passwordPage(slug, prefix, false))
+      reply.code(200).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, false))
       return true
     }
   }
@@ -73,7 +73,7 @@ export async function tryShortLink(
     rememberClick(reply, draft)
   }
   reply.code(status === 301 || status === 302 || status === 307 || status === 308 ? status : 302)
-  if (status === 302 || status === 307) reply.header('cache-control', 'no-store')
+  if (status === 302 || status === 307 || link.passwordHash) reply.header('cache-control', 'no-store')
   reply.header('location', destination.url).send()
   return true
 }
