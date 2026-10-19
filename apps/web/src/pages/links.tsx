@@ -6,10 +6,15 @@ import { applyUtm, defaultQrStyle, qrWarnings, utmConflicts, type QrStyle, type 
 import { api, type Analytics, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
 import { choiceNote, correctionOptions, redirectOptions } from '../choices.ts'
 import { downloadQr, QrPreview } from '../components/qr-preview.tsx'
-import { Button } from '../components/ui/button.tsx'
+import { Badge } from '../components/ui/badge.tsx'
+import { Button, buttonVariants } from '../components/ui/button.tsx'
+import { Card, CardContent } from '../components/ui/card.tsx'
+import { Checkbox } from '../components/ui/checkbox.tsx'
+import { Select } from '../components/ui/choice-select.tsx'
 import { copyText } from '../components/ui/copy.ts'
 import { Field } from '../components/ui/field.tsx'
-import { Select } from '../components/ui/select.tsx'
+import { Input } from '../components/ui/input.tsx'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
 import { Breakdown, ClickChart } from './analytics.tsx'
 
 const emptyUtm: UtmParams = {}
@@ -57,33 +62,35 @@ export function LinksPage() {
 
   return (
     <section>
-      <div className="page-head">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1>Links</h1>
-          <p className="muted">The slug stays put when you edit where it goes.</p>
+          <h1 className="font-heading text-4xl font-medium tracking-tight">Links</h1>
+          <p className="text-sm text-muted-foreground">The slug stays put when you edit where it goes.</p>
         </div>
-        <Link className="btn btn-accent" to="/links/new">New link</Link>
+        <Link className={buttonVariants()} to="/links/new">New link</Link>
       </div>
       <Field label="Search">
-        <input className="input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Slug, title, or destination" />
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Slug, title, or destination" />
       </Field>
-      {error ? <p className="error">{error}</p> : null}
-      <div className="card">
-        {links.length === 0 ? <p className="muted">No links match.</p> : (
-          <table className="table">
-            <thead><tr><th>Short URL</th><th>Destination</th><th>Status</th></tr></thead>
-            <tbody>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <Card className="mt-4">
+        <CardContent>
+        {links.length === 0 ? <p className="text-sm text-muted-foreground">No links match.</p> : (
+          <Table>
+            <TableHeader><TableRow><TableHead>Short URL</TableHead><TableHead>Destination</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableBody>
               {links.map((link) => (
-                <tr key={link.id}>
-                  <td><Link className="short-url" to={`/links/${link.id}`}>{link.shortUrl}</Link></td>
-                  <td className="muted">{link.destinationUrl}</td>
-                  <td><span className={link.status === 'active' ? 'badge' : 'badge badge-off'}>{link.status}</span></td>
-                </tr>
+                <TableRow key={link.id}>
+                  <TableCell className="whitespace-normal"><Link className="font-mono text-sm break-all text-muted-foreground hover:text-primary" to={`/links/${link.id}`}>{link.shortUrl}</Link></TableCell>
+                  <TableCell className="whitespace-normal text-muted-foreground">{link.destinationUrl}</TableCell>
+                  <TableCell><Badge variant={link.status === 'active' ? 'secondary' : 'destructive'}>{link.status}</Badge></TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </section>
   )
 }
@@ -122,27 +129,29 @@ export function LinkFormPage() {
   const conflicts = utmConflicts(destinationUrl, utm)
   return (
     <section>
-      <div className="page-head"><h1>New link</h1></div>
-      <form className="card stack" onSubmit={(event) => void submit(event)}>
+      <h1 className="mb-5 font-heading text-4xl font-medium tracking-tight">New link</h1>
+      <Card><CardContent>
+      <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
         <Field label="Destination">
-          <input className="input" value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
+          <Input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
         </Field>
         <Field label="Title">
-          <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
         <Field label="Custom slug">
-          <input className="input" value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Leave blank for a random slug" />
+          <Input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Leave blank for a random slug" />
         </Field>
         <Field label="Redirect">
           <Select value={redirectType} options={[...redirectOptions]} onValueChange={setRedirectType} />
-          <p className="hint">{choiceNote(redirectOptions, redirectType)}</p>
+          <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
         </Field>
         <UtmFields utm={utm} onChange={setUtm} />
-        {conflicts.length > 0 ? <p className="error">Saving will replace {conflicts.join(', ')} already present on the destination.</p> : null}
-        {settings ? <p className="muted">Preview: {previewDestination(destinationUrl, utm)}</p> : null}
-        {error ? <p className="error">{error}</p> : null}
-        <Button variant="accent" type="submit">Create link</Button>
+        {conflicts.length > 0 ? <p className="text-sm text-destructive">Saving will replace {conflicts.join(', ')} already present on the destination.</p> : null}
+        {settings ? <p className="text-sm text-muted-foreground">Preview: {previewDestination(destinationUrl, utm)}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <Button type="submit">Create link</Button>
       </form>
+      </CardContent></Card>
     </section>
   )
 }
@@ -327,116 +336,119 @@ export function LinkDetailPage() {
   const previewUrl = activeQr?.url ?? link?.shortUrl ?? ''
 
   return (
-    <section className="stack">
-      <div className="page-head">
+    <section className="grid gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1>{link?.title?.trim() || link?.slug || 'Link'}</h1>
-          {link ? <a className="short-url" href={link.shortUrl} target="_blank" rel="noreferrer">{link.shortUrl}</a> : null}
+          <h1 className="font-heading text-4xl font-medium tracking-tight">{link?.title?.trim() || link?.slug || 'Link'}</h1>
+          {link ? <a className="mt-1.5 block font-mono text-sm break-all text-muted-foreground underline-offset-3 hover:text-primary" href={link.shortUrl} target="_blank" rel="noreferrer">{link.shortUrl}</a> : null}
         </div>
-        <div className="btn-row">
-          <Button form="link-editor" variant="accent" type="submit"><Save size={16} /> Save</Button>
-          <Button variant="ghost" type="button" disabled={!link?.shortUrl} onClick={() => void copyShortUrl()}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button form="link-editor" type="submit"><Save size={16} /> Save</Button>
+          <Button variant="outline" type="button" disabled={!link?.shortUrl} onClick={() => void copyShortUrl()}>
             {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
           </Button>
-          <Button variant="danger" type="button" onClick={() => void remove()}><Trash2 size={16} /> Delete</Button>
+          <Button variant="destructive" type="button" onClick={() => void remove()}><Trash2 size={16} /> Delete</Button>
         </div>
       </div>
-      <form id="link-editor" className="card stack" onSubmit={(event) => void save(event)}>
+      <Card><CardContent>
+      <form id="link-editor" className="grid gap-3" onSubmit={(event) => void save(event)}>
         <Field label="Destination">
-          <input className="input" value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
+          <Input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
         </Field>
         <Field label="Slug">
-          <input className="input" value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Leave blank for a random slug" />
+          <Input value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Leave blank for a random slug" />
         </Field>
         <Field label="Title">
-          <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} />
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
-        <div className="split">
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
           <Field label="Redirect">
             <Select value={redirectType} options={[...redirectOptions]} onValueChange={setRedirectType} />
-            <p className="hint">{choiceNote(redirectOptions, redirectType)}</p>
+            <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
           </Field>
           <Field label="Status">
             <Select value={status} options={[...statusOptions]} onValueChange={setStatus} />
           </Field>
         </div>
         <Field label="Expires">
-          <input className="input" type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
+          <Input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} />
         </Field>
         <Field label={link?.hasPassword ? 'Replace password' : 'Password'}>
-          <input
-            className="input"
+          <Input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder={link?.hasPassword ? 'Leave blank to keep it.' : 'Optional'}
             autoComplete="new-password"
           />
-          <p className="hint">
+          <p className="text-[13px] leading-snug font-normal text-muted-foreground">
             Visitors must enter this password before the short link redirects.
             {link?.hasPassword ? ' A password is already saved.' : ''}
           </p>
         </Field>
-        {link?.hasPassword ? <Button variant="ghost" type="button" onClick={() => void clearPassword()}>Remove password</Button> : null}
+        {link?.hasPassword ? <Button variant="outline" type="button" onClick={() => void clearPassword()}>Remove password</Button> : null}
         <UtmFields utm={utm} onChange={setUtm} />
-        {conflicts.length > 0 ? <p className="error">This will replace {conflicts.join(', ')} on the destination.</p> : null}
-        <p className="muted">Tracked URL: {previewDestination(destinationUrl, utm)}</p>
+        {conflicts.length > 0 ? <p className="text-sm text-destructive">This will replace {conflicts.join(', ')} on the destination.</p> : null}
+        <p className="text-sm text-muted-foreground">Tracked URL: {previewDestination(destinationUrl, utm)}</p>
         {message ? <p>{message}</p> : null}
-        {error ? <p className="error">{error}</p> : null}
-        <Button variant="accent" type="submit">Save link</Button>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        <Button type="submit">Save link</Button>
       </form>
-      <div className="split">
-        <form className="card stack" onSubmit={(event) => void createQr(event)}>
+      </CardContent></Card>
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card><CardContent>
+        <form className="grid gap-3" onSubmit={(event) => void createQr(event)}>
           <h2>QR code</h2>
-          <Field label="Name"><input className="input" value={qrName} onChange={(event) => setQrName(event.target.value)} required /></Field>
+          <Field label="Name"><Input value={qrName} onChange={(event) => setQrName(event.target.value)} required /></Field>
           <Field label="Modules">
             <Select value={style.dotsType} options={[...moduleOptions]} onValueChange={(dotsType) => setStyle({ ...style, dotsType })} />
           </Field>
           <Field label="Finder">
             <Select value={style.cornersSquareType} options={[...finderOptions]} onValueChange={(cornersSquareType) => setStyle({ ...style, cornersSquareType })} />
           </Field>
-          <div className="split">
-            <Field label="Foreground"><input className="input" type="color" value={style.dotsColor} onChange={(event) => setStyle({ ...style, dotsColor: event.target.value, cornersSquareColor: event.target.value, cornersDotColor: event.target.value })} /></Field>
-            <Field label="Background"><input className="input" type="color" value={style.backgroundColor} onChange={(event) => setStyle({ ...style, backgroundColor: event.target.value })} /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Foreground"><Input type="color" value={style.dotsColor} onChange={(event) => setStyle({ ...style, dotsColor: event.target.value, cornersSquareColor: event.target.value, cornersDotColor: event.target.value })} /></Field>
+            <Field label="Background"><Input type="color" value={style.backgroundColor} onChange={(event) => setStyle({ ...style, backgroundColor: event.target.value })} /></Field>
           </div>
-          <label className="row"><input type="checkbox" checked={style.backgroundTransparent} onChange={(event) => setStyle({ ...style, backgroundTransparent: event.target.checked })} /> Transparent background</label>
+          <label className="flex items-center gap-2 text-sm font-medium"><Checkbox checked={style.backgroundTransparent} onCheckedChange={(checked) => setStyle({ ...style, backgroundTransparent: checked === true })} /> Transparent background</label>
           <Field label="Center image scale">
-            <input className="input" type="number" min="0" max="0.45" step="0.01" value={style.imageSize} onChange={(event) => setStyle({ ...style, imageSize: Number(event.target.value) })} />
+            <Input type="number" min="0" max="0.45" step="0.01" value={style.imageSize} onChange={(event) => setStyle({ ...style, imageSize: Number(event.target.value) })} />
           </Field>
           <Field label="Error correction">
             <Select value={style.errorCorrectionLevel} options={[...correctionOptions]} onValueChange={(errorCorrectionLevel) => setStyle({ ...style, errorCorrectionLevel })} />
-            <p className="hint">{choiceNote(correctionOptions, style.errorCorrectionLevel)}</p>
+            <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(correctionOptions, style.errorCorrectionLevel)}</p>
           </Field>
           <Field label="Quiet zone">
-            <input className="input" type="number" min="0" max="16" value={style.margin} onChange={(event) => setStyle({ ...style, margin: Number(event.target.value) })} />
+            <Input type="number" min="0" max="16" value={style.margin} onChange={(event) => setStyle({ ...style, margin: Number(event.target.value) })} />
           </Field>
           <Field label="Center image">
-            <input key={logoInputKey} className="input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+            <Input key={logoInputKey} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
               const file = event.target.files?.[0] ?? null
               setLogoFile(file)
               if (file) setLogoUrl(URL.createObjectURL(file))
             }} />
-            {logoUrl ? <Button variant="ghost" type="button" onClick={() => void removeCenterImage()}>Remove center image</Button> : null}
+            {logoUrl ? <Button variant="outline" type="button" onClick={() => void removeCenterImage()}>Remove center image</Button> : null}
           </Field>
-          {warnings.map((warning) => <p key={warning} className="error">{warning}</p>)}
+          {warnings.map((warning) => <p key={warning} className="text-sm text-destructive">{warning}</p>)}
           <Button type="submit">Save QR style</Button>
-          <div className="btn-row">
-            <Button variant="ghost" type="button" onClick={() => void downloadQr(previewUrl, style, logoUrl, 'svg', slug || 'sharry')}>SVG</Button>
-            <Button variant="ghost" type="button" onClick={() => void downloadQr(previewUrl, style, logoUrl, 'png', slug || 'sharry')}>PNG</Button>
-            <Button variant="ghost" type="button" onClick={() => void downloadQr(previewUrl, { ...style, backgroundTransparent: false }, logoUrl, 'jpeg', slug || 'sharry')}>JPEG</Button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button variant="outline" type="button" onClick={() => void downloadQr(previewUrl, style, logoUrl, 'svg', slug || 'sharry')}>SVG</Button>
+            <Button variant="outline" type="button" onClick={() => void downloadQr(previewUrl, style, logoUrl, 'png', slug || 'sharry')}>PNG</Button>
+            <Button variant="outline" type="button" onClick={() => void downloadQr(previewUrl, { ...style, backgroundTransparent: false }, logoUrl, 'jpeg', slug || 'sharry')}>JPEG</Button>
           </div>
         </form>
+        </CardContent></Card>
         <QrPreview url={previewUrl || 'https://example.com'} style={style} logoUrl={logoUrl} />
       </div>
       {qrCodes.length > 0 ? (
-        <div className="card">
-          <h2>Saved codes</h2>
-          <ul>
+        <Card><CardContent>
+          <h2 className="mb-2 text-lg font-medium">Saved codes</h2>
+          <ul className="grid gap-2">
             {qrCodes.map((code) => (
               <li key={code.id}>
-                <button
+                <Button
+                  variant="outline"
                   type="button"
-                  className="btn btn-ghost"
                   onClick={() => {
                     setActiveQr(code)
                     setStyle(code.style)
@@ -444,17 +456,17 @@ export function LinkDetailPage() {
                   }}
                 >
                   {code.name}
-                </button>
+                </Button>
                 {' · '}
-                {code.url}
+                <span className="font-mono text-sm break-all text-muted-foreground">{code.url}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </CardContent></Card>
       ) : null}
       {analytics ? (
-        <div className="stack">
-          <div className="card"><ClickChart series={analytics.series} /></div>
+        <div className="grid gap-4">
+          <Card><CardContent><ClickChart series={analytics.series} /></CardContent></Card>
           <Breakdown title="QR codes" rows={analytics.qrCodes.map((row) => ({ name: row.name, clicks: row.clicks }))} />
         </div>
       ) : null}
@@ -465,10 +477,10 @@ export function LinkDetailPage() {
 function UtmFields({ utm, onChange }: { utm: UtmParams; onChange: (utm: UtmParams) => void }) {
   const fields = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'] as const
   return (
-    <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+    <div className="grid gap-3 sm:grid-cols-2">
       {fields.map((key) => (
         <Field key={key} label={key}>
-          <input className="input" value={utm[key] ?? ''} onChange={(event) => onChange({ ...utm, [key]: event.target.value })} />
+          <Input value={utm[key] ?? ''} onChange={(event) => onChange({ ...utm, [key]: event.target.value })} />
         </Field>
       ))}
     </div>

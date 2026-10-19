@@ -21,10 +21,10 @@ export function QrPreview({ url, style, logoUrl }: { url: string; style: QrStyle
 
   const warnings = qrWarnings(style, Boolean(logoUrl))
   return (
-    <div className="stack">
-      <div className="qr-frame" ref={ref} />
-      {warnings.map((warning) => <p key={warning} className="error">{warning}</p>)}
-      <p className="muted">JPEG downloads use a solid background because JPEG cannot store transparency.</p>
+    <div className="grid gap-3">
+      <div className="grid min-h-72 place-items-center rounded-2xl bg-white p-3" ref={ref} />
+      {warnings.map((warning) => <p key={warning} className="text-sm text-destructive">{warning}</p>)}
+      <p className="text-sm text-muted-foreground">JPEG downloads use a solid background because JPEG cannot store transparency.</p>
     </div>
   )
 }

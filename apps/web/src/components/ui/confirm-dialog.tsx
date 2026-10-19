@@ -1,6 +1,6 @@
-import { Dialog } from '@base-ui/react/dialog'
 import type { ReactNode } from 'react'
 import { Button } from './button.tsx'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog.tsx'
 
 export function ConfirmDialog({
   open,
@@ -20,19 +20,18 @@ export function ConfirmDialog({
   children?: ReactNode
 }) {
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Backdrop className="dialog-backdrop" />
-        <Dialog.Popup className="dialog">
-          <Dialog.Title className="brand" style={{ fontSize: 32 }}>{title}</Dialog.Title>
-          <Dialog.Description className="lede">{description}</Dialog.Description>
-          {children}
-          <div className="btn-row">
-            <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button variant="accent" type="button" onClick={onConfirm}>{confirmLabel}</Button>
-          </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-2xl">{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {children}
+        <DialogFooter className="border-0 bg-transparent sm:justify-start">
+          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" onClick={onConfirm}>{confirmLabel}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

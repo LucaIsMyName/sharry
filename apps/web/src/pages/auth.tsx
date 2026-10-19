@@ -3,7 +3,9 @@ import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api, type Me } from '../api.ts'
 import { Button } from '../components/ui/button.tsx'
+import { Card, CardContent } from '../components/ui/card.tsx'
 import { Field } from '../components/ui/field.tsx'
+import { Input } from '../components/ui/input.tsx'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -32,14 +34,14 @@ export function LoginPage() {
     <AuthShell title="Sign in" lede="Use your username or email. A code is required only when this account has turned on two-factor authentication.">
       <form onSubmit={(event) => void submit(event)}>
         <Field label="Username or email">
-          <input className="input" value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} autoComplete="username" required />
+          <Input value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} autoComplete="username" required />
         </Field>
         <Field label="Password">
-          <input className="input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
         </Field>
-        {error ? <p className="error">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit">Continue</Button>
-        <p className="muted"><Link to="/login/reset">Forgot password</Link></p>
+        <p className="mt-3 text-sm text-muted-foreground"><Link to="/login/reset">Forgot password</Link></p>
       </form>
     </AuthShell>
   )
@@ -64,9 +66,9 @@ export function MfaPage() {
     <AuthShell title="Two-factor code" lede="Enter the code from your authenticator app, or a recovery code.">
       <form onSubmit={(event) => void submit(event)}>
         <Field label="Code">
-          <input className="input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" required />
+          <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" required />
         </Field>
-        {error ? <p className="error">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit">Verify</Button>
       </form>
     </AuthShell>
@@ -98,12 +100,12 @@ export function PasswordPage() {
     <AuthShell title="Choose a new password" lede="The first password is temporary. Use at least 12 characters.">
       <form onSubmit={(event) => void submit(event)}>
         <Field label="Current password">
-          <input className="input" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+          <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
         </Field>
         <Field label="New password">
-          <input className="input" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} required />
+          <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} required />
         </Field>
-        {error ? <p className="error">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit">Update password</Button>
       </form>
     </AuthShell>
@@ -143,31 +145,34 @@ export function AccountPage() {
   }
 
   return (
-    <section className="stack">
-      <div className="page-head">
-        <div>
-          <h1>Account</h1>
-          <p className="muted">{me?.user.email}</p>
-        </div>
+    <section className="grid gap-4">
+      <div className="mb-1">
+        <h1 className="font-heading text-4xl font-medium tracking-tight">Account</h1>
+        <p className="text-sm text-muted-foreground">{me?.user.email}</p>
       </div>
-      <form className="card stack" onSubmit={(event) => void submit(event)}>
+      <Card>
+      <CardContent>
+      <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
         <h2>Password</h2>
         <Field label="Current password">
-          <input className="input" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required />
+          <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required />
         </Field>
         <Field label="New password">
-          <input className="input" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
+          <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
         </Field>
         {message ? <p>{message}</p> : null}
-        {error ? <p className="error">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit">Update password</Button>
       </form>
-      <div className="card stack">
-        <h2>Two-factor authentication</h2>
-        {me?.mfaRequired ? <p className="muted">An administrator requires a code at sign-in.</p> : <p className="muted">Optional. Turn it on for this account when you want a code at sign-in.</p>}
+      </CardContent>
+      </Card>
+      <Card>
+      <CardContent className="grid gap-3">
+        <h2 className="text-lg font-medium">Two-factor authentication</h2>
+        {me?.mfaRequired ? <p className="text-sm text-muted-foreground">An administrator requires a code at sign-in.</p> : <p className="text-sm text-muted-foreground">Optional. Turn it on for this account when you want a code at sign-in.</p>}
         {me?.user.totpEnabled ? (
           <form
-            className="stack"
+            className="grid gap-3"
             onSubmit={(event) => {
               event.preventDefault()
               setError('')
@@ -183,21 +188,21 @@ export function AccountPage() {
           >
             <p>A code is required for this account.</p>
             <Field label="Current password">
-              <input className="input" type="password" value={disablePassword} onChange={(event) => setDisablePassword(event.target.value)} required />
+              <Input type="password" value={disablePassword} onChange={(event) => setDisablePassword(event.target.value)} required />
             </Field>
             <Button type="submit">Turn off</Button>
           </form>
         ) : recovery ? (
           <>
             <p>Save these recovery codes somewhere private. Each code works once.</p>
-            <div className="codes">{recovery.map((item) => <code key={item}>{item}</code>)}</div>
+            <div className="grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-lg bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
           </>
         ) : (
           <>
             {!setup ? <Button type="button" onClick={() => void api<{ secret: string }>('/api/auth/mfa/setup', { method: 'POST' }).then(setSetup).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not start setup'))}>Turn on</Button> : null}
             {setup ? (
               <form
-                className="stack"
+                className="grid gap-3"
                 onSubmit={(event) => {
                   event.preventDefault()
                   void api<{ recoveryCodes: string[] }>('/api/auth/mfa/confirm', { method: 'POST', body: JSON.stringify({ code }) })
@@ -211,14 +216,15 @@ export function AccountPage() {
                 <p>Add this secret to your authenticator app:</p>
                 <p><code>{setup.secret}</code></p>
                 <Field label="Confirmation code">
-                  <input className="input" value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" required />
+                  <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" required />
                 </Field>
                 <Button type="submit">Confirm</Button>
               </form>
             ) : null}
           </>
         )}
-      </div>
+      </CardContent>
+      </Card>
     </section>
   )
 }
@@ -257,7 +263,7 @@ export function EnrollPage() {
       {recovery ? (
         <>
           <p>Save these recovery codes somewhere private. Each code works once.</p>
-          <div className="codes">{recovery.map((item) => <code key={item}>{item}</code>)}</div>
+          <div className="my-4 grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-lg bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
           <Button type="button" onClick={() => void navigate('/')}>Continue</Button>
         </>
       ) : (
@@ -268,12 +274,12 @@ export function EnrollPage() {
               <p>Add this secret to your authenticator app:</p>
               <p><code>{setup.secret}</code></p>
               <Field label="Confirmation code">
-                <input className="input" value={code} onChange={(event) => setCode(event.target.value)} required />
+                <Input value={code} onChange={(event) => setCode(event.target.value)} required />
               </Field>
               <Button type="submit">Confirm</Button>
             </form>
           ) : null}
-          {error ? <p className="error">{error}</p> : null}
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </>
       )}
     </AuthShell>
@@ -314,20 +320,20 @@ export function ResetPage() {
       {token ? (
         <form onSubmit={(event) => void reset(event)}>
           <Field label="New password">
-            <input className="input" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required />
+            <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required />
           </Field>
           <Button type="submit">Save password</Button>
         </form>
       ) : (
         <form onSubmit={(event) => void requestReset(event)}>
           <Field label="Email">
-            <input className="input" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </Field>
           <Button type="submit">Send reset link</Button>
         </form>
       )}
       {message ? <p>{message}</p> : null}
-      {error ? <p className="error">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <p><Link to="/login">Back to sign in</Link></p>
     </AuthShell>
   )
@@ -335,13 +341,15 @@ export function ResetPage() {
 
 function AuthShell({ title, lede, children }: { title: string; lede: string; children: ReactNode }) {
   return (
-    <div className="auth-screen">
-      <section className="auth-card">
-        <p className="brand">sharry</p>
-        <h1 style={{ fontWeight: 500 }}>{title}</h1>
-        <p className="lede">{lede}</p>
-        {children}
-      </section>
+    <div className="grid min-h-svh place-items-center bg-[radial-gradient(circle_at_top_left,rgba(227,106,46,0.18),transparent_32%),var(--background)] p-6">
+      <Card className="w-full max-w-md">
+        <CardContent className="grid gap-3">
+          <p className="font-heading text-4xl font-medium tracking-tight">sharry</p>
+          <h1 className="text-2xl font-medium">{title}</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">{lede}</p>
+          {children}
+        </CardContent>
+      </Card>
     </div>
   )
 }
