@@ -1,0 +1,36 @@
+{
+  "name": "@sharry/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/helmet": "^13.0.1",
+    "@fastify/multipart": "^9.0.3",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/static": "^8.2.0",
+    "@sharry/database": "*",
+    "@sharry/shared": "*",
+    "argon2": "^0.44.0",
+    "drizzle-orm": "^0.44.2",
+    "fastify": "^5.4.0",
+    "maxmind": "^4.3.24",
+    "nodemailer": "^7.0.5",
+    "otpauth": "^9.4.0",
+    "pg": "^8.16.3",
+    "sharp": "^0.34.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.15.4",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,24 @@
+[Unit]
+Description=Sharry link shortener
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=sharry
+Group=sharry
+WorkingDirectory=__APP_DIR__/current
+EnvironmentFile=__APP_DIR__/shared/.env
+ExecStart=/usr/bin/node apps/api/dist/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=__APP_DIR__/shared/data __APP_DIR__/current/data
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+{
+  "name": "@sharry/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5"
+  }
+}

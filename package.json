@@ -1,0 +1,38 @@
+{
+  "name": "sharry",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"tsx watch apps/api/src/index.ts\" \"npm run dev -w @sharry/web\"",
+    "build": "npm run build -w @sharry/web && npm run build -w @sharry/api",
+    "start": "node apps/api/dist/index.js",
+    "typecheck": "tsc -p packages/shared/tsconfig.json --noEmit && tsc -p packages/database/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit && tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "setup": "tsx scripts/setup.ts",
+    "create-admin": "tsx scripts/create-admin.ts",
+    "backup": "tsx scripts/backup.ts",
+    "deploy": "tsx scripts/deploy.ts"
+  },
+  "dependencies": {
+    "ssh2": "^1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/ssh2": "^1.15.5",
+    "concurrently": "^9.1.2",
+    "drizzle-kit": "^0.31.4",
+    "embedded-postgres": "^18.1.0-beta.16",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

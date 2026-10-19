@@ -1,0 +1,5 @@
+# Replace the site address, then install this file for Caddy.
+# Caddy terminates HTTPS and proxies every request to Sharry.
+share.example.com {
+	reverse_proxy 127.0.0.1:3000
+}
