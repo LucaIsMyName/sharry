@@ -30,7 +30,9 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
   app.get('/api/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const range = parseRange(request.query)
-    return loadAnalytics(app.db, { userId: actor.role === 'admin' ? undefined : actor.id }, range)
+    const filter = { userId: actor.role === 'admin' ? undefined : actor.id }
+    const analytics = await loadAnalytics(app.db, filter, range)
+    return { ...analytics, links: await loadLinkStats(app.db, filter, range) }
   })
 
   app.get('/api/links/:id/analytics', async (request) => {
@@ -131,6 +133,37 @@ export async function loadAnalytics(
       `),
     ),
   }
+}
+
+async function loadLinkStats(
+  db: Database,
+  filter: { userId?: string },
+  range: { from: Date; to: Date },
+) {
+  const owner = filter.userId ? sql`l.user_id = ${filter.userId}` : sql`true`
+  const rows = rowsOf<{ id: string; slug: string; title: string | null; clicks: number; unique_visitors: number }>(
+    await db.execute(sql`
+      select l.id::text as id, l.slug, l.title,
+             count(e.id)::int as clicks,
+             count(distinct e.anonymous_visitor_id)::int as unique_visitors
+      from links l
+      left join click_events e
+        on e.link_id = l.id
+       and e.occurred_at >= ${range.from}
+       and e.occurred_at < ${range.to}
+      where ${owner}
+      group by l.id
+      order by clicks desc, l.created_at desc
+      limit 200
+    `),
+  )
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    clicks: row.clicks,
+    uniqueVisitors: row.unique_visitors,
+  }))
 }
 
 function filterSql(filter: { linkId?: string; userId?: string }, range: { from: Date; to: Date }) {

@@ -177,6 +177,50 @@ describe('short links', () => {
     expect(slug).toHaveLength(5)
   })
 
+  it('lists click counts per link and keeps a single link separate', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const other = await createSessionUser(ctx, { username: 'grace', email: 'grace@example.com' })
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const busy = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/busy', slug: 'busy', title: 'Busy' },
+    })
+    await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/quiet', slug: 'quiet', title: 'Quiet' },
+    })
+    await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: other.cookie },
+      payload: { destinationUrl: 'https://example.com/foreign', slug: 'foreign' },
+    })
+    await ctx.app.inject({ method: 'GET', url: '/s/busy' })
+    await ctx.app.inject({ method: 'GET', url: '/s/busy' })
+    await ctx.app.inject({ method: 'GET', url: '/s/foreign' })
+    await waitForClicks(ctx.db, 3)
+    const overview = await ctx.app.inject({ method: 'GET', url: '/api/analytics', headers: { cookie: user.cookie } })
+    expect(overview.statusCode).toBe(200)
+    const rows = overview.json().links as { slug: string; title: string | null; clicks: number }[]
+    expect(rows.map((row) => row.slug)).toEqual(['busy', 'quiet'])
+    expect(rows[0]).toMatchObject({ title: 'Busy', clicks: 2 })
+    expect(rows[1]).toMatchObject({ title: 'Quiet', clicks: 0 })
+    const adminView = await ctx.app.inject({ method: 'GET', url: '/api/analytics', headers: { cookie: admin.cookie } })
+    expect((adminView.json().links as { slug: string }[]).map((row) => row.slug).sort()).toEqual(['busy', 'foreign', 'quiet'])
+    const one = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${busy.json().id}/analytics`,
+      headers: { cookie: user.cookie },
+    })
+    expect(one.json().totalClicks).toBe(2)
+    expect(one.json().links).toBeUndefined()
+  })
+
   it('assigns a random slug when a saved slug is cleared', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })

@@ -67,6 +67,14 @@ export type PublicSettings = {
   defaultQrStyle: QrStyle
 }
 
+export type LinkStat = {
+  id: string
+  slug: string
+  title: string | null
+  clicks: number
+  uniqueVisitors: number
+}
+
 export type Analytics = {
   totalClicks: number
   uniqueVisitors: number
