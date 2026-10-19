@@ -16,7 +16,7 @@ export const qrStyleSchema = z.object({
   cornersSquareType: z.enum(qrCorners).default('extra-rounded'),
   cornersSquareColor: color.default('#1a1814'),
   cornersDotType: z.enum(qrCornerDots).default('dot'),
-  cornersDotColor: color.default('#0c6b4d'),
+  cornersDotColor: color.default('#1a1814'),
   backgroundColor: color.default('#ffffff'),
   backgroundTransparent: z.boolean().default(false),
   errorCorrectionLevel: z.enum(qrEcc).default('H'),
@@ -50,7 +50,7 @@ export function parseQrStyle(value: unknown): QrStyle {
     cornersSquareType: parsed.cornersSquareType ?? 'extra-rounded',
     cornersSquareColor: parsed.cornersSquareColor ?? '#1a1814',
     cornersDotType: parsed.cornersDotType ?? 'dot',
-    cornersDotColor: parsed.cornersDotColor ?? '#0c6b4d',
+    cornersDotColor: parsed.dotsColor ?? '#1a1814',
     backgroundColor: parsed.backgroundColor ?? '#ffffff',
     backgroundTransparent: parsed.backgroundTransparent ?? false,
     errorCorrectionLevel: parsed.errorCorrectionLevel ?? 'H',
@@ -149,7 +149,7 @@ function finderMarkupAt(style: QrStyle, x: number, y: number, cell: number): str
   const innerRadius = style.cornersDotType === 'dot' ? inner / 2 : inner * 0.2
   return `<path fill="${style.cornersSquareColor}" d="${roundRect(x, y, outer, outerRadius)}"/>
 <path fill="${background}" d="${roundRect(x + midOffset, y + midOffset, mid, midRadius)}"/>
-<path fill="${style.cornersDotColor}" d="${roundRect(x + innerOffset, y + innerOffset, inner, innerRadius)}"/>`
+<path fill="${style.dotsColor}" d="${roundRect(x + innerOffset, y + innerOffset, inner, innerRadius)}"/>`
 }
 
 function finderRadius(type: QrStyle['cornersSquareType'], size: number): number {

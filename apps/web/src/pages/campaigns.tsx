@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { api, type ShortLink } from '../api.ts'
-import { Button, Field } from '../components/ui.tsx'
+import { Button } from '../components/ui/button.tsx'
+import { Field } from '../components/ui/field.tsx'
+import { Select } from '../components/ui/select.tsx'
 
 type Campaign = { id: string; name: string; description: string | null }
 type Variant = { id: string; name: string; linkId: string; utm: Record<string, string | null> }
@@ -88,9 +90,12 @@ export function CampaignDetailPage() {
       <form className="card stack" onSubmit={(event) => void submit(event)}>
         <Field label="Variant name"><input className="input" value={name} onChange={(event) => setName(event.target.value)} required /></Field>
         <Field label="Link">
-          <select className="select" value={linkId} onChange={(event) => setLinkId(event.target.value)}>
-            {links.map((link) => <option key={link.id} value={link.id}>{link.slug}</option>)}
-          </select>
+          <Select
+            value={linkId}
+            placeholder="Choose a link"
+            options={links.map((link) => ({ value: link.id, label: link.shortUrl }))}
+            onValueChange={setLinkId}
+          />
         </Field>
         {error ? <p className="error">{error}</p> : null}
         <Button type="submit">Add variant</Button>

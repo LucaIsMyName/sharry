@@ -178,8 +178,10 @@ export async function updateLink(
   settings: AppSettings,
 ): Promise<LinkRecord> {
   const current = await getLinkForActor(db, actor, id)
-  if (input.slug) {
-    const error = validateSlug(input.slug)
+  const requestedSlug = input.slug?.trim()
+  const assignRandomSlug = input.slug !== undefined && !requestedSlug
+  if (requestedSlug) {
+    const error = validateSlug(requestedSlug)
     if (error) throw new AppError(400, error, 'validation')
   }
   const passwordHash =
@@ -196,9 +198,23 @@ export async function updateLink(
     if (input.status) patch.status = input.status
     if (input.expiresAt !== undefined) patch.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null
     if (passwordHash !== undefined) patch.passwordHash = passwordHash
-    if (input.slug && input.slug.toLowerCase() !== current.slug.toLowerCase()) patch.slug = input.slug
+    if (requestedSlug && requestedSlug.toLowerCase() !== current.slug.toLowerCase()) patch.slug = requestedSlug
     let updated = current
-    if (Object.keys(patch).length > 1) {
+    if (assignRandomSlug) {
+      let assigned = false
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const candidate = generateRandomSlug(settings.slugLength)
+        try {
+          updated = await updateWithSavepoint(database, id, { ...patch, slug: candidate })
+          patch.slug = candidate
+          assigned = true
+          break
+        } catch (error) {
+          if (!isUniqueViolation(error)) throw error
+        }
+      }
+      if (!assigned) throw new AppError(409, 'Could not generate a unique slug. Try again.', 'slug_exhausted')
+    } else if (Object.keys(patch).length > 1) {
       try {
         updated = await updateWithSavepoint(database, id, patch)
       } catch (error) {

@@ -172,9 +172,9 @@ function passwordPage(slug: string, prefix: string, failed: boolean): string {
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Password required · Sharry</title>
   <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3efe6; color: #1a1814; font-family: "Avenir Next", "Segoe UI", sans-serif; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3efe6; color: #1a1814; font-family: "Geist Variable", "Geist", sans-serif; }
     form { width: min(420px, calc(100% - 32px)); background: white; border: 1px solid #e6dfd4; border-radius: 18px; padding: 28px; }
-    h1 { font-family: Palatino, Georgia, serif; font-weight: 500; font-size: 32px; margin: 0 0 8px; }
+    h1 { font-family: "Geist Variable", "Geist", sans-serif; font-weight: 500; font-size: 32px; margin: 0 0 8px; letter-spacing: -0.04em; }
     p { color: #6b645c; margin: 0 0 18px; }
     label { display: block; font-weight: 600; margin-bottom: 8px; }
     input { width: 100%; box-sizing: border-box; border: 1px solid #ddd6ca; border-radius: 10px; padding: 12px 14px; font: inherit; }

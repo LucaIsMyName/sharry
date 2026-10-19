@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLoaderData, useNavigate } from 'react-router'
 import { api, type Me } from '../api.ts'
-import { Button } from './ui.tsx'
+import { Button } from './ui/button.tsx'
 
 export function Shell() {
   const me = useLoaderData() as Me
@@ -28,9 +28,8 @@ export function Shell() {
           {admin ? <NavLink to="/admin/settings">Settings</NavLink> : null}
           {admin ? <NavLink to="/admin/audit">Audit</NavLink> : null}
         </nav>
-        <div className="spacer" />
-        <div className="stack">
-          <span className="muted">{me.user.username}</span>
+        <div className="sidebar-foot">
+          <span className="sidebar-user">{me.user.username}</span>
           <Button variant="ghost" type="button" onClick={() => void logout()}>Sign out</Button>
         </div>
       </aside>

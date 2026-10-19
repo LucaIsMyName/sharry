@@ -45,7 +45,7 @@ function toOptions(url: string, style: QrStyle, logoUrl: string | null, jpeg: bo
     qrOptions: { errorCorrectionLevel: style.errorCorrectionLevel },
     dotsOptions: { type: style.dotsType, color: style.dotsColor },
     cornersSquareOptions: { type: corners, color: style.cornersSquareColor },
-    cornersDotOptions: { type: style.cornersDotType, color: style.cornersDotColor },
+    cornersDotOptions: { type: style.cornersDotType, color: style.dotsColor },
     backgroundOptions: {
       color: jpeg || !style.backgroundTransparent ? (jpeg ? style.jpegBackground : style.backgroundColor) : '#00000000',
     },

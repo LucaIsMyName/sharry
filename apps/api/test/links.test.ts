@@ -92,6 +92,32 @@ describe('short links', () => {
     ).rejects.toThrow(/unique slug/)
   })
 
+  it('assigns a random slug when a saved slug is cleared', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/custom', slug: 'summer-sale' },
+    })
+    const updated = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${created.json().id}`,
+      headers: { cookie: user.cookie },
+      payload: { slug: '' },
+    })
+    expect(updated.statusCode).toBe(200)
+    const slug = updated.json().slug as string
+    expect(slug).not.toBe('summer-sale')
+    expect(slug).toHaveLength(5)
+    const oldPath = await ctx.app.inject({ method: 'GET', url: '/s/summer-sale' })
+    expect(oldPath.statusCode).toBe(404)
+    const next = await ctx.app.inject({ method: 'GET', url: `/s/${slug}` })
+    expect(next.statusCode).toBe(302)
+    expect(next.headers.location).toBe('https://example.com/custom')
+  })
+
   it('changes the destination without changing the slug or click history', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })

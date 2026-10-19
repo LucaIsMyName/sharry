@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { api, type Me } from '../api.ts'
-import { Button, Field } from '../components/ui.tsx'
+import { Button } from '../components/ui/button.tsx'
+import { Field } from '../components/ui/field.tsx'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -337,7 +338,7 @@ function AuthShell({ title, lede, children }: { title: string; lede: string; chi
     <div className="auth-screen">
       <section className="auth-card">
         <p className="brand">sharry</p>
-        <h1 style={{ fontFamily: 'Palatino, Georgia, serif', fontWeight: 500 }}>{title}</h1>
+        <h1 style={{ fontWeight: 500 }}>{title}</h1>
         <p className="lede">{lede}</p>
         {children}
       </section>

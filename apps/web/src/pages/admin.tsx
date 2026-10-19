@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { defaultQrStyle, validatePrefix, type QrStyle } from '@sharry/shared'
 import { api } from '../api.ts'
-import { Button, ConfirmDialog, Field, Toggle } from '../components/ui.tsx'
+import { Button } from '../components/ui/button.tsx'
+import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
+import { Field } from '../components/ui/field.tsx'
+import { Select } from '../components/ui/select.tsx'
+import { choiceNote, redirectOptions } from '../choices.ts'
+import { Toggle } from '../components/ui/toggle.tsx'
 
 type AdminUser = {
   id: string
@@ -71,10 +76,11 @@ export function AdminUsersPage() {
         <Field label="Email"><input className="input" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></Field>
         <Field label="Temporary password"><input className="input" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={12} required /></Field>
         <Field label="Role">
-          <select className="select" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as 'user' })}>
-            <option value="user">user</option>
-            <option value="admin">admin</option>
-          </select>
+          <Select
+            value={form.role}
+            options={[{ value: 'user', label: 'user' }, { value: 'admin', label: 'admin' }]}
+            onValueChange={(role) => setForm({ ...form, role })}
+          />
         </Field>
         {error ? <p className="error">{error}</p> : null}
         <Button type="submit">Create account</Button>
@@ -87,10 +93,11 @@ export function AdminUsersPage() {
               <tr key={user.id}>
                 <td>{user.username}<div className="muted">{user.email}</div></td>
                 <td>
-                  <select className="select" value={user.role} onChange={(event) => void update(user.id, { role: event.target.value })}>
-                    <option value="user">user</option>
-                    <option value="admin">admin</option>
-                  </select>
+                  <Select
+                    value={user.role}
+                    options={[{ value: 'user', label: 'user' }, { value: 'admin', label: 'admin' }]}
+                    onValueChange={(role) => void update(user.id, { role })}
+                  />
                 </td>
                 <td>{user.isActive ? 'Active' : 'Disabled'}{user.mustChangePassword ? ' · password change' : ''}</td>
                 <td><Button variant="ghost" type="button" onClick={() => void update(user.id, { isActive: !user.isActive })}>{user.isActive ? 'Deactivate' : 'Activate'}</Button></td>
@@ -160,9 +167,12 @@ export function AdminSettingsPage() {
         <Toggle checked={settings.legacyPrefixEnabled} onChange={(legacyPrefixEnabled) => setSettings({ ...settings, legacyPrefixEnabled })} label="Keep previous prefixes working" />
         {settings.legacyPrefixes.length > 0 ? <p className="muted">Legacy prefixes: {settings.legacyPrefixes.join(', ')}</p> : null}
         <Field label="Default redirect">
-          <select className="select" value={settings.defaultRedirectType} onChange={(event) => setSettings({ ...settings, defaultRedirectType: event.target.value as Settings['defaultRedirectType'] })}>
-            <option>302</option><option>301</option><option>307</option><option>308</option>
-          </select>
+          <Select
+            value={settings.defaultRedirectType}
+            options={[...redirectOptions]}
+            onValueChange={(defaultRedirectType) => setSettings({ ...settings, defaultRedirectType })}
+          />
+          <p className="hint">{choiceNote(redirectOptions, settings.defaultRedirectType)}</p>
         </Field>
         <Field label="Random slug length"><input className="input" type="number" min={4} max={16} value={settings.slugLength} onChange={(event) => setSettings({ ...settings, slugLength: Number(event.target.value) })} /></Field>
         <Field label="Analytics retention, days"><input className="input" type="number" min={0} value={settings.analyticsRetentionDays} onChange={(event) => setSettings({ ...settings, analyticsRetentionDays: Number(event.target.value) })} /></Field>

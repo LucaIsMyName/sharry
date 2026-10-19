@@ -3,11 +3,34 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { applyUtm, defaultQrStyle, qrWarnings, utmConflicts, type QrStyle, type UtmParams } from '@sharry/shared'
 import { api, type Analytics, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
+import { choiceNote, correctionOptions, redirectOptions } from '../choices.ts'
 import { downloadQr, QrPreview } from '../components/qr-preview.tsx'
-import { Button, copyText, Field } from '../components/ui.tsx'
+import { Button } from '../components/ui/button.tsx'
+import { copyText } from '../components/ui/copy.ts'
+import { Field } from '../components/ui/field.tsx'
+import { Select } from '../components/ui/select.tsx'
 import { Breakdown, ClickChart } from './analytics.tsx'
 
 const emptyUtm: UtmParams = {}
+
+const statusOptions = [
+  { value: 'active', label: 'active' },
+  { value: 'disabled', label: 'disabled' },
+] as const
+
+const moduleOptions = [
+  { value: 'square', label: 'Square' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'dots', label: 'Dots' },
+  { value: 'extra-rounded', label: 'Rounded dots' },
+] as const
+
+const finderOptions = [
+  { value: 'square', label: 'Square' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'extra-rounded', label: 'Extra rounded' },
+  { value: 'dot', label: 'Dot' },
+] as const
 
 function previewDestination(destination: string, utm: UtmParams): string {
   try {
@@ -51,7 +74,7 @@ export function LinksPage() {
             <tbody>
               {links.map((link) => (
                 <tr key={link.id}>
-                  <td><Link to={`/links/${link.id}`}>{link.slug}</Link></td>
+                  <td><Link className="short-url" to={`/links/${link.id}`}>{link.shortUrl}</Link></td>
                   <td className="muted">{link.destinationUrl}</td>
                   <td><span className={link.status === 'active' ? 'badge' : 'badge badge-off'}>{link.status}</span></td>
                 </tr>
@@ -110,12 +133,8 @@ export function LinkFormPage() {
           <input className="input" value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Leave blank for a random slug" />
         </Field>
         <Field label="Redirect">
-          <select className="select" value={redirectType} onChange={(event) => setRedirectType(event.target.value as '302')}>
-            <option value="302">302</option>
-            <option value="301">301</option>
-            <option value="307">307</option>
-            <option value="308">308</option>
-          </select>
+          <Select value={redirectType} options={[...redirectOptions]} onValueChange={setRedirectType} />
+          <p className="hint">{choiceNote(redirectOptions, redirectType)}</p>
         </Field>
         <UtmFields utm={utm} onChange={setUtm} />
         {conflicts.length > 0 ? <p className="error">Saving will replace {conflicts.join(', ')} already present on the destination.</p> : null}
@@ -144,6 +163,7 @@ export function LinkDetailPage() {
   const [qrName, setQrName] = useState('Default')
   const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoInputKey, setLogoInputKey] = useState(0)
   const [activeQr, setActiveQr] = useState<QrCode | null>(null)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [message, setMessage] = useState('')
@@ -200,8 +220,9 @@ export function LinkDetailPage() {
         }),
       })
       setLink(updated)
+      setSlug(updated.slug)
       setPassword('')
-      setMessage('Saved. The short URL keeps this slug.')
+      setMessage(slug.trim() ? 'Saved. The short URL keeps this slug.' : 'Saved. A random slug replaced the empty one.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save')
     }
@@ -241,6 +262,27 @@ export function LinkDetailPage() {
     }
   }
 
+  async function removeCenterImage() {
+    setError('')
+    setMessage('')
+    if (activeQr?.hasLogo) {
+      try {
+        await api(`/api/qr/${activeQr.id}/logo`, { method: 'DELETE' })
+        const next = { ...activeQr, hasLogo: false }
+        setActiveQr(next)
+        setQrCodes((current) => current.map((code) => (code.id === next.id ? next : code)))
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'Could not remove the center image')
+        return
+      }
+    }
+    if (logoUrl?.startsWith('blob:')) URL.revokeObjectURL(logoUrl)
+    setLogoFile(null)
+    setLogoUrl(null)
+    setLogoInputKey((key) => key + 1)
+    setMessage('Center image removed.')
+  }
+
   const conflicts = utmConflicts(destinationUrl, utm)
   const warnings = qrWarnings(style, Boolean(logoUrl))
   const previewUrl = activeQr?.url ?? link?.shortUrl ?? ''
@@ -250,7 +292,7 @@ export function LinkDetailPage() {
       <div className="page-head">
         <div>
           <h1>{link?.slug ?? 'Link'}</h1>
-          {link ? <p className="muted">{link.shortUrl}</p> : null}
+          {link ? <a className="short-url" href={link.shortUrl} target="_blank" rel="noreferrer">{link.shortUrl}</a> : null}
         </div>
         <div className="btn-row">
           <Button variant="ghost" type="button" onClick={() => void copyText(link?.shortUrl ?? '')}>Copy</Button>
@@ -262,22 +304,18 @@ export function LinkDetailPage() {
           <input className="input" value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
         </Field>
         <Field label="Slug">
-          <input className="input" value={slug} onChange={(event) => setSlug(event.target.value)} required />
+          <input className="input" value={slug} onChange={(event) => setSlug(event.target.value)} placeholder="Leave blank for a random slug" />
         </Field>
         <Field label="Title">
           <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
         <div className="split">
           <Field label="Redirect">
-            <select className="select" value={redirectType} onChange={(event) => setRedirectType(event.target.value as ShortLink['redirectType'])}>
-              <option>302</option><option>301</option><option>307</option><option>308</option>
-            </select>
+            <Select value={redirectType} options={[...redirectOptions]} onValueChange={setRedirectType} />
+            <p className="hint">{choiceNote(redirectOptions, redirectType)}</p>
           </Field>
           <Field label="Status">
-            <select className="select" value={status} onChange={(event) => setStatus(event.target.value as ShortLink['status'])}>
-              <option value="active">active</option>
-              <option value="disabled">disabled</option>
-            </select>
+            <Select value={status} options={[...statusOptions]} onValueChange={setStatus} />
           </Field>
         </div>
         <Field label="Expires">
@@ -298,23 +336,13 @@ export function LinkDetailPage() {
           <h2>QR code</h2>
           <Field label="Name"><input className="input" value={qrName} onChange={(event) => setQrName(event.target.value)} required /></Field>
           <Field label="Modules">
-            <select className="select" value={style.dotsType} onChange={(event) => setStyle({ ...style, dotsType: event.target.value as QrStyle['dotsType'] })}>
-              <option value="square">Square</option>
-              <option value="rounded">Rounded</option>
-              <option value="dots">Dots</option>
-              <option value="extra-rounded">Rounded dots</option>
-            </select>
+            <Select value={style.dotsType} options={[...moduleOptions]} onValueChange={(dotsType) => setStyle({ ...style, dotsType })} />
           </Field>
           <Field label="Finder">
-            <select className="select" value={style.cornersSquareType} onChange={(event) => setStyle({ ...style, cornersSquareType: event.target.value as QrStyle['cornersSquareType'] })}>
-              <option value="square">Square</option>
-              <option value="rounded">Rounded</option>
-              <option value="extra-rounded">Extra rounded</option>
-              <option value="dot">Dot</option>
-            </select>
+            <Select value={style.cornersSquareType} options={[...finderOptions]} onValueChange={(cornersSquareType) => setStyle({ ...style, cornersSquareType })} />
           </Field>
           <div className="split">
-            <Field label="Foreground"><input className="input" type="color" value={style.dotsColor} onChange={(event) => setStyle({ ...style, dotsColor: event.target.value })} /></Field>
+            <Field label="Foreground"><input className="input" type="color" value={style.dotsColor} onChange={(event) => setStyle({ ...style, dotsColor: event.target.value, cornersSquareColor: event.target.value, cornersDotColor: event.target.value })} /></Field>
             <Field label="Background"><input className="input" type="color" value={style.backgroundColor} onChange={(event) => setStyle({ ...style, backgroundColor: event.target.value })} /></Field>
           </div>
           <label className="row"><input type="checkbox" checked={style.backgroundTransparent} onChange={(event) => setStyle({ ...style, backgroundTransparent: event.target.checked })} /> Transparent background</label>
@@ -322,19 +350,19 @@ export function LinkDetailPage() {
             <input className="input" type="number" min="0" max="0.45" step="0.01" value={style.imageSize} onChange={(event) => setStyle({ ...style, imageSize: Number(event.target.value) })} />
           </Field>
           <Field label="Error correction">
-            <select className="select" value={style.errorCorrectionLevel} onChange={(event) => setStyle({ ...style, errorCorrectionLevel: event.target.value as QrStyle['errorCorrectionLevel'] })}>
-              <option>L</option><option>M</option><option>Q</option><option>H</option>
-            </select>
+            <Select value={style.errorCorrectionLevel} options={[...correctionOptions]} onValueChange={(errorCorrectionLevel) => setStyle({ ...style, errorCorrectionLevel })} />
+            <p className="hint">{choiceNote(correctionOptions, style.errorCorrectionLevel)}</p>
           </Field>
           <Field label="Quiet zone">
             <input className="input" type="number" min="0" max="16" value={style.margin} onChange={(event) => setStyle({ ...style, margin: Number(event.target.value) })} />
           </Field>
           <Field label="Center image">
-            <input className="input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+            <input key={logoInputKey} className="input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
               const file = event.target.files?.[0] ?? null
               setLogoFile(file)
-              setLogoUrl(file ? URL.createObjectURL(file) : null)
+              if (file) setLogoUrl(URL.createObjectURL(file))
             }} />
+            {logoUrl ? <Button variant="ghost" type="button" onClick={() => void removeCenterImage()}>Remove center image</Button> : null}
           </Field>
           {warnings.map((warning) => <p key={warning} className="error">{warning}</p>)}
           <Button type="submit">Save QR style</Button>

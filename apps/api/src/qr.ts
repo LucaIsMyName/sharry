@@ -110,6 +110,14 @@ export function registerQrRoutes(app: FastifyInstance): void {
     return { logoPath: filename, warnings: qrWarnings(style, true) }
   })
 
+  app.delete('/api/qr/:id/logo', async (request, reply) => {
+    const actor = await requireUser(app, request, ['full'])
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    await removeLogo(app.env.QR_DATA_DIR, current.qr.logoPath)
+    await app.db.update(qrCodes).set({ logoPath: null }).where(eq(qrCodes.id, current.qr.id))
+    return reply.code(204).send()
+  })
+
   app.get('/api/qr/:id/logo', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)

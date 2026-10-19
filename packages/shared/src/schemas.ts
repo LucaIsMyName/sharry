@@ -42,7 +42,7 @@ export const updateLinkSchema = z.object({
   destinationUrl: destinationSchema.optional(),
   title: z.string().trim().max(200).nullable().optional(),
   description: z.string().trim().max(2000).nullable().optional(),
-  slug: z.string().trim().min(2).max(64).optional(),
+  slug: z.string().trim().max(64).optional().or(z.literal('')),
   redirectType: redirectTypeSchema.optional(),
   status: z.enum(['active', 'disabled']).optional(),
   expiresAt: z.string().datetime().nullable().optional(),
