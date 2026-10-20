@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate, useRevalidator, useSearchParams } from 'react-router'
-import { generatePassword } from '@sharry/shared'
+import { defaultQrStyle, generatePassword } from '@sharry/shared'
 import { api, type Me } from '../api.ts'
+import { QrPreview } from '../components/qr-preview.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
+import { copyText } from '../components/ui/copy.ts'
 import { Field } from '../components/ui/field.tsx'
 import { Input } from '../components/ui/input.tsx'
+import { Notice } from '../components/ui/notice.tsx'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setPending(true)
     try {
       const result = await api<{ scope: string }>('/api/auth/login', {
         method: 'POST',
@@ -28,6 +33,8 @@ export function LoginPage() {
       else await navigate('/')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not sign in')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -40,9 +47,9 @@ export function LoginPage() {
         <Field label="Password">
           <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
         </Field>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Continue</Button>
-        <p className="mt-3 text-sm text-muted-foreground"><Link to="/login/reset">Forgot password</Link></p>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Signing in…' : 'Continue'}</Button>
+        <p className="mt-3 text-sm"><Link className="text-primary underline-offset-3 hover:underline" to="/login/reset">Forgot password</Link></p>
       </form>
     </AuthShell>
   )
@@ -52,25 +59,29 @@ export function MfaPage() {
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    setPending(true)
     try {
       await api('/api/auth/mfa', { method: 'POST', body: JSON.stringify({ code }) })
       await navigate('/')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'That code is not valid')
+    } finally {
+      setPending(false)
     }
   }
 
   return (
     <AuthShell title="Two-factor code" lede="Enter the code from your authenticator app, or a recovery code.">
-      <form onSubmit={(event) => void submit(event)}>
+      <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
         <Field label="Code">
           <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" required />
         </Field>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Verify</Button>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Checking…' : 'Verify'}</Button>
       </form>
     </AuthShell>
   )
@@ -82,9 +93,11 @@ export function PasswordPage() {
   const [newPassword, setNewPassword] = useState('')
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    setPending(true)
     try {
       const result = await api<{ scope: string }>('/api/auth/change-password', {
         method: 'POST',
@@ -95,6 +108,8 @@ export function PasswordPage() {
       else await navigate('/')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not change the password')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -108,8 +123,8 @@ export function PasswordPage() {
           <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} autoComplete="new-password" required />
         </Field>
         <Button type="button" variant="outline" onClick={() => { setNewPassword(generatePassword()); setShowNewPassword(true) }}>Generate password</Button>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Update password</Button>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Updating…' : 'Update password'}</Button>
       </form>
     </AuthShell>
   )
@@ -124,10 +139,14 @@ export function AccountPage() {
   const [error, setError] = useState('')
   const [avatarError, setAvatarError] = useState('')
   const [avatarKey, setAvatarKey] = useState(0)
-  const [setup, setSetup] = useState<{ secret: string } | null>(null)
+  const [setup, setSetup] = useState<{ secret: string; otpauthUrl: string } | null>(null)
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState<string[] | null>(null)
   const [disablePassword, setDisablePassword] = useState('')
+  const [pending, setPending] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [turningOff, setTurningOff] = useState(false)
+  const [mfaError, setMfaError] = useState('')
 
   useEffect(() => {
     void api<Me>('/api/auth/me').then(setMe)
@@ -137,6 +156,7 @@ export function AccountPage() {
     event.preventDefault()
     setError('')
     setMessage('')
+    setPending(true)
     try {
       await api('/api/auth/change-password', {
         method: 'POST',
@@ -147,6 +167,8 @@ export function AccountPage() {
       setMessage('Password updated.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not change the password')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -164,7 +186,7 @@ export function AccountPage() {
       setAvatarKey((key) => key + 1)
       await refreshAccount()
     } catch (caught) {
-      setAvatarError(caught instanceof Error ? caught.message : 'Could not save the thumbnail')
+      setAvatarError(caught instanceof Error ? caught.message : 'Could not save the photo')
     }
   }
 
@@ -174,14 +196,14 @@ export function AccountPage() {
       await api('/api/auth/avatar', { method: 'DELETE' })
       await refreshAccount()
     } catch (caught) {
-      setAvatarError(caught instanceof Error ? caught.message : 'Could not remove the thumbnail')
+      setAvatarError(caught instanceof Error ? caught.message : 'Could not remove the photo')
     }
   }
 
   const initial = me?.user.username.trim().charAt(0).toUpperCase() || '?'
 
   return (
-    <section className="grid gap-4">
+    <section className="form-column grid gap-4">
       <div className="mb-1">
         <h1 className="font-heading text-4xl font-medium tracking-tight">Account</h1>
         <p className="text-sm text-muted-foreground">{me?.user.email}</p>
@@ -194,30 +216,30 @@ export function AccountPage() {
             <span className="flex size-16 items-center justify-center rounded-full bg-muted text-xl font-medium">{initial}</span>
           )}
           <div className="grid gap-2">
-            <Field label="Thumbnail">
+            <Field label="Photo">
               <Input key={avatarKey} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
                 const file = event.target.files?.[0]
                 if (file) void uploadAvatar(file)
               }} />
             </Field>
-            {me?.user.hasAvatar ? <Button variant="outline" type="button" onClick={() => void removeAvatar()}>Remove thumbnail</Button> : null}
-            {avatarError ? <p className="text-sm text-destructive">{avatarError}</p> : null}
+            {me?.user.hasAvatar ? <Button variant="outline" type="button" onClick={() => void removeAvatar()}>Remove photo</Button> : null}
+            {avatarError ? <Notice tone="error">{avatarError}</Notice> : null}
           </div>
         </CardContent>
       </Card>
       <Card>
       <CardContent>
       <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-        <h2>Password</h2>
+        <h2 className="text-lg font-medium">Password</h2>
         <Field label="Current password">
           <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} autoComplete="current-password" required />
         </Field>
         <Field label="New password">
           <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} required />
         </Field>
-        {message ? <p>{message}</p> : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Update password</Button>
+        {message ? <Notice tone="success">{message}</Notice> : null}
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Updating…' : 'Update password'}</Button>
       </form>
       </CardContent>
       </Card>
@@ -231,52 +253,53 @@ export function AccountPage() {
             className="grid gap-3"
             onSubmit={(event) => {
               event.preventDefault()
-              setError('')
+              setMfaError('')
               setMessage('')
+              setTurningOff(true)
               void api('/api/auth/mfa/disable', { method: 'POST', body: JSON.stringify({ currentPassword: disablePassword }) })
                 .then(async () => {
                   setDisablePassword('')
                   setMessage('Two-factor authentication is off.')
                   setMe(await api<Me>('/api/auth/me'))
                 })
-                .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not turn off two-factor authentication'))
+                .catch((caught: unknown) => setMfaError(caught instanceof Error ? caught.message : 'Could not turn off two-factor authentication'))
+                .finally(() => setTurningOff(false))
             }}
           >
             <p>A code is required for this account.</p>
             <Field label="Current password">
               <Input type="password" value={disablePassword} onChange={(event) => setDisablePassword(event.target.value)} required />
             </Field>
-            <Button type="submit">Turn off</Button>
+            {mfaError ? <Notice tone="error">{mfaError}</Notice> : null}
+            <Button type="submit" disabled={turningOff}>{turningOff ? 'Turning off…' : 'Turn off'}</Button>
           </form>
         ) : recovery ? (
-          <>
-            <p>Save these recovery codes somewhere private. Each code works once.</p>
-            <div className="grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-md bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
-          </>
+          <RecoveryCodes codes={recovery} />
         ) : (
           <>
-            {!setup && me?.mailConfigured ? <Button type="button" onClick={() => void api<{ secret: string }>('/api/auth/mfa/setup', { method: 'POST' }).then(setSetup).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not start setup'))}>Turn on</Button> : null}
+            {!setup && me?.mailConfigured ? <Button type="button" onClick={() => void api<{ secret: string; otpauthUrl: string }>('/api/auth/mfa/setup', { method: 'POST' }).then(setSetup).catch((caught: unknown) => setMfaError(caught instanceof Error ? caught.message : 'Could not start setup'))}>Turn on</Button> : null}
             {setup ? (
-              <form
-                className="grid gap-3"
-                onSubmit={(event) => {
+              <AuthenticatorSetup
+                secret={setup.secret}
+                otpauthUrl={setup.otpauthUrl}
+                code={code}
+                pending={confirming}
+                onCode={setCode}
+                onConfirm={(event) => {
                   event.preventDefault()
+                  setMfaError('')
+                  setConfirming(true)
                   void api<{ recoveryCodes: string[] }>('/api/auth/mfa/confirm', { method: 'POST', body: JSON.stringify({ code }) })
                     .then(async (result) => {
                       setRecovery(result.recoveryCodes)
                       setMe(await api<Me>('/api/auth/me'))
                     })
-                    .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'That code is not valid'))
+                    .catch((caught: unknown) => setMfaError(caught instanceof Error ? caught.message : 'That code is not valid'))
+                    .finally(() => setConfirming(false))
                 }}
-              >
-                <p>Add this secret to your authenticator app:</p>
-                <p><code>{setup.secret}</code></p>
-                <Field label="Confirmation code">
-                  <Input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" required />
-                </Field>
-                <Button type="submit">Confirm</Button>
-              </form>
+              />
             ) : null}
+            {mfaError ? <Notice tone="error">{mfaError}</Notice> : null}
           </>
         )}
       </CardContent>
@@ -292,6 +315,7 @@ export function EnrollPage() {
   const [recovery, setRecovery] = useState<string[] | null>(null)
   const [error, setError] = useState('')
   const [mailConfigured, setMailConfigured] = useState<boolean | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     void api<Me>('/api/auth/me').then((me) => setMailConfigured(me.mailConfigured)).catch(() => setMailConfigured(false))
@@ -308,6 +332,7 @@ export function EnrollPage() {
 
   async function confirm(event: FormEvent) {
     event.preventDefault()
+    setConfirming(true)
     try {
       const result = await api<{ recoveryCodes: string[] }>('/api/auth/mfa/confirm', {
         method: 'POST',
@@ -316,6 +341,8 @@ export function EnrollPage() {
       setRecovery(result.recoveryCodes)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'That code is not valid')
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -323,8 +350,7 @@ export function EnrollPage() {
     <AuthShell title="Turn on two-factor" lede="This is optional. The dashboard stays available until you confirm a code.">
       {recovery ? (
         <>
-          <p>Save these recovery codes somewhere private. Each code works once.</p>
-          <div className="my-4 grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-md bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
+          <RecoveryCodes codes={recovery} />
           <Button type="button" onClick={() => void navigate('/')}>Continue</Button>
         </>
       ) : (
@@ -332,16 +358,16 @@ export function EnrollPage() {
           {!setup && mailConfigured ? <Button type="button" onClick={() => void begin()}>Generate secret</Button> : null}
           {!setup && mailConfigured === false ? <p className="text-sm text-muted-foreground">An administrator needs to save a mail server in Settings before two-factor authentication can be turned on.</p> : null}
           {setup ? (
-            <form onSubmit={(event) => void confirm(event)}>
-              <p>Add this secret to your authenticator app:</p>
-              <p><code>{setup.secret}</code></p>
-              <Field label="Confirmation code">
-                <Input value={code} onChange={(event) => setCode(event.target.value)} required />
-              </Field>
-              <Button type="submit">Confirm</Button>
-            </form>
+            <AuthenticatorSetup
+              secret={setup.secret}
+              otpauthUrl={setup.otpauthUrl}
+              code={code}
+              pending={confirming}
+              onCode={setCode}
+              onConfirm={(event) => void confirm(event)}
+            />
           ) : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <Notice tone="error">{error}</Notice> : null}
         </>
       )}
     </AuthShell>
@@ -355,25 +381,33 @@ export function ResetPage() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   async function requestReset(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setPending(true)
     try {
       await api('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) })
       setMessage('If that account can receive mail, a reset link is on its way.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not send the reset link')
+    } finally {
+      setPending(false)
     }
   }
 
   async function reset(event: FormEvent) {
     event.preventDefault()
+    setError('')
+    setPending(true)
     try {
       await api('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword: password }) })
       setMessage('Password updated. Sign in with the new password.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not reset the password')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -384,26 +418,71 @@ export function ResetPage() {
           <Field label="New password">
             <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required />
           </Field>
-          <Button type="submit">Save password</Button>
+          <Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save password'}</Button>
         </form>
       ) : (
         <form className='space-y-3' onSubmit={(event) => void requestReset(event)}>
           <Field label="Email">
             <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </Field>
-          <Button type="submit">Send reset link</Button>
+          <Button type="submit" disabled={pending}>{pending ? 'Sending…' : 'Send reset link'}</Button>
         </form>
       )}
-      {message ? <p>{message}</p> : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {message ? <Notice tone="success">{message}</Notice> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
       <p><Link to="/login">Back to sign in</Link></p>
     </AuthShell>
   )
 }
 
+function RecoveryCodes({ codes }: { codes: string[] }) {
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState('')
+  return (
+    <div className="grid gap-3">
+      <p>Save these recovery codes somewhere private. Each code works once.</p>
+      <div className="grid grid-cols-2 gap-2">{codes.map((item) => <code key={item} className="rounded-md bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <Button type="button" variant="outline" onClick={() => void copyText(codes.join('\n')).then(() => { setCopied(true); setError('') }).catch(() => setError('Could not copy the recovery codes'))}>{copied ? 'Copied' : 'Copy codes'}</Button>
+    </div>
+  )
+}
+
+function AuthenticatorSetup({
+  secret,
+  otpauthUrl,
+  code,
+  onCode,
+  onConfirm,
+  pending,
+}: {
+  secret: string
+  otpauthUrl: string
+  code: string
+  onCode: (value: string) => void
+  onConfirm: (event: FormEvent) => void
+  pending: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState('')
+  return (
+    <form className="grid gap-3" onSubmit={onConfirm}>
+      <p>Add this secret to your authenticator app.</p>
+      <QrPreview url={otpauthUrl} style={defaultQrStyle} showNotes={false} />
+      <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">{secret}</p>
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <Button type="button" variant="outline" onClick={() => void copyText(secret).then(() => { setCopied(true); setError('') }).catch(() => setError('Could not copy the secret'))}>{copied ? 'Copied' : 'Copy secret'}</Button>
+      <Field label="Confirmation code">
+        <Input value={code} onChange={(event) => onCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" required />
+      </Field>
+      <Button type="submit" disabled={pending}>{pending ? 'Checking…' : 'Confirm'}</Button>
+    </form>
+  )
+}
+
 function AuthShell({ title, lede, children }: { title: string; lede: string; children: ReactNode }) {
   return (
-    <div className="grid min-h-svh place-items-center bg-[radial-gradient(circle_at_top_left,rgba(227,106,46,0.18),transparent_32%),var(--background)] p-6">
+    <div className="grid min-h-svh place-items-center bg-[radial-gradient(circle_at_top_left,rgba(19,17,155,0.14),transparent_32%),var(--background)] p-6">
       <Card className="w-full max-w-md">
         <CardContent className="grid gap-3">
           <p className="font-heading text-4xl font-medium tracking-tight">sharry</p>

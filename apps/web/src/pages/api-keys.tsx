@@ -8,6 +8,7 @@ import { Select } from '../components/ui/choice-select.tsx'
 import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx'
 import { Field } from '../components/ui/field.tsx'
+import { Notice } from '../components/ui/notice.tsx'
 import { Input } from '../components/ui/input.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
 
@@ -32,6 +33,7 @@ export function ApiKeysPage() {
   const [name, setName] = useState('')
   const [userId, setUserId] = useState('')
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
   const [created, setCreated] = useState<CreatedKey | null>(null)
   const [copied, setCopied] = useState(false)
   const [revokeId, setRevokeId] = useState<string | null>(null)
@@ -56,6 +58,7 @@ export function ApiKeysPage() {
   async function create(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setPending(true)
     try {
       const key = await api<CreatedKey>('/api/admin/api-keys', {
         method: 'POST',
@@ -67,6 +70,8 @@ export function ApiKeysPage() {
       await load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the API key')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -98,7 +103,7 @@ export function ApiKeysPage() {
         <h1 className="font-heading text-4xl font-medium tracking-tight">API keys</h1>
         <p className="text-sm text-muted-foreground">A key can do what its user can. Send it as Authorization: Bearer. Account sign-in stays on the session cookie.</p>
       </div>
-      <Card>
+      <Card className="form-column">
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Name">
@@ -112,8 +117,8 @@ export function ApiKeysPage() {
                 placeholder="Choose a user"
               />
             </Field>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit" disabled={!userId}>Create key</Button>
+            {error ? <Notice tone="error">{error}</Notice> : null}
+            <Button type="submit" disabled={!userId || pending}>{pending ? 'Creating…' : 'Create key'}</Button>
           </form>
         </CardContent>
       </Card>

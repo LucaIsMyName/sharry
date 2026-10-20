@@ -113,10 +113,13 @@ describe('short links', () => {
     const gated = await ctx.app.inject({ method: 'GET', url: '/s/gated' })
     expect(gated.statusCode).toBe(200)
     expect(gated.body).toContain('password protected')
+    expect(gated.body).toContain('#13119b')
+    expect(gated.body).not.toContain('999px')
     expect(gated.headers['cache-control']).toBe('no-store')
     const wrong = await ctx.app.inject({ method: 'POST', url: '/s/gated', payload: { password: 'nope' } })
     expect(wrong.statusCode).toBe(401)
     expect(wrong.body).toContain('incorrect')
+    expect(wrong.body).toContain('password protected')
     const right = await ctx.app.inject({ method: 'POST', url: '/s/gated', payload: { password: 'poster-secret' } })
     expect(right.statusCode).toBe(303)
     expect(right.headers.location).toBe('https://example.com/secret')
@@ -215,6 +218,10 @@ describe('short links', () => {
     expect(rows.map((row) => row.slug)).toEqual(['busy', 'quiet'])
     expect(rows[0]).toMatchObject({ title: 'Busy', clicks: 2 })
     expect(rows[1]).toMatchObject({ title: 'Quiet', clicks: 0 })
+    const listed = await ctx.app.inject({ method: 'GET', url: '/api/links', headers: { cookie: user.cookie } })
+    const listedRows = listed.json().links as { slug: string; clicks: number }[]
+    expect(listedRows.find((row) => row.slug === 'busy')?.clicks).toBe(2)
+    expect(listedRows.find((row) => row.slug === 'quiet')?.clicks).toBe(0)
     const adminView = await ctx.app.inject({ method: 'GET', url: '/api/analytics', headers: { cookie: admin.cookie } })
     expect((adminView.json().links as { slug: string }[]).map((row) => row.slug).sort()).toEqual(['busy', 'foreign', 'quiet'])
     const one = await ctx.app.inject({
@@ -377,6 +384,8 @@ describe('short links', () => {
     })
     expect(own.statusCode).toBe(200)
     expect(foreign.statusCode).toBe(200)
+    const campaigns = await ctx.app.inject({ method: 'GET', url: '/api/campaigns', headers: { cookie: user.cookie } })
+    expect(campaigns.json().campaigns).toEqual([expect.objectContaining({ name: 'Summer', variantCount: 2 })])
 
     const crossed = await ctx.app.inject({ method: 'GET', url: `/s/alpha?v=${foreign.json().id}` })
     expect(crossed.statusCode).toBe(302)

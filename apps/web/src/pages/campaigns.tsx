@@ -12,9 +12,10 @@ import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
 import { copyText } from '../components/ui/copy.ts'
 import { Field } from '../components/ui/field.tsx'
 import { Input } from '../components/ui/input.tsx'
+import { Notice } from '../components/ui/notice.tsx'
 import { Textarea } from '../components/ui/textarea.tsx'
 
-type Campaign = { id: string; name: string; description: string | null }
+type Campaign = { id: string; name: string; description: string | null; variantCount: number }
 type Variant = { id: string; name: string; linkId: string; utm: UtmParams }
 
 const emptyUtm: UtmParams = {}
@@ -25,6 +26,7 @@ export function CampaignsPage() {
   const [description, setDescription] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [pending, setPending] = useState(false)
 
   async function load() {
     const result = await api<{ campaigns: Campaign[] }>('/api/campaigns')
@@ -40,6 +42,7 @@ export function CampaignsPage() {
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setPending(true)
     try {
       await api('/api/campaigns', { method: 'POST', body: JSON.stringify({ name, description }) })
       setName('')
@@ -47,6 +50,8 @@ export function CampaignsPage() {
       await load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the campaign')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -58,24 +63,27 @@ export function CampaignsPage() {
           A campaign groups tracked copies of your short links. Each variant keeps the same slug and adds its own UTM values. Share it with <span className="font-mono">?v=</span> or attach it to a QR code.
         </p>
       </div>
-      <Card>
+      <Card className="form-column">
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
             <Field label="Name"><Input value={name} onChange={(event) => setName(event.target.value)} required /></Field>
             <Field label="Description"><Textarea value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit">Create campaign</Button>
+            {error ? <Notice tone="error">{error}</Notice> : null}
+            <Button type="submit" disabled={pending}>{pending ? 'Creating…' : 'Create campaign'}</Button>
           </form>
         </CardContent>
       </Card>
       <Card>
         <CardContent>
           {loading ? <p className="text-sm text-muted-foreground">Loading campaigns…</p> : campaigns.length === 0 ? <p className="text-sm text-muted-foreground">No campaigns yet.</p> : (
-            <ul className="grid gap-2">
+            <ul>
               {campaigns.map((campaign) => (
-                <li key={campaign.id}>
-                  <Link to={`/campaigns/${campaign.id}`}>{campaign.name}</Link>
-                  {campaign.description ? <p className="text-sm text-muted-foreground">{campaign.description}</p> : null}
+                <li key={campaign.id} className="flex items-start justify-between gap-4 border-b border-border py-3 last:border-0">
+                  <div className="min-w-0">
+                    <Link className="font-medium hover:text-primary" to={`/campaigns/${campaign.id}`}>{campaign.name}</Link>
+                    {campaign.description ? <p className="truncate text-sm text-muted-foreground">{campaign.description}</p> : null}
+                  </div>
+                  <p className="shrink-0 text-sm text-muted-foreground">{variantLabel(campaign.variantCount)}</p>
                 </li>
               ))}
             </ul>
@@ -105,6 +113,8 @@ export function CampaignDetailPage() {
   const [linkQuery, setLinkQuery] = useState('')
   const [linkTotal, setLinkTotal] = useState(0)
   const [knownLinks, setKnownLinks] = useState<ShortLink[]>([])
+  const [savingCampaign, setSavingCampaign] = useState(false)
+  const [savingVariant, setSavingVariant] = useState(false)
   const campaignLoad = useRef(0)
   const linkLoad = useRef(0)
 
@@ -177,6 +187,7 @@ export function CampaignDetailPage() {
   async function saveCampaign(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setSavingCampaign(true)
     try {
       await api(`/api/campaigns/${id}`, {
         method: 'PATCH',
@@ -185,6 +196,8 @@ export function CampaignDetailPage() {
       await loadCampaign()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the campaign')
+    } finally {
+      setSavingCampaign(false)
     }
   }
 
@@ -202,6 +215,7 @@ export function CampaignDetailPage() {
   async function submitVariant(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setSavingVariant(true)
     try {
       if (editingId) {
         await api(`/api/variants/${editingId}`, { method: 'PATCH', body: JSON.stringify({ name, utm }) })
@@ -212,6 +226,8 @@ export function CampaignDetailPage() {
       await loadCampaign()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the variant')
+    } finally {
+      setSavingVariant(false)
     }
   }
 
@@ -260,16 +276,17 @@ export function CampaignDetailPage() {
         </div>
         <Button variant="destructive" type="button" onClick={() => setConfirmDelete(true)}><Trash2 size={16} /> Delete</Button>
       </div>
-      <Card>
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <Card className="form-column">
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void saveCampaign(event)}>
             <Field label="Name"><Input value={campaignName} onChange={(event) => setCampaignName(event.target.value)} required /></Field>
             <Field label="Description"><Textarea value={campaignDescription} onChange={(event) => setCampaignDescription(event.target.value)} /></Field>
-            <Button type="submit">Save campaign</Button>
+            <Button type="submit" disabled={savingCampaign}>{savingCampaign ? 'Saving…' : 'Save campaign'}</Button>
           </form>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="form-column">
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submitVariant(event)}>
             <h2 className="text-lg font-medium">{editingId ? 'Edit variant' : 'Add variant'}</h2>
@@ -292,9 +309,8 @@ export function CampaignDetailPage() {
             </Field>
             {editingId ? <p className="text-sm text-muted-foreground">The link stays with this variant. Create another variant to track a different link.</p> : null}
             <UtmFields utm={utm} onChange={setUtm} />
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <div className="flex flex-wrap items-center gap-2.5">
-              <Button type="submit">{editingId ? 'Save variant' : 'Add variant'}</Button>
+              <Button type="submit" disabled={savingVariant}>{savingVariant ? 'Saving…' : editingId ? 'Save variant' : 'Add variant'}</Button>
               {editingId ? <Button variant="outline" type="button" onClick={resetVariantForm}>Cancel</Button> : null}
             </div>
           </form>
@@ -348,6 +364,10 @@ export function CampaignDetailPage() {
       />
     </section>
   )
+}
+
+function variantLabel(count: number): string {
+  return count === 1 ? '1 variant' : `${count} variants`
 }
 
 function pickerOptions(links: ShortLink[], knownLinks: ShortLink[], selectedId: string) {

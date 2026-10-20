@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { api, type Analytics, type LinkStat } from '../api.ts'
 import { Button } from '../components/ui/button.tsx'
+import { Notice } from '../components/ui/notice.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
 import { cn } from 'cn'
@@ -62,7 +63,7 @@ export function AnalyticsPage() {
         </div>
         {linkId ? <Button variant="outline" type="button" onClick={() => setParams({})}>All links</Button> : null}
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
       {loading && !analytics ? <p className="text-sm text-muted-foreground">Loading analytics…</p> : null}
       {analytics ? (
         <div className="grid gap-4">
@@ -119,7 +120,7 @@ export function ClickChart({ series }: { series: Analytics['series'] }) {
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={series}>
-          <CartesianGrid stroke="#eee6da" vertical={false} />
+          <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis dataKey="date" tick={{ fontSize: 12 }} minTickGap={24} />
           <YAxis allowDecimals={false} width={36} />
           <Tooltip />

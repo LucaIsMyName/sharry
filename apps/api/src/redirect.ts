@@ -174,12 +174,12 @@ export function sendSpa(reply: FastifyReply, nodeEnv: string): void {
 
 function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' | 'limited'): string {
   const action = `${prefix}/${encodeURIComponent(slug)}`
-  const message =
+  const error =
     state === 'failed'
       ? 'That password is incorrect.'
       : state === 'limited'
         ? 'Too many attempts. Try again shortly.'
-        : 'This short link is password protected.'
+        : ''
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -187,20 +187,23 @@ function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' |
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Password required · Sharry</title>
   <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3efe6; color: #1a1814; font-family: "Geist Variable", "Geist", sans-serif; }
-    form { width: min(420px, calc(100% - 32px)); background: white; border: 1px solid #e6dfd4; border-radius: 18px; padding: 28px; }
-    h1 { font-family: "Geist Variable", "Geist", sans-serif; font-weight: 500; font-size: 32px; margin: 0 0 8px; letter-spacing: -0.04em; }
-    p { color: #6b645c; margin: 0 0 18px; }
-    label { display: block; font-weight: 600; margin-bottom: 8px; }
-    input { width: 100%; box-sizing: border-box; border: 1px solid #ddd6ca; border-radius: 10px; padding: 12px 14px; font: inherit; }
-    button { margin-top: 14px; width: 100%; border: 0; border-radius: 999px; padding: 12px 16px; background: #1a1814; color: #f6f3ec; font: inherit; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top left, rgba(19, 17, 155, 0.14), transparent 32%), #f8f8f8; color: #131313; font-family: ui-sans-serif, system-ui, sans-serif; }
+    form { width: min(28rem, 100%); display: grid; gap: 12px; background: #fff; border: 1px solid #e4e4e4; border-radius: 12px; padding: 16px; }
+    .wordmark { margin: 0; font-size: 2.25rem; font-weight: 500; letter-spacing: -0.025em; }
+    h1 { margin: 0; font-size: 1.5rem; font-weight: 500; }
+    p { margin: 0; color: #5c5c5c; font-size: 0.875rem; line-height: 1.6; }
     .error { color: #9f2d2d; }
+    label { font-size: 0.875rem; font-weight: 500; }
+    input { width: 100%; box-sizing: border-box; height: 40px; border: 1px solid #d4d4d4; border-radius: 6px; padding: 0 12px; background: #fff; color: inherit; font: inherit; font-size: 0.875rem; }
+    button { justify-self: start; height: 40px; border: 0; border-radius: 6px; padding: 0 16px; background: #13119b; color: #f4f4f4; font: inherit; font-size: 0.875rem; font-weight: 500; }
   </style>
 </head>
 <body>
   <form method="post" action="${escapeHtml(action)}">
-    <h1>sharry</h1>
-    <p class="${state === 'prompt' ? '' : 'error'}">${message}</p>
+    <p class="wordmark">sharry</p>
+    <h1>Password</h1>
+    <p>This short link is password protected.</p>
+    ${error ? `<p class="error">${error}</p>` : ''}
     <label for="link-password">Password</label>
     <input id="link-password" type="password" name="password" autocomplete="current-password" required autofocus/>
     <button type="submit">Continue</button>

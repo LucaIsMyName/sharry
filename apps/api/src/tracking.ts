@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { trackingCampaigns, trackingVariants, type Database } from '@sharry/database'
 import {
@@ -43,7 +43,7 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
    * @route GET /api/campaigns
    * @tag Campaigns
    * @auth api-key or session
-   * @response 200 { campaigns: Campaign[] }
+   * @response 200 { campaigns: Campaign[] } Each campaign includes variantCount.
    */
   app.get('/api/campaigns', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -52,7 +52,8 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
       .from(trackingCampaigns)
       .where(actor.role === 'admin' ? undefined : eq(trackingCampaigns.userId, actor.id))
       .orderBy(desc(trackingCampaigns.createdAt))
-    return { campaigns: rows.map(serializeCampaign) }
+    const counts = await loadVariantCounts(app.db, rows.map((row) => row.id))
+    return { campaigns: rows.map((row) => ({ ...serializeCampaign(row), variantCount: counts.get(row.id) ?? 0 })) }
   })
 
   /**
@@ -273,6 +274,18 @@ async function getCampaign(db: Database, actor: Actor, id: string) {
 async function appSelect(db: Database, id: string) {
   const found = await db.select().from(trackingCampaigns).where(eq(trackingCampaigns.id, id)).limit(1)
   return found[0]
+}
+
+async function loadVariantCounts(db: Database, ids: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  if (ids.length === 0) return counts
+  const rows = await db
+    .select({ campaignId: trackingVariants.campaignId, variantCount: sql<number>`count(*)::int` })
+    .from(trackingVariants)
+    .where(inArray(trackingVariants.campaignId, ids))
+    .groupBy(trackingVariants.campaignId)
+  for (const row of rows) counts.set(row.campaignId, row.variantCount)
+  return counts
 }
 
 function serializeCampaign(row: typeof trackingCampaigns.$inferSelect) {

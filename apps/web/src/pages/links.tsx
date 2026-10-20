@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Check, Copy, ExternalLink, Save, Trash2 } from 'lucide-react'
+import { Check, Copy, ExternalLink, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { applyUtm, defaultQrStyle, qrWarnings, utmConflicts, type QrStyle, type UtmParams } from '@sharry/shared'
-import { api, type Analytics, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
+import { applyUtm, defaultQrStyle, utmConflicts, type QrStyle, type UtmParams } from '@sharry/shared'
+import { api, type Analytics, type LinkSummary, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
 import { choiceNote, correctionOptions, redirectOptions } from '../choices.ts'
 import { downloadQr, QrPreview } from '../components/qr-preview.tsx'
 import { UtmFields } from '../components/utm-fields.tsx'
@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
 import { Select } from '../components/ui/choice-select.tsx'
 import { copyText } from '../components/ui/copy.ts'
 import { Field } from '../components/ui/field.tsx'
+import { Notice } from '../components/ui/notice.tsx'
 import { Input } from '../components/ui/input.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
 import { Breakdown, ClickChart, UtmBreakdowns } from './analytics.tsx'
@@ -25,8 +26,8 @@ const noVariant = 'none'
 type LinkVariant = { id: string; name: string; utm: UtmParams }
 
 const statusOptions = [
-  { value: 'active', label: 'active' },
-  { value: 'disabled', label: 'disabled' },
+  { value: 'active', label: 'Active' },
+  { value: 'disabled', label: 'Paused' },
 ] as const
 
 const moduleOptions = [
@@ -80,7 +81,7 @@ function previewDestination(destination: string, utm: UtmParams): string {
 const linkPageSize = 50
 
 export function LinksPage() {
-  const [links, setLinks] = useState<ShortLink[]>([])
+  const [links, setLinks] = useState<LinkSummary[]>([])
   const [total, setTotal] = useState(0)
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
@@ -92,7 +93,7 @@ export function LinksPage() {
     const current = ++requestId.current
     const handle = setTimeout(() => {
       setLoading(true)
-      void api<{ links: ShortLink[]; total: number }>(`/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=0`)
+      void api<{ links: LinkSummary[]; total: number }>(`/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=0`)
         .then((result) => {
           if (current !== requestId.current) return
           setLinks(result.links)
@@ -116,7 +117,7 @@ export function LinksPage() {
     setLoadingMore(true)
     setError('')
     try {
-      const result = await api<{ links: ShortLink[]; total: number }>(
+      const result = await api<{ links: LinkSummary[]; total: number }>(
         `/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=${offset}`,
       )
       if (current !== requestId.current) return
@@ -141,27 +142,32 @@ export function LinksPage() {
       <Field label="Search">
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Slug, title, or destination" />
       </Field>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="mt-4 min-w-0">
         <CardContent className="min-w-0">
-        {loading ? <p className="text-sm text-muted-foreground">Loading links…</p> : links.length === 0 ? <p className="text-sm text-muted-foreground">No links match.</p> : (
-          <Table className="min-w-full w-max">
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Short URL</TableHead>
+                <TableHead className="w-[18%]">Title</TableHead>
+                <TableHead className="w-[24%]">Short URL</TableHead>
                 <TableHead>Destination</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead><span className="sr-only">Test</span></TableHead>
+                <TableHead className="w-24">Status</TableHead>
+                <TableHead className="w-20">Clicks</TableHead>
+                <TableHead className="w-14"><span className="sr-only">Test</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {links.map((link) => (
+              {loading ? (
+                <TableRow><TableCell colSpan={6} className="text-muted-foreground">Loading links…</TableCell></TableRow>
+              ) : links.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="text-muted-foreground">{error ? 'Could not load links.' : 'No links match.'}</TableCell></TableRow>
+              ) : links.map((link) => (
                 <TableRow key={link.id}>
-                  <TableCell><Link className="font-medium hover:text-primary" to={`/links/${link.id}`}>{link.title?.trim() || link.slug}</Link></TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground">{link.shortUrl}</TableCell>
-                  <TableCell className="text-muted-foreground">{link.destinationUrl}</TableCell>
-                  <TableCell><Badge variant={link.status === 'active' ? 'secondary' : 'destructive'}>{link.status}</Badge></TableCell>
+                  <TableCell className="truncate"><Link className="font-medium hover:text-primary" to={`/links/${link.id}`}>{link.title?.trim() || link.slug}</Link></TableCell>
+                  <TableCell className="truncate font-mono text-sm text-muted-foreground" title={link.shortUrl}>{link.shortUrl}</TableCell>
+                  <TableCell className="truncate text-muted-foreground" title={link.destinationUrl}>{link.destinationUrl}</TableCell>
+                  <TableCell><Badge variant={link.status === 'active' ? 'secondary' : 'outline'}>{link.status === 'active' ? 'Active' : 'Paused'}</Badge></TableCell>
+                  <TableCell className="tabular-nums">{link.clicks}</TableCell>
                   <TableCell>
                     <a className={buttonVariants({ variant: 'outline', size: 'icon' })} href={link.shortUrl} target="_blank" rel="noreferrer" aria-label={`Test ${link.title?.trim() || link.slug}`}>
                       <ExternalLink />
@@ -171,7 +177,6 @@ export function LinksPage() {
               ))}
             </TableBody>
           </Table>
-        )}
         {!loading && links.length < total ? (
           <Button className="mt-4" variant="outline" type="button" disabled={loadingMore} onClick={() => void loadMore()}>
             {loadingMore ? 'Loading…' : `Load more (${links.length} of ${total})`}
@@ -192,6 +197,7 @@ export function LinkFormPage() {
   const [redirectType, setRedirectType] = useState<'301' | '302' | '307' | '308'>('302')
   const [utm, setUtm] = useState<UtmParams>(emptyUtm)
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
     void api<PublicSettings>('/api/settings/public').then((value) => {
@@ -203,6 +209,7 @@ export function LinkFormPage() {
   async function submit(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setPending(true)
     try {
       const created = await api<ShortLink>('/api/links', {
         method: 'POST',
@@ -211,6 +218,8 @@ export function LinkFormPage() {
       await navigate(`/links/${created.id}`)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the link')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -218,7 +227,7 @@ export function LinkFormPage() {
   return (
     <section>
       <h1 className="mb-5 font-heading text-4xl font-medium tracking-tight">New link</h1>
-      <Card><CardContent>
+      <Card className="form-column"><CardContent>
       <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
         <Field label="Destination">
           <Input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
@@ -234,10 +243,10 @@ export function LinkFormPage() {
           <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
         </Field>
         <UtmFields utm={utm} onChange={setUtm} />
-        {conflicts.length > 0 ? <p className="text-sm text-destructive">Saving will replace {conflicts.join(', ')} already present on the destination.</p> : null}
+        {conflicts.length > 0 ? <Notice tone="error">Saving will replace {conflicts.join(', ')} already present on the destination.</Notice> : null}
         {settings ? <p className="text-sm text-muted-foreground">Preview: {previewDestination(destinationUrl, utm)}</p> : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Create link</Button>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Creating…' : 'Create link'}</Button>
       </form>
       </CardContent></Card>
     </section>
@@ -269,6 +278,8 @@ export function LinkDetailPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savingQr, setSavingQr] = useState(false)
   const [copied, setCopied] = useState(false)
   const logoRequest = useRef(0)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -344,6 +355,7 @@ export function LinkDetailPage() {
     event.preventDefault()
     setError('')
     setMessage('')
+    setSaving(true)
     try {
       const updated = await api<ShortLink>(`/api/links/${id}`, {
         method: 'PATCH',
@@ -364,6 +376,8 @@ export function LinkDetailPage() {
       setMessage(slug.trim() ? 'Saved. The short URL keeps this slug.' : 'Saved. A random slug replaced the empty one.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -436,6 +450,7 @@ export function LinkDetailPage() {
   async function createQr(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setSavingQr(true)
     try {
       const variantId = trackingVariantId === noVariant ? null : trackingVariantId
       const created = activeQr
@@ -460,6 +475,8 @@ export function LinkDetailPage() {
       setMessage('QR code saved. Downloads use this code’s short URL.')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the QR code')
+    } finally {
+      setSavingQr(false)
     }
   }
 
@@ -484,7 +501,6 @@ export function LinkDetailPage() {
   }
 
   const conflicts = utmConflicts(destinationUrl, utm)
-  const warnings = qrWarnings(style, Boolean(logoUrl))
   const previewUrl = link ? qrPreviewUrl(link.shortUrl, activeQr?.id ?? null, trackingVariantId) : ''
 
   return (
@@ -495,7 +511,6 @@ export function LinkDetailPage() {
           {link ? <a className="mt-1.5 block font-mono text-sm break-all text-muted-foreground underline-offset-3 hover:text-primary" href={link.shortUrl} target="_blank" rel="noreferrer">{link.shortUrl}</a> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button form="link-editor" type="submit"><Save size={16} /> Save</Button>
           <Button variant="outline" type="button" disabled={!link?.shortUrl} onClick={() => void copyShortUrl()}>
             {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy</>}
           </Button>
@@ -503,7 +518,9 @@ export function LinkDetailPage() {
         </div>
       </div>
       {loading ? <p className="text-sm text-muted-foreground">Loading link…</p> : null}
-      <Card><CardContent>
+      {message ? <Notice tone="success">{message}</Notice> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <Card className="form-column"><CardContent>
       <form id="link-editor" className="grid gap-3" onSubmit={(event) => void save(event)}>
         <Field label="Destination">
           <Input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
@@ -514,10 +531,10 @@ export function LinkDetailPage() {
         <Field label="Title">
           <Input value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Redirect">
             <Select value={redirectType} options={redirectOptions.map(({ value, label }) => ({ value, label }))} onValueChange={setRedirectType} />
-            <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
+            <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p>
           </Field>
           <Field label="Status">
             <Select value={status} options={[...statusOptions]} onValueChange={setStatus} />
@@ -534,24 +551,25 @@ export function LinkDetailPage() {
             placeholder={link?.hasPassword ? 'Leave blank to keep it.' : 'Optional'}
             autoComplete="new-password"
           />
-          <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">
+          <p className="text-[13px] leading-snug font-normal text-muted-foreground">
             Visitors must enter this password before the short link redirects.
             {link?.hasPassword ? ' A password is already saved.' : ''}
           </p>
         </Field>
         {link?.hasPassword ? <Button variant="outline" type="button" onClick={() => void clearPassword()}>Remove password</Button> : null}
         <UtmFields utm={utm} onChange={setUtm} />
-        {conflicts.length > 0 ? <p className="text-sm text-destructive">This will replace {conflicts.join(', ')} on the destination.</p> : null}
+        {conflicts.length > 0 ? <Notice tone="error">This will replace {conflicts.join(', ')} on the destination.</Notice> : null}
         <p className="text-sm text-muted-foreground">Tracked URL: {previewDestination(destinationUrl, utm)}</p>
-        {message ? <p>{message}</p> : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Save link</Button>
+        <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save link'}</Button>
       </form>
       </CardContent></Card>
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card><CardContent>
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,45rem)_20rem]">
+        <div className="lg:col-start-2 lg:row-start-1">
+          <QrPreview url={previewUrl || 'https://example.com'} style={style} logoUrl={logoUrl} />
+        </div>
+        <Card className="lg:col-start-1 lg:row-start-1"><CardContent>
         <form className="grid gap-3" onSubmit={(event) => void createQr(event)}>
-          <h2>QR code</h2>
+          <h2 className="text-lg font-medium">QR code</h2>
           <Field label="Name"><Input value={qrName} onChange={(event) => setQrName(event.target.value)} required /></Field>
           <Field label="Campaign variant">
             <Select
@@ -594,8 +612,7 @@ export function LinkDetailPage() {
             }} />
             {logoUrl ? <Button variant="outline" type="button" onClick={() => void removeCenterImage()}>Remove center image</Button> : null}
           </Field>
-          {warnings.map((warning) => <p key={warning} className="text-sm text-destructive">{warning}</p>)}
-          <Button type="submit">Save QR style</Button>
+          <Button type="submit" disabled={savingQr}>{savingQr ? 'Saving…' : 'Save QR style'}</Button>
           <div className="flex flex-wrap items-center gap-2.5">
             <Button variant="outline" type="button" onClick={() => void downloadQr(previewUrl, style, logoUrl, 'svg', slug || 'sharry')}>SVG</Button>
             <Button variant="outline" type="button" onClick={() => void downloadQr(previewUrl, style, logoUrl, 'png', slug || 'sharry')}>PNG</Button>
@@ -603,22 +620,21 @@ export function LinkDetailPage() {
           </div>
         </form>
         </CardContent></Card>
-        <QrPreview url={previewUrl || 'https://example.com'} style={style} logoUrl={logoUrl} />
       </div>
       {qrCodes.length > 0 ? (
-        <Card><CardContent>
+        <Card className="form-column"><CardContent>
           <h2 className="mb-2 text-lg font-medium">Saved codes</h2>
           <ul className="grid gap-2">
             {qrCodes.map((code) => (
-              <li key={code.id}>
+              <li key={code.id} className="flex flex-wrap items-center gap-2">
                 <Button
-                  variant="outline"
+                  variant={activeQr?.id === code.id ? 'default' : 'outline'}
                   type="button"
+                  aria-pressed={activeQr?.id === code.id}
                   onClick={() => void showQr(code)}
                 >
                   {code.name}
                 </Button>
-                {' · '}
                 <span className="font-mono text-sm break-all text-muted-foreground">{code.url}</span>
               </li>
             ))}

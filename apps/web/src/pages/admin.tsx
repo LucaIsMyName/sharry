@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
 import { copyText } from '../components/ui/copy.ts'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx'
 import { Field } from '../components/ui/field.tsx'
+import { Notice } from '../components/ui/notice.tsx'
 import { Input } from '../components/ui/input.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
 import { choiceNote, redirectOptions } from '../choices.ts'
@@ -49,6 +50,7 @@ export function AdminUsersPage() {
   const [form, setForm] = useState({ username: '', email: '', password: '', role: 'user' as 'admin' | 'user' })
   const [showCreatePassword, setShowCreatePassword] = useState(false)
   const [error, setError] = useState('')
+  const [pending, setPending] = useState(false)
   const [passwordFor, setPasswordFor] = useState<AdminUser | null>(null)
   const [nextPassword, setNextPassword] = useState('')
   const [copied, setCopied] = useState(false)
@@ -62,6 +64,7 @@ export function AdminUsersPage() {
   async function create(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setPending(true)
     try {
       await api('/api/admin/users', { method: 'POST', body: JSON.stringify(form) })
       setForm({ username: '', email: '', password: '', role: 'user' })
@@ -69,6 +72,8 @@ export function AdminUsersPage() {
       await load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the user')
+    } finally {
+      setPending(false)
     }
   }
 
@@ -107,7 +112,7 @@ export function AdminUsersPage() {
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-4xl font-medium tracking-tight">Users</h1>
-      <Card><CardContent>
+      <Card className="form-column"><CardContent>
       <form className="grid gap-3" onSubmit={(event) => void create(event)}>
         <Field label="Username"><Input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} required /></Field>
         <Field label="Email"><Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></Field>
@@ -125,8 +130,8 @@ export function AdminUsersPage() {
             onValueChange={(role) => setForm({ ...form, role })}
           />
         </Field>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <Button type="submit">Create account</Button>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Creating…' : 'Create account'}</Button>
       </form>
       </CardContent></Card>
       <Card><CardContent>
@@ -193,6 +198,7 @@ export function AdminSettingsPage() {
   const [smtpPassword, setSmtpPassword] = useState('')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
     void api<Settings>('/api/admin/settings').then(setSettings).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load settings'))
@@ -207,6 +213,7 @@ export function AdminSettingsPage() {
       setError(prefixError)
       return
     }
+    setPending(true)
     try {
       const next = await api<Settings>('/api/admin/settings', {
         method: 'PATCH',
@@ -236,53 +243,70 @@ export function AdminSettingsPage() {
       const apiError = caught as { code?: string; message?: string }
       if (apiError.code === 'confirm_prefix') setConfirm(true)
       else setError(caught instanceof Error ? caught.message : 'Could not save settings')
+    } finally {
+      setPending(false)
     }
   }
 
-  if (!settings) return <p className="text-sm text-muted-foreground">Loading settings…</p>
+  if (!settings) return error ? <Notice tone="error">{error}</Notice> : <p className="text-sm text-muted-foreground">Loading settings…</p>
   return (
     <section className="grid gap-4">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">Mail and two-factor rules are saved here. The public site address, short-link origin, session secret, and encryption key stay in the server environment.</p>
       </div>
-      <Card><CardContent>
-      <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); void save() }}>
-        <Field label="Public prefix"><Input value={settings.shortUrlPrefix} onChange={(event) => setSettings({ ...settings, shortUrlPrefix: event.target.value })} /></Field>
-        <Toggle checked={settings.legacyPrefixEnabled} onChange={(legacyPrefixEnabled) => setSettings({ ...settings, legacyPrefixEnabled })} label="Keep previous prefixes working" />
-        {settings.legacyPrefixes.length > 0 ? <p className="text-sm text-muted-foreground">Legacy prefixes: {settings.legacyPrefixes.join(', ')}</p> : null}
-        <Field label="Default redirect">
-          <Select
-            value={settings.defaultRedirectType}
-            options={[...redirectOptions]}
-            onValueChange={(defaultRedirectType) => setSettings({ ...settings, defaultRedirectType })}
-          />
-          <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, settings.defaultRedirectType)}</p>
-        </Field>
-        <Field label="Random slug length"><Input type="number" min={4} max={16} value={settings.slugLength} onChange={(event) => setSettings({ ...settings, slugLength: Number(event.target.value) })} /></Field>
-        <Field label="Analytics retention, days"><Input type="number" min={0} value={settings.analyticsRetentionDays} onChange={(event) => setSettings({ ...settings, analyticsRetentionDays: Number(event.target.value) })} /></Field>
-        <Field label="Session length, hours"><Input type="number" min={1} value={settings.sessionTtlHours} onChange={(event) => setSettings({ ...settings, sessionTtlHours: Number(event.target.value) })} /></Field>
-        <p>Registration is closed. Administrators create every account.</p>
-        <Toggle checked={settings.mfaRequired} disabled={settings.smtpSource !== 'app'} onChange={(mfaRequired) => setSettings({ ...settings, mfaRequired })} label="Require a two-factor code for every account" />
-        <p className="text-sm text-muted-foreground">{settings.smtpSource === 'app' ? 'When this is off, each person can turn a code on from Account. When it is on, sign-in asks for an authenticator until they enroll.' : 'Save a mail server below before requiring a code. Until then, people cannot turn two-factor authentication on.'}</p>
-        <h2>Email</h2>
-        <Field label="SMTP host"><Input value={settings.smtpHost} onChange={(event) => setSettings({ ...settings, smtpHost: event.target.value })} placeholder="smtp.example.com" /></Field>
-        <Field label="SMTP port"><Input type="number" min={1} max={65535} value={settings.smtpPort} onChange={(event) => setSettings({ ...settings, smtpPort: Number(event.target.value) })} /></Field>
-        <Field label="SMTP username"><Input value={settings.smtpUser} onChange={(event) => setSettings({ ...settings, smtpUser: event.target.value })} autoComplete="off" /></Field>
-        <Field label="SMTP password">
-          <Input type="password" value={smtpPassword} onChange={(event) => setSmtpPassword(event.target.value)} autoComplete="new-password" placeholder={settings.smtpPasswordSet ? 'Saved. Leave blank to keep it.' : 'Optional'} />
-        </Field>
-        <Field label="From address"><Input type="email" value={settings.emailFrom} onChange={(event) => setSettings({ ...settings, emailFrom: event.target.value })} placeholder="sharry@example.com" /></Field>
-        <p className="text-sm text-muted-foreground">{smtpStatus(settings)}</p>
-        {saved ? <p>{saved}</p> : null}
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Button type="submit">Save settings</Button>
-          <a className={buttonVariants({ variant: 'outline' })} href="/api/admin/export/links.csv">Export links</a>
-          <a className={buttonVariants({ variant: 'outline' })} href="/api/admin/export/clicks.csv">Export clicks</a>
-        </div>
+      <form className="form-column grid gap-4" onSubmit={(event) => { event.preventDefault(); void save() }}>
+        <Card>
+          <CardContent className="grid gap-3">
+            <h2 className="text-lg font-medium">Links</h2>
+            <Field label="Public prefix"><Input value={settings.shortUrlPrefix} onChange={(event) => setSettings({ ...settings, shortUrlPrefix: event.target.value })} /></Field>
+            <Toggle checked={settings.legacyPrefixEnabled} onChange={(legacyPrefixEnabled) => setSettings({ ...settings, legacyPrefixEnabled })} label="Keep previous prefixes working" />
+            {settings.legacyPrefixes.length > 0 ? <p className="text-sm text-muted-foreground">Legacy prefixes: {settings.legacyPrefixes.join(', ')}</p> : null}
+            <Field label="Default redirect">
+              <Select
+                value={settings.defaultRedirectType}
+                options={[...redirectOptions]}
+                onValueChange={(defaultRedirectType) => setSettings({ ...settings, defaultRedirectType })}
+              />
+              <p className="text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, settings.defaultRedirectType)}</p>
+            </Field>
+            <Field label="Random slug length"><Input type="number" min={4} max={16} value={settings.slugLength} onChange={(event) => setSettings({ ...settings, slugLength: Number(event.target.value) })} /></Field>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="grid gap-3">
+            <h2 className="text-lg font-medium">Sessions</h2>
+            <Field label="Analytics retention, days"><Input type="number" min={0} value={settings.analyticsRetentionDays} onChange={(event) => setSettings({ ...settings, analyticsRetentionDays: Number(event.target.value) })} /></Field>
+            <Field label="Session length, hours"><Input type="number" min={1} value={settings.sessionTtlHours} onChange={(event) => setSettings({ ...settings, sessionTtlHours: Number(event.target.value) })} /></Field>
+            <div className="grid gap-1">
+              <h3 className="text-sm font-medium">Registration</h3>
+              <p className="text-sm text-muted-foreground">Registration is closed. Administrators create every account.</p>
+            </div>
+            <Toggle checked={settings.mfaRequired} disabled={settings.smtpSource !== 'app'} onChange={(mfaRequired) => setSettings({ ...settings, mfaRequired })} label="Require a two-factor code for every account" />
+            <p className="text-sm text-muted-foreground">{settings.smtpSource === 'app' ? 'When this is off, each person can turn a code on from Account. When it is on, sign-in asks for an authenticator until they enroll.' : 'Save a mail server below before requiring a code. Until then, people cannot turn two-factor authentication on.'}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="grid gap-3">
+            <h2 className="text-lg font-medium">Email</h2>
+            <Field label="SMTP host"><Input value={settings.smtpHost} onChange={(event) => setSettings({ ...settings, smtpHost: event.target.value })} placeholder="smtp.example.com" /></Field>
+            <Field label="SMTP port"><Input type="number" min={1} max={65535} value={settings.smtpPort} onChange={(event) => setSettings({ ...settings, smtpPort: Number(event.target.value) })} /></Field>
+            <Field label="SMTP username"><Input value={settings.smtpUser} onChange={(event) => setSettings({ ...settings, smtpUser: event.target.value })} autoComplete="off" /></Field>
+            <Field label="SMTP password">
+              <Input type="password" value={smtpPassword} onChange={(event) => setSmtpPassword(event.target.value)} autoComplete="new-password" placeholder={settings.smtpPasswordSet ? 'Saved. Leave blank to keep it.' : 'Optional'} />
+            </Field>
+            <Field label="From address"><Input type="email" value={settings.emailFrom} onChange={(event) => setSettings({ ...settings, emailFrom: event.target.value })} placeholder="sharry@example.com" /></Field>
+            <p className="text-sm text-muted-foreground">{smtpStatus(settings)}</p>
+          </CardContent>
+        </Card>
+        {saved ? <Notice tone="success">{saved}</Notice> : null}
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save settings'}</Button>
       </form>
-      </CardContent></Card>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <a className={buttonVariants({ variant: 'outline' })} href="/api/admin/export/links.csv">Export links</a>
+        <a className={buttonVariants({ variant: 'outline' })} href="/api/admin/export/clicks.csv">Export clicks</a>
+      </div>
       <ConfirmDialog
         open={confirm}
         title="Change the public prefix?"
@@ -316,7 +340,7 @@ export function AdminAuditPage() {
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-4xl font-medium tracking-tight">Audit</h1>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="min-w-0"><CardContent className="min-w-0">
         {loading ? <p className="text-sm text-muted-foreground">Loading audit log…</p> : entries.length === 0 ? <p className="text-sm text-muted-foreground">No audit events yet.</p> : (
         <Table className="min-w-full w-max">

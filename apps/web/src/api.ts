@@ -57,6 +57,8 @@ export type ShortLink = {
   userId: string
 }
 
+export type LinkSummary = ShortLink & { clicks: number }
+
 export type PublicSettings = {
   appName: string
   shortUrlPrefix: string

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import QRCodeStyling from 'qr-code-styling'
 import { qrWarnings, type QrStyle } from '@sharry/shared'
+import { Notice } from './ui/notice.tsx'
 
-export function QrPreview({ url, style, logoUrl }: { url: string; style: QrStyle; logoUrl?: string | null }) {
+export function QrPreview({ url, style, logoUrl, showNotes = true }: { url: string; style: QrStyle; logoUrl?: string | null; showNotes?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const qrRef = useRef<QRCodeStyling | null>(null)
 
@@ -23,8 +24,8 @@ export function QrPreview({ url, style, logoUrl }: { url: string; style: QrStyle
   return (
     <div className="space-y-3 gap-3">
       <div className="grid min-h-72 place-items-center rounded-2xl bg-white p-3" ref={ref} />
-      {warnings.map((warning) => <p key={warning} className="text-sm text-destructive">{warning}</p>)}
-      <p className="text-sm text-muted-foreground">JPEG downloads use a solid background because JPEG cannot store transparency.</p>
+      {showNotes ? warnings.map((warning) => <Notice key={warning} tone="error">{warning}</Notice>) : null}
+      {showNotes ? <p className="text-sm text-muted-foreground">JPEG downloads use a solid background because JPEG cannot store transparency.</p> : null}
     </div>
   )
 }

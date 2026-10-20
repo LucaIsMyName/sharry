@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { links, qrCodes, trackingConfigs, type Database, type LinkRecord } from '@sharry/database'
+import { clickEvents, links, qrCodes, trackingConfigs, type Database, type LinkRecord } from '@sharry/database'
 import {
   SLUG_TAKEN_MESSAGE,
   buildShortUrl,
@@ -28,7 +28,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @query q string Filter by slug, title, or destination
    * @query limit number Page size, 1–100, default 50
    * @query offset number Number of rows to skip
-   * @response 200 { links: Link[], total: number }
+   * @response 200 { links: Link[], total: number } Each link includes clicks, the all-time click total.
    */
   app.get('/api/links', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -39,8 +39,12 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const where = linkScope(actor, query.q)
     const rows = await app.db.select().from(links).where(where).orderBy(desc(links.createdAt)).limit(limit).offset(offset)
     const total = await countLinks(app.db, where)
-    const configs = await loadConfigs(app.db, rows.map((row) => row.id))
-    return { links: rows.map((row) => serializeLink(row, settings, configs.get(row.id))), total }
+    const ids = rows.map((row) => row.id)
+    const [configs, clicks] = await Promise.all([loadConfigs(app.db, ids), loadClickCounts(app.db, ids)])
+    return {
+      links: rows.map((row) => ({ ...serializeLink(row, settings, configs.get(row.id)), clicks: clicks.get(row.id) ?? 0 })),
+      total,
+    }
   })
 
   /**
@@ -390,6 +394,18 @@ export function serializeLink(
     utm: utm ?? {},
     userId: link.userId,
   }
+}
+
+async function loadClickCounts(db: Database, ids: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  if (ids.length === 0) return counts
+  const rows = await db
+    .select({ linkId: clickEvents.linkId, clicks: sql<number>`count(*)::int` })
+    .from(clickEvents)
+    .where(inArray(clickEvents.linkId, ids))
+    .groupBy(clickEvents.linkId)
+  for (const row of rows) counts.set(row.linkId, row.clicks)
+  return counts
 }
 
 async function loadConfigs(db: Database, ids: string[]): Promise<Map<string, UtmParams>> {
