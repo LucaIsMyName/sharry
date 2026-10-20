@@ -145,15 +145,15 @@ export function LinksPage() {
       {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="mt-4 min-w-0">
         <CardContent className="min-w-0">
-          <Table className="table-fixed">
+          <Table className="min-w-full w-max">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[18%]">Title</TableHead>
-                <TableHead className="w-[24%]">Short URL</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Short URL</TableHead>
                 <TableHead>Destination</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-20">Clicks</TableHead>
-                <TableHead className="w-14"><span className="sr-only">Test</span></TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Clicks</TableHead>
+                <TableHead><span className="sr-only">Test</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
