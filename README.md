@@ -11,7 +11,7 @@ Requires Node.js 22 or newer. The app does not use Docker.
 `npm run dev` starts the dashboard, the API, and a local PostgreSQL when `DATABASE_URL` points at this machine and nothing is listening there. That database keeps its data in `data/pg-dev`. Closing the terminal stops it. The next `npm run dev` starts it again, then the API applies migrations. A server install still uses its own PostgreSQL.
 
 ```bash
-cp .env.example .env.development
+cp .env.development.example .env.development
 # Fill in DATABASE_URL, SESSION_SECRET, ENCRYPTION_KEY, and the initial admin password.
 npm install
 npm run db:migrate
@@ -26,7 +26,7 @@ On first startup Sharry creates the initial administrator from `INITIAL_ADMIN_*`
 
 ## Configuration
 
-Keep `.env.development` and `.env.production` out of Git. `.env.example` contains placeholders only.
+Keep `.env.development` and `.env.production` out of Git. `.env.development.example` and `.env.production.example` contain placeholders only.
 
 `npm run dev`, `npm run db:migrate`, `npm run setup`, `npm run create-admin`, and `npm run backup` read `.env.development` on this machine. `npm run deploy` reads `.env.production`. The server keeps its own runtime file at `$DEPLOY_REMOTE_DIR/shared/.env`.
 
@@ -95,7 +95,7 @@ Two things stay outside the script:
 On the machine you deploy from:
 
 ```bash
-cp .env.example .env.production
+cp .env.production.example .env.production
 ```
 
 Set:

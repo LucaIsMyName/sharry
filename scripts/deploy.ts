@@ -20,7 +20,7 @@ import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatche
 const syncEnv = process.argv.includes('--sync-env')
 const envPath = resolveEnvFile('production')
 if (!fs.existsSync(envPath)) {
-  console.error('Create .env.production before deploying. Copy .env.example and fill in DOMAIN, the SSH login, and the first administrator.')
+  console.error('Create .env.production before deploying. Copy .env.production.example and fill in DOMAIN, the SSH login, and the first administrator.')
   process.exit(1)
 }
 

@@ -8,4 +8,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   noExternal: ['@sharry/shared', '@sharry/database'],
+  external: ['qrcode', 'pg', 'drizzle-orm'],
 })
