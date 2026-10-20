@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { Link, useNavigate, useRevalidator, useSearchParams } from 'react-router'
+import { generatePassword } from '@sharry/shared'
 import { api, type Me } from '../api.ts'
 import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
@@ -79,6 +80,7 @@ export function PasswordPage() {
   const navigate = useNavigate()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [error, setError] = useState('')
 
   async function submit(event: FormEvent) {
@@ -103,8 +105,9 @@ export function PasswordPage() {
           <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
         </Field>
         <Field label="New password">
-          <Input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} required />
+          <Input type={showNewPassword ? 'text' : 'password'} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={12} autoComplete="new-password" required />
         </Field>
+        <Button type="button" variant="outline" onClick={() => { setNewPassword(generatePassword()); setShowNewPassword(true) }}>Generate password</Button>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit">Update password</Button>
       </form>

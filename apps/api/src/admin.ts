@@ -1,6 +1,8 @@
-import { desc, eq, sql } from 'drizzle-orm'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { apiKeys, auditLogs, links, users, type Database, type UserRecord } from '@sharry/database'
+import { apiKeys, auditLogs, links, qrCodes, sessions, trackingCampaigns, users, type Database, type UserRecord } from '@sharry/database'
 import {
   buildShortUrl,
   createApiKeySchema,
@@ -12,6 +14,7 @@ import {
 } from '@sharry/shared'
 import { requireAdmin } from './auth.ts'
 import { writeAudit } from './audit.ts'
+import { removeLogo } from './links.ts'
 import { smtpSource } from './mail.ts'
 import { hashPassword } from './passwords.ts'
 import { rowsOf, getSettings, invalidateSettings, writeSetting, type AppSettings } from './settings-store.ts'
@@ -103,11 +106,8 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     if (!user) throw new AppError(404, 'User not found')
     if (user.id === actor.id && body.isActive === false) throw new AppError(400, 'You cannot deactivate your own account')
     const demoting = user.role === 'admin' && (body.role === 'user' || body.isActive === false)
-    if (demoting) {
-      const others = rowsOf<{ count: number }>(
-        await app.db.execute(sql`select count(*)::int as count from users where role = 'admin' and is_active = true and id <> ${user.id}`),
-      )[0]?.count ?? 0
-      if (others < 1) throw new AppError(400, 'Keep at least one active administrator')
+    if (demoting && (await otherActiveAdmins(app.db, user.id)) < 1) {
+      throw new AppError(400, 'Keep at least one active administrator')
     }
     const passwordHash = body.password ? await hashPassword(body.password) : undefined
     const [updated] = await app.db
@@ -122,6 +122,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       .where(eq(users.id, user.id))
       .returning()
     if (!updated) throw new AppError(404, 'User not found')
+    if (body.password) await app.db.delete(sessions).where(eq(sessions.userId, user.id))
     await writeAudit(app.db, {
       actorUserId: actor.id,
       action: 'user.updated',
@@ -130,6 +131,47 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       metadata: { role: updated.role, isActive: updated.isActive, passwordReset: Boolean(body.password) },
     })
     return publicAdminUser(updated)
+  })
+
+  /**
+   * Delete an account and the links, campaigns, QR codes, and API keys that belong to it.
+   * @route DELETE /api/admin/users/:id
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @param id string User id
+   * @response 204 Empty
+   * @response 400 You cannot delete your own account
+   */
+  app.delete('/api/admin/users/:id', async (request, reply) => {
+    const actor = await requireAdmin(app, request)
+    const { id } = request.params as { id: string }
+    const found = await app.db.select().from(users).where(eq(users.id, id)).limit(1)
+    const user = found[0]
+    if (!user) throw new AppError(404, 'User not found')
+    if (user.id === actor.id) throw new AppError(400, 'You cannot delete your own account')
+    if (user.role === 'admin' && user.isActive && (await otherActiveAdmins(app.db, user.id)) < 1) {
+      throw new AppError(400, 'Keep at least one active administrator')
+    }
+    const owned = await app.db.select({ id: links.id }).from(links).where(eq(links.userId, user.id))
+    const logos = owned.length
+      ? await app.db.select({ logoPath: qrCodes.logoPath }).from(qrCodes).where(inArray(qrCodes.linkId, owned.map((link) => link.id)))
+      : []
+    await app.db.transaction(async (tx) => {
+      const database = tx as unknown as Database
+      await database.delete(trackingCampaigns).where(eq(trackingCampaigns.userId, user.id))
+      await database.delete(links).where(eq(links.userId, user.id))
+      await database.delete(users).where(eq(users.id, user.id))
+      await writeAudit(database, {
+        actorUserId: actor.id,
+        action: 'user.deleted',
+        entityType: 'user',
+        entityId: user.id,
+        metadata: { username: user.username, role: user.role },
+      })
+    })
+    await Promise.all(logos.map((logo) => removeLogo(app.env.QR_DATA_DIR, logo.logoPath)))
+    await removeAvatarFile(app.env.AVATAR_DATA_DIR, user.avatarPath)
+    return reply.code(204).send()
   })
 
   /**
@@ -539,4 +581,16 @@ function publicAdminUser(user: UserRecord) {
 export async function countOwnedLinks(db: Database, userId: string): Promise<number> {
   const rows = rowsOf<{ count: number }>(await db.execute(sql`select count(*)::int as count from links where user_id = ${userId}`))
   return rows[0]?.count ?? 0
+}
+
+async function otherActiveAdmins(db: Database, userId: string): Promise<number> {
+  const rows = rowsOf<{ count: number }>(
+    await db.execute(sql`select count(*)::int as count from users where role = 'admin' and is_active = true and id <> ${userId}`),
+  )
+  return rows[0]?.count ?? 0
+}
+
+async function removeAvatarFile(directory: string, filename: string | null): Promise<void> {
+  if (!filename || filename.includes('/') || filename.includes('..')) return
+  await fs.rm(path.join(directory, filename), { force: true })
 }

@@ -67,7 +67,7 @@ export function DocsPage() {
           <DocLink to="/docs/api">Reference</DocLink>
         </div>
       </nav>
-      <article className="min-w-0">
+      <article className="min-w-0 max-w-xl">
         {slug === 'api' ? <ApiReference /> : page ? <Markdown source={page.markdown} /> : <p className="text-sm text-muted-foreground">That page is not in the docs.</p>}
       </article>
     </div>

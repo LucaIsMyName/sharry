@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { defaultQrStyle, validatePrefix, type QrStyle } from '@sharry/shared'
+import { defaultQrStyle, generatePassword, validatePrefix, type QrStyle } from '@sharry/shared'
 import { api } from '../api.ts'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
 import { Select } from '../components/ui/choice-select.tsx'
 import { ConfirmDialog } from '../components/ui/confirm-dialog.tsx'
+import { copyText } from '../components/ui/copy.ts'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../components/ui/dialog.tsx'
 import { Field } from '../components/ui/field.tsx'
 import { Input } from '../components/ui/input.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
@@ -45,7 +47,12 @@ type AuditEntry = { id: string; actorUsername: string | null; action: string; en
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [form, setForm] = useState({ username: '', email: '', password: '', role: 'user' as 'admin' | 'user' })
+  const [showCreatePassword, setShowCreatePassword] = useState(false)
   const [error, setError] = useState('')
+  const [passwordFor, setPasswordFor] = useState<AdminUser | null>(null)
+  const [nextPassword, setNextPassword] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [deleteFor, setDeleteFor] = useState<AdminUser | null>(null)
 
   async function load() {
     setUsers((await api<{ users: AdminUser[] }>('/api/admin/users')).users)
@@ -58,19 +65,42 @@ export function AdminUsersPage() {
     try {
       await api('/api/admin/users', { method: 'POST', body: JSON.stringify(form) })
       setForm({ username: '', email: '', password: '', role: 'user' })
+      setShowCreatePassword(false)
       await load()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the user')
     }
   }
 
-  async function update(id: string, patch: Record<string, unknown>) {
+  async function update(id: string, patch: Record<string, unknown>): Promise<boolean> {
     setError('')
     try {
       await api(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) })
       await load()
+      return true
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not update the user')
+      return false
+    }
+  }
+
+  async function savePassword() {
+    if (!passwordFor) return
+    const saved = await update(passwordFor.id, { password: nextPassword })
+    if (!saved) return
+    setPasswordFor(null)
+    setNextPassword('')
+  }
+
+  async function remove() {
+    if (!deleteFor) return
+    setError('')
+    try {
+      await api(`/api/admin/users/${deleteFor.id}`, { method: 'DELETE' })
+      setDeleteFor(null)
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete the account')
     }
   }
 
@@ -81,7 +111,13 @@ export function AdminUsersPage() {
       <form className="grid gap-3" onSubmit={(event) => void create(event)}>
         <Field label="Username"><Input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} required /></Field>
         <Field label="Email"><Input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required /></Field>
-        <Field label="Temporary password"><Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={12} required /></Field>
+        <Field label="Temporary password">
+          <Input type={showCreatePassword ? 'text' : 'password'} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={12} required autoComplete="new-password" />
+        </Field>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => { setForm({ ...form, password: generatePassword() }); setShowCreatePassword(true) }}>Generate password</Button>
+          {showCreatePassword && form.password ? <Button type="button" variant="outline" onClick={() => void copyText(form.password).catch(() => setError('Could not copy the password'))}>Copy password</Button> : null}
+        </div>
         <Field label="Role">
           <Select
             value={form.role}
@@ -108,12 +144,45 @@ export function AdminUsersPage() {
                   />
                 </TableCell>
                 <TableCell className="whitespace-normal">{user.isActive ? 'Active' : 'Disabled'}{user.mustChangePassword ? ' · password change' : ''}</TableCell>
-                <TableCell><Button variant="outline" type="button" onClick={() => void update(user.id, { isActive: !user.isActive })}>{user.isActive ? 'Deactivate' : 'Activate'}</Button></TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" type="button" onClick={() => { setPasswordFor(user); setNextPassword(''); setCopied(false) }}>Set password</Button>
+                    <Button variant="outline" type="button" onClick={() => void update(user.id, { isActive: !user.isActive })}>{user.isActive ? 'Deactivate' : 'Activate'}</Button>
+                    <Button variant="outline" type="button" onClick={() => setDeleteFor(user)}>Delete</Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </CardContent></Card>
+      <Dialog open={Boolean(passwordFor)} onOpenChange={(open) => { if (!open) setPasswordFor(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl">Set a temporary password</DialogTitle>
+            <DialogDescription>{passwordFor ? `${passwordFor.username} must choose a new password at the next sign-in. Current sessions end now.` : ''}</DialogDescription>
+          </DialogHeader>
+          <Field label="Temporary password">
+            <Input type="text" value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} minLength={12} autoComplete="off" />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => { setNextPassword(generatePassword()); setCopied(false) }}>Generate password</Button>
+            <Button type="button" variant="outline" disabled={!nextPassword} onClick={() => void copyText(nextPassword).then(() => setCopied(true)).catch(() => setError('Could not copy the password'))}>{copied ? 'Copied' : 'Copy password'}</Button>
+          </div>
+          <DialogFooter className="border-0 bg-transparent sm:justify-start">
+            <Button type="button" disabled={nextPassword.length < 12} onClick={() => void savePassword()}>Save password</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDialog
+        open={Boolean(deleteFor)}
+        title={deleteFor ? `Delete ${deleteFor.username}?` : 'Delete this account?'}
+        description="Their links, campaigns, QR codes, and API keys are removed. This cannot be undone."
+        confirmLabel="Delete account"
+        destructive
+        onOpenChange={(open) => { if (!open) setDeleteFor(null) }}
+        onConfirm={() => void remove()}
+      />
     </section>
   )
 }
