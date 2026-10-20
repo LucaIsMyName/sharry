@@ -143,7 +143,7 @@ The script then does the following, in order:
 6. When `ufw` is already enabled, allows ports 80 and 443. It does not enable `ufw` when it is off.
 7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
 8. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
-9. Runs `npm ci` and `npm run build` on the server.
+9. When free memory plus free swap is below 1.5 GB, adds a 2 GB swap file, then runs `npm ci` and `npm run build` on the server.
 10. Writes `shared/.env` on the first install, and again when `--sync-env` is set.
 11. Runs `npm run backup`, writing a custom-format dump to `$DEPLOY_REMOTE_DIR/backups`.
 12. Runs migrations.

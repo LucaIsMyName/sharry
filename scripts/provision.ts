@@ -181,3 +181,21 @@ if command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; the
 fi`),
   )
 }
+
+export function ensureBuildMemoryCommand(): string {
+  return `set -euo pipefail
+avail_kb=$(grep MemAvailable /proc/meminfo | tr -s " " | cut -d " " -f 2)
+swap_free_kb=$(grep SwapFree /proc/meminfo | tr -s " " | cut -d " " -f 2)
+if [ "$((avail_kb + swap_free_kb))" -ge 1500000 ]; then
+  exit 0
+fi
+if ! swapon --show | tr -s " " | cut -d " " -f 1 | grep -qx /swapfile; then
+  if [ ! -f /swapfile ]; then
+    fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+    chmod 600 /swapfile
+    mkswap /swapfile
+  fi
+  swapon /swapfile
+fi
+grep -qs /swapfile /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab`
+}

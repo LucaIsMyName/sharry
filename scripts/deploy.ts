@@ -13,7 +13,7 @@ import {
   splitEnv,
 } from '@sharry/shared'
 import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
-import { provisionHost } from './provision.ts'
+import { ensureBuildMemoryCommand, provisionHost } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
@@ -122,7 +122,16 @@ try {
   fs.rmSync(archive, { force: true })
   await exec(conn, `tar -xzf ${remote}/incoming.tgz -C ${release} && rm -f ${remote}/incoming.tgz`, secrets)
   await exec(conn, `ln -sfn ${remote}/shared/data ${release}/data`, secrets)
-  await exec(conn, `cd ${release} && npm ci && npm run build`, secrets)
+  await exec(conn, privileged(ensureBuildMemoryCommand()), secrets)
+  try {
+    await exec(conn, `cd ${release} && npm ci --no-audit --no-fund && npm run build`, secrets)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (/Killed/.test(message) || /\(137\)/.test(message)) {
+      throw new Error('The server ran out of memory while installing or building. Free some disk space for swap and run deploy again.')
+    }
+    throw error
+  }
   if (Object.keys(secretUpdates).length > 0 && (syncEnv || !envExists)) upsertEnvKeys(envPath, secretUpdates)
   if (syncEnv || !envExists) {
     await writeRemoteFile(conn, envFile, serializeEnv(runtime), 0o600)

@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { upsertEnvKeys } from './env-file.ts'
-import { caddyHasSite, caddySiteBlock, databaseTarget, linuxDistro, nodeInstallScript, provisionHost, psqlCommand } from './provision.ts'
+import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, linuxDistro, nodeInstallScript, provisionHost, psqlCommand } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
@@ -27,6 +27,13 @@ describe('deploy safety', () => {
     expect(hostIsListed(known, '203.0.113.10', 22)).toBe(true)
     expect(hostIsListed(known, '198.51.100.8', 22)).toBe(false)
     expect(opensshFingerprint(key)).toMatch(/^SHA256:/)
+  })
+
+  it('adds swap when free memory is below 1.5 GB', () => {
+    const command = ensureBuildMemoryCommand()
+    expect(command).toContain('MemAvailable')
+    expect(command).toContain('/swapfile')
+    expect(command).toContain('1500000')
   })
 
   it('runs root commands without sudo and other commands with sudo -n', () => {
