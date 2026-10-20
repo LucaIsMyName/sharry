@@ -32,8 +32,8 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
    * @route GET /api/analytics
    * @tag Analytics
    * @auth api-key or session
-   * @query from string Start day, YYYY-MM-DD. Defaults to 30 days before to
-   * @query to string End day, YYYY-MM-DD. Defaults to today
+   * @query from string Start day, YYYY-MM-DD, inclusive. Defaults to 30 days before to
+   * @query to string End day, YYYY-MM-DD, inclusive. Defaults to now. A date-only value includes that whole UTC day
    * @response 200 totals, daily series, referrer, country, browser, device, and utm breakdowns, plus links
    */
   app.get('/api/analytics', async (request) => {
@@ -50,8 +50,8 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
    * @tag Analytics
    * @auth api-key or session
    * @param id string Link id
-   * @query from string Start day, YYYY-MM-DD
-   * @query to string End day, YYYY-MM-DD
+   * @query from string Start day, YYYY-MM-DD, inclusive
+   * @query to string End day, YYYY-MM-DD, inclusive. A date-only value includes that whole UTC day
    * @response 200 totals, daily series, referrer, country, browser, device, and utm breakdowns
    */
   app.get('/api/links/:id/analytics', async (request) => {
@@ -219,12 +219,15 @@ async function grouped(db: Database, column: string, where: ReturnType<typeof fi
   return rows.map((row) => ({ name: row.name || emptyLabel, clicks: row.clicks }))
 }
 
+const maxSeriesDays = 400
+
 function fillSeries(rows: { date: string; clicks: number }[], range: { from: Date; to: Date }) {
   const map = new Map(rows.map((row) => [row.date, row.clicks]))
   const series: { date: string; clicks: number }[] = []
-  const cursor = new Date(Date.UTC(range.from.getUTCFullYear(), range.from.getUTCMonth(), range.from.getUTCDate()))
-  const end = new Date(Date.UTC(range.to.getUTCFullYear(), range.to.getUTCMonth(), range.to.getUTCDate()))
-  while (cursor <= end && series.length < 400) {
+  const cursor = startOfUtcDay(range.from)
+  const end = lastIncludedUtcDay(range.to)
+  while (cursor.getTime() <= end.getTime()) {
+    if (series.length >= maxSeriesDays) throw new AppError(400, 'Choose a range of 400 days or fewer')
     const date = cursor.toISOString().slice(0, 10)
     series.push({ date, clicks: map.get(date) ?? 0 })
     cursor.setUTCDate(cursor.getUTCDate() + 1)
@@ -234,18 +237,63 @@ function fillSeries(rows: { date: string; clicks: number }[], range: { from: Dat
 
 function parseRange(query: unknown): { from: Date; to: Date } {
   const record = typeof query === 'object' && query ? (query as { from?: string; to?: string }) : {}
-  const to = parseDay(record.to, new Date())
-  const from = parseDay(record.from, new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000))
+  const to = parseTo(record.to, new Date())
+  const from = parseFrom(record.from, new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000))
   if (from >= to) throw new AppError(400, 'The start date must be before the end date')
+  if (seriesDayCount(from, to) > maxSeriesDays) throw new AppError(400, 'Choose a range of 400 days or fewer')
   return { from, to }
 }
 
-function parseDay(value: string | undefined, fallback: Date): Date {
+function parseFrom(value: string | undefined, fallback: Date): Date {
   if (!value) return fallback
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00.000Z`)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return utcCalendarDate(value)
+  return parseInstant(value)
+}
+
+function parseTo(value: string | undefined, fallback: Date): Date {
+  if (!value) return fallback
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const start = utcCalendarDate(value)
+    start.setUTCDate(start.getUTCDate() + 1)
+    return start
+  }
+  return parseInstant(value)
+}
+
+function utcCalendarDate(value: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) throw new AppError(400, 'Invalid date')
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    throw new AppError(400, 'Invalid date')
+  }
+  return date
+}
+
+function parseInstant(value: string): Date {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) throw new AppError(400, 'Invalid date')
   return date
+}
+
+function startOfUtcDay(value: Date): Date {
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()))
+}
+
+function lastIncludedUtcDay(to: Date): Date {
+  const midnight = Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate())
+  if (to.getTime() === midnight) return new Date(midnight - 24 * 60 * 60 * 1000)
+  return new Date(midnight)
+}
+
+function seriesDayCount(from: Date, to: Date): number {
+  const start = startOfUtcDay(from).getTime()
+  const end = lastIncludedUtcDay(to).getTime()
+  if (end < start) return 0
+  return Math.floor((end - start) / (24 * 60 * 60 * 1000)) + 1
 }
 
 function rowCount(result: unknown): number {

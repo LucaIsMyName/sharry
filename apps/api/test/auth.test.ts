@@ -7,8 +7,10 @@ import { buildApp } from '../src/server.ts'
 import { provisionAdmin } from '../src/provision.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 import { decryptString } from '../src/support.ts'
-import { appSettings } from '@sharry/database'
+import { appSettings, passwordResetTokens, recoveryCodes, sessions } from '@sharry/database'
 import { eq } from 'drizzle-orm'
+import { purgeExpiredResetTokens } from '../src/auth.ts'
+import { hashToken, randomToken } from '../src/support.ts'
 
 describe('authentication', () => {
   useTestApp()
@@ -142,7 +144,120 @@ describe('authentication', () => {
       payload: { usernameOrEmail: 'admin', password: 'reset-password-value' },
     })
     expect(login.statusCode).toBe(200)
+    const again = await mailApp.inject({
+      method: 'POST',
+      url: '/api/auth/reset-password',
+      payload: { token, newPassword: 'another-reset-password' },
+    })
+    expect(again.statusCode).toBe(400)
     await mailApp.close()
+  })
+
+  it('replaces an unused reset link and accepts only one overlapping use', async () => {
+    const { db, env, pool } = await getContext()
+    await provisionAdmin(db, env)
+    const messages: { text: string }[] = []
+    const mailApp = await buildApp({
+      env,
+      db,
+      pool,
+      logger: false,
+      mailer: { async send(message) { messages.push(message) } },
+    })
+    await mailApp.ready()
+    await mailApp.inject({ method: 'POST', url: '/api/auth/forgot-password', payload: { email: 'admin@example.com' } })
+    await mailApp.inject({ method: 'POST', url: '/api/auth/forgot-password', payload: { email: 'admin@example.com' } })
+    const tokens = messages.map((message) => new URL(message.text.match(/https?:\/\/\S+/)?.[0] ?? '').searchParams.get('token'))
+    const first = tokens[0]
+    const second = tokens[1]
+    expect(first).toBeTruthy()
+    expect(second).toBeTruthy()
+    const stale = await mailApp.inject({
+      method: 'POST',
+      url: '/api/auth/reset-password',
+      payload: { token: first, newPassword: 'stale-reset-password' },
+    })
+    expect(stale.statusCode).toBe(400)
+    const [left, right] = await Promise.all([
+      mailApp.inject({
+        method: 'POST',
+        url: '/api/auth/reset-password',
+        payload: { token: second, newPassword: 'race-reset-password-a' },
+      }),
+      mailApp.inject({
+        method: 'POST',
+        url: '/api/auth/reset-password',
+        payload: { token: second, newPassword: 'race-reset-password-b' },
+      }),
+    ])
+    expect([left.statusCode, right.statusCode].sort()).toEqual([200, 400])
+    await mailApp.close()
+  })
+
+  it('accepts a recovery code once when two requests overlap', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const code = 'abcd-2345'
+    await ctx.db.insert(recoveryCodes).values({
+      userId: user.id,
+      codeHash: hashToken('abcd2345', ctx.env.ENCRYPTION_KEY),
+    })
+    const token = randomToken()
+    await ctx.db.insert(sessions).values({
+      userId: user.id,
+      tokenHash: hashToken(token, ctx.env.SESSION_SECRET),
+      scope: 'mfa_challenge',
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+    const cookie = `sharry_session=${token}`
+    const [left, right] = await Promise.all([
+      ctx.app.inject({ method: 'POST', url: '/api/auth/mfa', headers: { cookie }, payload: { code } }),
+      ctx.app.inject({ method: 'POST', url: '/api/auth/mfa', headers: { cookie }, payload: { code } }),
+    ])
+    expect([left.statusCode, right.statusCode].sort()).toEqual([200, 401])
+  })
+
+  it('limits authenticator confirmation attempts', async () => {
+    const { db, env, pool } = await getContext()
+    const limited = await buildApp({ env, db, pool, logger: false })
+    await limited.ready()
+    const responses = []
+    for (let attempt = 0; attempt < 11; attempt += 1) {
+      responses.push(await limited.inject({
+        method: 'POST',
+        url: '/api/auth/mfa/confirm',
+        payload: { code: '000000' },
+      }))
+    }
+    expect(responses[9]?.statusCode).not.toBe(429)
+    expect(responses[10]?.statusCode).toBe(429)
+    await limited.close()
+  })
+
+  it('deletes expired and used reset tokens', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    await ctx.db.insert(passwordResetTokens).values([
+      {
+        userId: user.id,
+        tokenHash: hashToken('expired', ctx.env.SESSION_SECRET),
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+      {
+        userId: user.id,
+        tokenHash: hashToken('used', ctx.env.SESSION_SECRET),
+        expiresAt: new Date(Date.now() + 60_000),
+        usedAt: new Date(),
+      },
+      {
+        userId: user.id,
+        tokenHash: hashToken('fresh', ctx.env.SESSION_SECRET),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    ])
+    await purgeExpiredResetTokens(ctx.db)
+    const left = await ctx.db.select().from(passwordResetTokens)
+    expect(left.map((row) => row.tokenHash)).toEqual([hashToken('fresh', ctx.env.SESSION_SECRET)])
   })
 
   it('saves mail settings without returning the password and can require a code', async () => {

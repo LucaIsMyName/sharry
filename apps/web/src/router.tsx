@@ -14,12 +14,18 @@ async function loadMe(): Promise<Me> {
   return api<Me>('/api/auth/me')
 }
 
+function redirectForScope(scope: Me['scope']): string | null {
+  if (scope === 'password_change') return '/account/password'
+  if (scope === 'mfa_enroll') return '/account/mfa'
+  if (scope === 'mfa_challenge') return '/login/mfa'
+  return null
+}
+
 async function requireSession(): Promise<Me> {
   try {
     const me = await loadMe()
-    if (me.scope === 'password_change') throw redirect('/account/password')
-    if (me.scope === 'mfa_enroll') throw redirect('/account/mfa')
-    if (me.scope === 'mfa_challenge') throw redirect('/login/mfa')
+    const next = redirectForScope(me.scope)
+    if (next) throw redirect(next)
     return me
   } catch (error) {
     if (error instanceof Response) throw error
@@ -40,7 +46,7 @@ async function adminLoader() {
 async function scopeLoader(scope: Me['scope']) {
   try {
     const me = await loadMe()
-    if (me.scope !== scope) throw redirect(me.scope === 'full' ? '/' : '/login')
+    if (me.scope !== scope) throw redirect(redirectForScope(me.scope) ?? '/')
     return me
   } catch (error) {
     if (error instanceof Response) throw error

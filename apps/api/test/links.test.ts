@@ -118,9 +118,11 @@ describe('short links', () => {
     expect(wrong.statusCode).toBe(401)
     expect(wrong.body).toContain('incorrect')
     const right = await ctx.app.inject({ method: 'POST', url: '/s/gated', payload: { password: 'poster-secret' } })
-    expect(right.statusCode).toBe(301)
+    expect(right.statusCode).toBe(303)
     expect(right.headers.location).toBe('https://example.com/secret')
     expect(right.headers['cache-control']).toBe('no-store')
+    const unlockClicks = await waitForClicks(ctx.db, 1)
+    expect(unlockClicks).toHaveLength(1)
     const unlocked = await ctx.app.inject({
       method: 'GET',
       url: '/s/gated',
@@ -137,6 +139,7 @@ describe('short links', () => {
     const open = await ctx.app.inject({ method: 'GET', url: '/s/gated' })
     expect(open.statusCode).toBe(301)
     expect(open.headers.location).toBe('https://example.com/secret')
+    expect(open.headers['cache-control']).toBe('no-store')
   })
 
   it('changes and clears a slug when empty UTM fields are null', async () => {
@@ -221,6 +224,38 @@ describe('short links', () => {
     })
     expect(one.json().totalClicks).toBe(2)
     expect(one.json().links).toBeUndefined()
+  })
+
+  it('includes the calendar end day and rejects a range longer than 400 days', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/dated', slug: 'dated' },
+    })
+    const linkId = created.json().id as string
+    await ctx.db.insert(clickEvents).values([
+      clickAt(linkId, '2026-10-19T23:00:00.000Z'),
+      clickAt(linkId, '2026-10-20T15:00:00.000Z'),
+      clickAt(linkId, '2026-10-21T01:00:00.000Z'),
+    ])
+    const day = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${linkId}/analytics?from=2026-10-20&to=2026-10-20`,
+      headers: { cookie: user.cookie },
+    })
+    expect(day.statusCode).toBe(200)
+    expect(day.json().totalClicks).toBe(1)
+    expect(day.json().series).toEqual([{ date: '2026-10-20', clicks: 1 }])
+    const wide = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${linkId}/analytics?from=2020-01-01&to=2026-10-20`,
+      headers: { cookie: user.cookie },
+    })
+    expect(wide.statusCode).toBe(400)
+    expect(wide.json().error).toMatch(/400 days/)
   })
 
   it('assigns a random slug when a saved slug is cleared', async () => {
@@ -567,6 +602,18 @@ async function waitForClicks(db: Awaited<ReturnType<typeof getContext>>['db'], c
     rows = await db.select().from(clickEvents)
   }
   return rows
+}
+
+function clickAt(linkId: string, occurredAt: string) {
+  return {
+    linkId,
+    occurredAt: new Date(occurredAt),
+    browser: 'Chrome',
+    operatingSystem: 'macOS',
+    deviceType: 'desktop',
+    isBot: false,
+    anonymousVisitorId: 'visitor',
+  }
 }
 
 function cookieHeader(header: unknown): string {

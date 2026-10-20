@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Secret, TOTP } from 'otpauth'
 import sharp from 'sharp'
@@ -252,10 +252,15 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     const delivery = mailer ?? mailerFor(settings, app.env)
     if (user && user.isActive && delivery) {
       const token = randomToken()
-      await app.db.insert(passwordResetTokens).values({
-        userId: user.id,
-        tokenHash: hashToken(token, app.env.SESSION_SECRET),
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      await app.db.transaction(async (tx) => {
+        await tx
+          .delete(passwordResetTokens)
+          .where(and(eq(passwordResetTokens.userId, user.id), isNull(passwordResetTokens.usedAt)))
+        await tx.insert(passwordResetTokens).values({
+          userId: user.id,
+          tokenHash: hashToken(token, app.env.SESSION_SECRET),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        })
       })
       const url = `${settings.appUrl.replace(/\/$/, '')}/login/reset?token=${encodeURIComponent(token)}`
       await delivery.send({
@@ -278,24 +283,32 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
   app.post('/api/auth/reset-password', limit, async (request) => {
     const body = parseBody(resetPasswordSchema, request.body)
     const tokenHash = hashToken(body.token, app.env.SESSION_SECRET)
-    const found = await app.db
-      .select()
-      .from(passwordResetTokens)
-      .where(eq(passwordResetTokens.tokenHash, tokenHash))
-      .limit(1)
-    const row = found[0]
-    if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
-      throw new AppError(400, 'This reset link is invalid or expired')
-    }
     const passwordHash = await hashPassword(body.newPassword)
-    await app.db.update(users).set({ passwordHash, mustChangePassword: false, updatedAt: new Date() }).where(eq(users.id, row.userId))
-    await app.db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, row.id))
-    await app.db.delete(sessions).where(eq(sessions.userId, row.userId))
+    const userId = await app.db.transaction(async (tx) => {
+      const consumed = await tx
+        .update(passwordResetTokens)
+        .set({ usedAt: new Date() })
+        .where(and(
+          eq(passwordResetTokens.tokenHash, tokenHash),
+          isNull(passwordResetTokens.usedAt),
+          sql`${passwordResetTokens.expiresAt} > now()`,
+        ))
+        .returning({ userId: passwordResetTokens.userId })
+      const row = consumed[0]
+      if (!row) return null
+      await tx
+        .update(users)
+        .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
+        .where(eq(users.id, row.userId))
+      await tx.delete(sessions).where(eq(sessions.userId, row.userId))
+      return row.userId
+    })
+    if (!userId) throw new AppError(400, 'This reset link is invalid or expired')
     await writeAudit(app.db, {
-      actorUserId: row.userId,
+      actorUserId: userId,
       action: 'auth.password_reset',
       entityType: 'user',
-      entityId: row.userId,
+      entityId: userId,
     })
     return { ok: true }
   })
@@ -332,7 +345,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
    * @body JSON { code }
    * @response 200 { scope, recoveryCodes }
    */
-  app.post('/api/auth/mfa/confirm', async (request, reply) => {
+  app.post('/api/auth/mfa/confirm', limit, async (request, reply) => {
     const actor = await requireUser(app, request, ['full', 'mfa_enroll'])
     const body = parseBody(mfaSchema, request.body)
     const user = await requireRecord(app.db, actor.id)
@@ -539,15 +552,18 @@ function normalizeRecoveryCode(code: string): string {
 
 async function consumeRecoveryCode(app: FastifyInstance, userId: string, code: string): Promise<boolean> {
   const codeHash = hashToken(normalizeRecoveryCode(code), app.env.ENCRYPTION_KEY)
-  const found = await app.db
-    .select()
-    .from(recoveryCodes)
-    .where(sql`${recoveryCodes.userId} = ${userId} and ${recoveryCodes.codeHash} = ${codeHash} and ${recoveryCodes.usedAt} is null`)
-    .limit(1)
-  const row = found[0]
-  if (!row) return false
-  await app.db.update(recoveryCodes).set({ usedAt: new Date() }).where(eq(recoveryCodes.id, row.id))
-  return true
+  const consumed = await app.db
+    .update(recoveryCodes)
+    .set({ usedAt: new Date() })
+    .where(and(eq(recoveryCodes.userId, userId), eq(recoveryCodes.codeHash, codeHash), isNull(recoveryCodes.usedAt)))
+    .returning({ id: recoveryCodes.id })
+  return consumed.length > 0
+}
+
+export async function purgeExpiredResetTokens(db: Database): Promise<void> {
+  await db
+    .delete(passwordResetTokens)
+    .where(sql`${passwordResetTokens.expiresAt} < now() or ${passwordResetTokens.usedAt} is not null`)
 }
 
 async function replaceRecoveryCodes(app: FastifyInstance, userId: string): Promise<string[]> {

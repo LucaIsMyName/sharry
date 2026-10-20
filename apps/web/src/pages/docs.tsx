@@ -91,7 +91,7 @@ function DocLink({ to, children }: { to: string; children: string }) {
     <NavLink
       to={to}
       className={({ isActive }) => cn(
-        'rounded-lg px-2.5 py-1.5 text-sm text-foreground hover:bg-accent',
+        'rounded-md px-2.5 py-1.5 text-sm text-foreground hover:bg-accent',
         isActive && 'bg-secondary',
       )}
     >
@@ -117,7 +117,7 @@ function ApiReference() {
         <section key={group.tag} className="grid gap-3">
           <h2 className="font-heading text-2xl font-medium tracking-tight">{group.tag}</h2>
           {group.docs.map((doc) => (
-            <div key={`${doc.method} ${doc.path}`} className="grid gap-2 rounded-lg border bg-card p-4">
+            <div key={`${doc.method} ${doc.path}`} className="grid gap-2 rounded-md border bg-card p-4">
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="font-mono text-xs font-medium text-primary">{doc.method}</span>
                 <code className="font-mono text-sm">{doc.path}</code>
@@ -179,7 +179,7 @@ const markdownComponents: Components = {
   ol: ({ children }) => <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm leading-6">{children}</ol>,
   a: ({ href, children }) => <a className="text-primary underline underline-offset-2" href={href}>{children}</a>,
   code: ({ className, children }) => <CodeBlock className={className}>{children}</CodeBlock>,
-  pre: ({ children }) => <pre className="mt-3 overflow-x-auto rounded-lg bg-sidebar p-3 text-sm text-sidebar-foreground">{children}</pre>,
+  pre: ({ children }) => <pre className="mt-3 overflow-x-auto rounded-md bg-sidebar p-3 text-sm text-sidebar-foreground">{children}</pre>,
   blockquote: ({ children }) => <blockquote className="mt-3 border-l-2 border-border pl-3 text-sm text-muted-foreground">{children}</blockquote>,
   table: ({ children }) => <table className="mt-3 w-full text-left text-sm">{children}</table>,
   th: ({ children }) => <th className="border-b px-2 py-1 font-medium">{children}</th>,

@@ -158,7 +158,7 @@ export function ApiKeysPage() {
             <DialogTitle className="font-heading text-2xl">Copy the API key</DialogTitle>
             <DialogDescription>This is the only time the secret is shown. Store it somewhere safe before closing.</DialogDescription>
           </DialogHeader>
-          <p className="break-all rounded-lg bg-muted px-3 py-2 font-mono text-sm">{created?.secret}</p>
+          <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">{created?.secret}</p>
           <DialogFooter className="border-0 bg-transparent sm:justify-start">
             <Button type="button" onClick={() => void copySecret()}>{copied ? 'Copied' : 'Copy key'}</Button>
           </DialogFooter>

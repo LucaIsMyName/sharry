@@ -13,13 +13,15 @@ export function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [links, setLinks] = useState<LinkStat[]>([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const selected = links.find((link) => link.id === linkId) ?? null
 
   useEffect(() => {
     let cancelled = false
     setError('')
     setAnalytics(null)
-    void api<Analytics & { links: LinkStat[] }>('/api/analytics')
+    setLoading(true)
+    const overview = api<Analytics & { links: LinkStat[] }>('/api/analytics')
       .then((combined) => {
         if (cancelled) return
         setLinks(combined.links)
@@ -36,6 +38,13 @@ export function AnalyticsPage() {
         .catch((caught: unknown) => {
           if (!cancelled) setError(caught instanceof Error ? caught.message : 'Could not load this link')
         })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    } else {
+      void overview.finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     }
     return () => {
       cancelled = true
@@ -54,6 +63,7 @@ export function AnalyticsPage() {
         {linkId ? <Button variant="outline" type="button" onClick={() => setParams({})}>All links</Button> : null}
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {loading && !analytics ? <p className="text-sm text-muted-foreground">Loading analytics…</p> : null}
       {analytics ? (
         <div className="grid gap-4">
           <div className="grid gap-3.5 sm:grid-cols-3">
@@ -74,7 +84,7 @@ export function AnalyticsPage() {
       <Card className="mt-4 min-w-0">
         <CardContent className="min-w-0">
           <h2 className="mb-3 text-lg font-medium">Links</h2>
-          {links.length === 0 ? <p className="text-sm text-muted-foreground">No links yet.</p> : (
+          {loading && links.length === 0 ? <p className="text-sm text-muted-foreground">Loading links…</p> : links.length === 0 ? <p className="text-sm text-muted-foreground">No links yet.</p> : (
             <Table className="min-w-full w-max">
               <TableHeader>
                 <TableRow>
@@ -140,8 +150,8 @@ export function Breakdown({ title, rows }: { title: string; rows: { name: string
         <h2 className="mb-3 text-lg font-medium">{title}</h2>
         {rows.length === 0 ? <p className="text-sm text-muted-foreground">No data yet.</p> : (
           <div className="grid gap-2">
-            {rows.map((row) => (
-              <div className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-sm" key={row.name}>
+            {rows.map((row, index) => (
+              <div className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-sm" key={`${index}-${row.name}`}>
                 <span className="truncate">{row.name}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-muted"><span className="block h-full bg-primary" style={{ width: `${(row.clicks / max) * 100}%` }} /></div>
                 <b>{row.clicks}</b>

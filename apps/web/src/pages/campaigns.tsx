@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Check, Copy, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -24,13 +24,18 @@ export function CampaignsPage() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   async function load() {
     const result = await api<{ campaigns: Campaign[] }>('/api/campaigns')
     setCampaigns(result.campaigns)
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => {
+    void load()
+      .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load campaigns'))
+      .finally(() => setLoading(false))
+  }, [])
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -65,7 +70,7 @@ export function CampaignsPage() {
       </Card>
       <Card>
         <CardContent>
-          {campaigns.length === 0 ? <p className="text-sm text-muted-foreground">No campaigns yet.</p> : (
+          {loading ? <p className="text-sm text-muted-foreground">Loading campaigns…</p> : campaigns.length === 0 ? <p className="text-sm text-muted-foreground">No campaigns yet.</p> : (
             <ul className="grid gap-2">
               {campaigns.map((campaign) => (
                 <li key={campaign.id}>
@@ -96,22 +101,72 @@ export function CampaignDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [variantToDelete, setVariantToDelete] = useState<Variant | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [linkQuery, setLinkQuery] = useState('')
+  const [linkTotal, setLinkTotal] = useState(0)
+  const [knownLinks, setKnownLinks] = useState<ShortLink[]>([])
+  const campaignLoad = useRef(0)
+  const linkLoad = useRef(0)
 
-  async function load() {
-    const [next, linkData] = await Promise.all([
-      api<Campaign & { variants: Variant[] }>(`/api/campaigns/${id}`),
-      api<{ links: ShortLink[] }>('/api/links?limit=100'),
-    ])
+  function rememberLinks(rows: ShortLink[]) {
+    setKnownLinks((current) => {
+      const byId = new Map(current.map((link) => [link.id, link]))
+      for (const link of rows) byId.set(link.id, link)
+      return [...byId.values()]
+    })
+  }
+
+  async function loadCampaign() {
+    const current = ++campaignLoad.current
+    const next = await api<Campaign & { variants: Variant[] }>(`/api/campaigns/${id}`)
+    if (current !== campaignLoad.current) return
+    const missing = (await Promise.all(next.variants.map(async (variant) => {
+      try {
+        return await api<ShortLink>(`/api/links/${variant.linkId}`)
+      } catch {
+        return null
+      }
+    }))).filter((link): link is ShortLink => link !== null)
+    if (current !== campaignLoad.current) return
     setCampaign(next)
     setCampaignName(next.name)
     setCampaignDescription(next.description ?? '')
+    rememberLinks(missing)
+    setLoading(false)
+  }
+
+  async function loadPicker(query: string) {
+    const current = ++linkLoad.current
+    const linkData = await api<{ links: ShortLink[]; total: number }>(`/api/links?limit=100&q=${encodeURIComponent(query)}`)
+    if (current !== linkLoad.current) return
     setLinks(linkData.links)
-    setLinkId((current) => current || linkData.links[0]?.id || '')
+    setLinkTotal(linkData.total)
+    rememberLinks(linkData.links)
+    setLinkId((selected) => selected || linkData.links[0]?.id || '')
   }
 
   useEffect(() => {
-    void load().catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load'))
+    setCampaign(null)
+    setLinks([])
+    setKnownLinks([])
+    setCampaignName('')
+    setCampaignDescription('')
+    setLinkQuery('')
+    setError('')
+    setLoading(true)
+    void loadCampaign().catch((caught: unknown) => {
+      setError(caught instanceof Error ? caught.message : 'Could not load')
+      setLoading(false)
+    })
+    void loadPicker('').catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load links'))
   }, [id])
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void loadPicker(linkQuery).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load links'))
+    }, 200)
+    return () => clearTimeout(handle)
+  }, [linkQuery])
 
   function resetVariantForm() {
     setEditingId(null)
@@ -127,15 +182,21 @@ export function CampaignDetailPage() {
         method: 'PATCH',
         body: JSON.stringify({ name: campaignName, description: campaignDescription }),
       })
-      await load()
+      await loadCampaign()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the campaign')
     }
   }
 
   async function removeCampaign() {
-    await api(`/api/campaigns/${id}`, { method: 'DELETE' })
-    await navigate('/campaigns')
+    setError('')
+    try {
+      await api(`/api/campaigns/${id}`, { method: 'DELETE' })
+      setConfirmDelete(false)
+      await navigate('/campaigns')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete the campaign')
+    }
   }
 
   async function submitVariant(event: FormEvent) {
@@ -148,7 +209,7 @@ export function CampaignDetailPage() {
         await api(`/api/campaigns/${id}/variants`, { method: 'POST', body: JSON.stringify({ name, linkId, utm }) })
       }
       resetVariantForm()
-      await load()
+      await loadCampaign()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not save the variant')
     }
@@ -169,14 +230,14 @@ export function CampaignDetailPage() {
       await api(`/api/variants/${variantToDelete.id}`, { method: 'DELETE' })
       if (editingId === variantToDelete.id) resetVariantForm()
       setVariantToDelete(null)
-      await load()
+      await loadCampaign()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not delete the variant')
     }
   }
 
   async function copyVariant(variant: Variant) {
-    const link = links.find((item) => item.id === variant.linkId)
+    const link = knownLinks.find((item) => item.id === variant.linkId)
     if (!link) return
     setError('')
     try {
@@ -192,7 +253,7 @@ export function CampaignDetailPage() {
     <section className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">{campaign?.name ?? 'Campaign'}</h1>
+          <h1 className="font-heading text-4xl font-medium tracking-tight">{loading ? 'Loading campaign…' : campaign?.name ?? 'Campaign'}</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
             A variant is the same short link with extra UTM values. Blank fields keep the UTM values saved on the link.
           </p>
@@ -215,14 +276,18 @@ export function CampaignDetailPage() {
             <Field label="Variant name"><Input value={name} onChange={(event) => setName(event.target.value)} required /></Field>
             <Field label="Link">
               {editingId ? (
-                <p className="font-mono text-sm break-all">{links.find((link) => link.id === linkId)?.shortUrl}</p>
+                <p className="font-mono text-sm break-all">{knownLinks.find((link) => link.id === linkId)?.shortUrl}</p>
               ) : (
-                <Select
-                  value={linkId}
-                  placeholder="Choose a link"
-                  options={links.map((link) => ({ value: link.id, label: link.shortUrl }))}
-                  onValueChange={setLinkId}
-                />
+                <div className="grid gap-2">
+                  <Input value={linkQuery} onChange={(event) => setLinkQuery(event.target.value)} placeholder="Search by slug, title, or destination" />
+                  <Select
+                    value={linkId}
+                    placeholder="Choose a link"
+                    options={pickerOptions(links, knownLinks, linkId)}
+                    onValueChange={setLinkId}
+                  />
+                  {linkTotal > links.length ? <p className="text-sm text-muted-foreground">Showing {links.length} of {linkTotal}. Search to find another link.</p> : null}
+                </div>
               )}
             </Field>
             {editingId ? <p className="text-sm text-muted-foreground">The link stays with this variant. Create another variant to track a different link.</p> : null}
@@ -240,7 +305,7 @@ export function CampaignDetailPage() {
           {(campaign?.variants.length ?? 0) === 0 ? <p className="text-sm text-muted-foreground">No variants yet.</p> : (
             <ul className="grid gap-4">
               {campaign?.variants.map((variant) => {
-                const link = links.find((item) => item.id === variant.linkId)
+                const link = knownLinks.find((item) => item.id === variant.linkId)
                 const url = link ? variantUrl(link.shortUrl, variant.id) : ''
                 return (
                   <li key={variant.id} className="grid gap-1.5">
@@ -283,6 +348,12 @@ export function CampaignDetailPage() {
       />
     </section>
   )
+}
+
+function pickerOptions(links: ShortLink[], knownLinks: ShortLink[], selectedId: string) {
+  const selected = knownLinks.find((link) => link.id === selectedId)
+  const rows = selected && !links.some((link) => link.id === selected.id) ? [selected, ...links] : links
+  return rows.map((link) => ({ value: link.id, label: link.shortUrl }))
 }
 
 function variantUrl(shortUrl: string, variantId: string): string {

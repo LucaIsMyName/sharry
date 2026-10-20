@@ -43,6 +43,32 @@ const finderOptions = [
   { value: 'dot', label: 'Dot' },
 ] as const
 
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function fromDatetimeLocal(value: string): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString()
+}
+
+function qrPreviewUrl(shortUrl: string, qrId: string | null, variantId: string): string {
+  try {
+    const url = new URL(shortUrl)
+    if (qrId) url.searchParams.set('qr', qrId)
+    if (variantId !== noVariant) url.searchParams.set('v', variantId)
+    return url.toString()
+  } catch {
+    return shortUrl
+  }
+}
+
 function previewDestination(destination: string, utm: UtmParams): string {
   try {
     return applyUtm(destination, utm)
@@ -51,19 +77,57 @@ function previewDestination(destination: string, utm: UtmParams): string {
   }
 }
 
+const linkPageSize = 50
+
 export function LinksPage() {
   const [links, setLinks] = useState<ShortLink[]>([])
+  const [total, setTotal] = useState(0)
   const [query, setQuery] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const requestId = useRef(0)
 
   useEffect(() => {
+    const current = ++requestId.current
     const handle = setTimeout(() => {
-      void api<{ links: ShortLink[] }>(`/api/links?q=${encodeURIComponent(query)}`)
-        .then((result) => setLinks(result.links))
-        .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load links'))
+      setLoading(true)
+      void api<{ links: ShortLink[]; total: number }>(`/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=0`)
+        .then((result) => {
+          if (current !== requestId.current) return
+          setLinks(result.links)
+          setTotal(result.total)
+          setError('')
+        })
+        .catch((caught: unknown) => {
+          if (current !== requestId.current) return
+          setError(caught instanceof Error ? caught.message : 'Could not load links')
+        })
+        .finally(() => {
+          if (current === requestId.current) setLoading(false)
+        })
     }, 200)
     return () => clearTimeout(handle)
   }, [query])
+
+  async function loadMore() {
+    const current = requestId.current
+    const offset = links.length
+    setLoadingMore(true)
+    setError('')
+    try {
+      const result = await api<{ links: ShortLink[]; total: number }>(
+        `/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=${offset}`,
+      )
+      if (current !== requestId.current) return
+      setLinks((existing) => [...existing, ...result.links])
+      setTotal(result.total)
+    } catch (caught) {
+      if (current === requestId.current) setError(caught instanceof Error ? caught.message : 'Could not load links')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   return (
     <section>
@@ -80,7 +144,7 @@ export function LinksPage() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Card className="mt-4 min-w-0">
         <CardContent className="min-w-0">
-        {links.length === 0 ? <p className="text-sm text-muted-foreground">No links match.</p> : (
+        {loading ? <p className="text-sm text-muted-foreground">Loading links…</p> : links.length === 0 ? <p className="text-sm text-muted-foreground">No links match.</p> : (
           <Table className="min-w-full w-max">
             <TableHeader>
               <TableRow>
@@ -108,6 +172,11 @@ export function LinksPage() {
             </TableBody>
           </Table>
         )}
+        {!loading && links.length < total ? (
+          <Button className="mt-4" variant="outline" type="button" disabled={loadingMore} onClick={() => void loadMore()}>
+            {loadingMore ? 'Loading…' : `Load more (${links.length} of ${total})`}
+          </Button>
+        ) : null}
         </CardContent>
       </Card>
     </section>
@@ -199,13 +268,32 @@ export function LinkDetailPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const logoRequest = useRef(0)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleteText, setDeleteText] = useState('')
   const copiedTimer = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
+    setLink(null)
+    setDestinationUrl('')
+    setSlug('')
+    setTitle('')
+    setExpiresAt('')
+    setPassword('')
+    setUtm(emptyUtm)
+    setQrCodes([])
+    setActiveQr(null)
+    setAnalytics(null)
+    setVariants([])
+    setTrackingVariantId(noVariant)
+    setLogoUrl(null)
+    setLogoFile(null)
+    setMessage('')
+    setError('')
     void (async () => {
       try {
         const [next, codes, stats, variantData] = await Promise.all([
@@ -215,42 +303,24 @@ export function LinkDetailPage() {
           api<{ variants: LinkVariant[] }>(`/api/links/${id}/variants`),
         ])
         if (cancelled) return
-        setError('')
         setLink(next)
         setDestinationUrl(next.destinationUrl)
         setSlug(next.slug)
         setTitle(next.title ?? '')
         setRedirectType(next.redirectType)
         setStatus(next.status)
-        setExpiresAt(next.expiresAt ? next.expiresAt.slice(0, 16) : '')
+        setExpiresAt(toDatetimeLocal(next.expiresAt))
         setUtm(next.utm)
         setQrCodes(codes.qrCodes)
         setAnalytics(stats)
         setVariants(variantData.variants)
-        let nextLogo: string | null = null
         const saved = codes.qrCodes[0]
-        if (saved) {
-          setActiveQr(saved)
-          setStyle(saved.style)
-          setQrName(saved.name)
-          setTrackingVariantId(saved.trackingVariantId ?? noVariant)
-          if (saved.hasLogo) {
-            const response = await fetch(`/api/qr/${saved.id}/logo`, { credentials: 'include' })
-            if (cancelled) return
-            if (response.ok) nextLogo = URL.createObjectURL(await response.blob())
-          }
-        } else {
-          setActiveQr(null)
-          setTrackingVariantId(noVariant)
-        }
-        if (cancelled) {
-          if (nextLogo) URL.revokeObjectURL(nextLogo)
-          return
-        }
-        setLogoUrl(nextLogo)
-        setLogoFile(null)
+        if (saved) await showQr(saved, () => cancelled)
+        else setTrackingVariantId(noVariant)
       } catch (caught) {
         if (!cancelled) setError(caught instanceof Error ? caught.message : 'Could not load this link')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     })()
     return () => {
@@ -283,7 +353,7 @@ export function LinkDetailPage() {
           title,
           redirectType,
           status,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+          expiresAt: fromDatetimeLocal(expiresAt),
           password: password ? password : undefined,
           utm,
         }),
@@ -328,8 +398,39 @@ export function LinkDetailPage() {
   }
 
   async function remove() {
-    await api(`/api/links/${id}`, { method: 'DELETE' })
-    await navigate('/links')
+    setError('')
+    try {
+      await api(`/api/links/${id}`, { method: 'DELETE' })
+      setConfirmDelete(false)
+      await navigate('/links')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not delete this link')
+    }
+  }
+
+  async function showQr(code: QrCode, cancelled: () => boolean = () => false) {
+    const requestId = ++logoRequest.current
+    setActiveQr(code)
+    setStyle(code.style)
+    setQrName(code.name)
+    setTrackingVariantId(code.trackingVariantId ?? noVariant)
+    setLogoFile(null)
+    if (!code.hasLogo) {
+      setLogoUrl(null)
+      return
+    }
+    const response = await fetch(`/api/qr/${code.id}/logo`, { credentials: 'include' })
+    if (cancelled() || logoRequest.current !== requestId) return
+    if (!response.ok) {
+      setLogoUrl(null)
+      return
+    }
+    const blob = URL.createObjectURL(await response.blob())
+    if (cancelled() || logoRequest.current !== requestId) {
+      URL.revokeObjectURL(blob)
+      return
+    }
+    setLogoUrl(blob)
   }
 
   async function createQr(event: FormEvent) {
@@ -384,7 +485,7 @@ export function LinkDetailPage() {
 
   const conflicts = utmConflicts(destinationUrl, utm)
   const warnings = qrWarnings(style, Boolean(logoUrl))
-  const previewUrl = activeQr?.url ?? link?.shortUrl ?? ''
+  const previewUrl = link ? qrPreviewUrl(link.shortUrl, activeQr?.id ?? null, trackingVariantId) : ''
 
   return (
     <section className="grid gap-4">
@@ -401,6 +502,7 @@ export function LinkDetailPage() {
           <Button variant="destructive" type="button" onClick={() => setConfirmDelete(true)}><Trash2 size={16} /> Delete</Button>
         </div>
       </div>
+      {loading ? <p className="text-sm text-muted-foreground">Loading link…</p> : null}
       <Card><CardContent>
       <form id="link-editor" className="grid gap-3" onSubmit={(event) => void save(event)}>
         <Field label="Destination">
@@ -512,12 +614,7 @@ export function LinkDetailPage() {
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => {
-                    setActiveQr(code)
-                    setStyle(code.style)
-                    setQrName(code.name)
-                    setTrackingVariantId(code.trackingVariantId ?? noVariant)
-                  }}
+                  onClick={() => void showQr(code)}
                 >
                   {code.name}
                 </Button>

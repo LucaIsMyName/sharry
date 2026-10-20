@@ -32,7 +32,7 @@ export function LoginPage() {
 
   return (
     <AuthShell title="Sign in" lede="Use your username or email. A code is required only when this account has turned on two-factor authentication.">
-      <form onSubmit={(event) => void submit(event)}>
+      <form className='space-y-3' onSubmit={(event) => void submit(event)}>
         <Field label="Username or email">
           <Input value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} autoComplete="username" required />
         </Field>
@@ -98,7 +98,7 @@ export function PasswordPage() {
 
   return (
     <AuthShell title="Choose a new password" lede="The first password is temporary. Use at least 12 characters.">
-      <form onSubmit={(event) => void submit(event)}>
+      <form className='space-y-3' onSubmit={(event) => void submit(event)}>
         <Field label="Current password">
           <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
         </Field>
@@ -248,7 +248,7 @@ export function AccountPage() {
         ) : recovery ? (
           <>
             <p>Save these recovery codes somewhere private. Each code works once.</p>
-            <div className="grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-lg bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
+            <div className="grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-md bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
           </>
         ) : (
           <>
@@ -321,7 +321,7 @@ export function EnrollPage() {
       {recovery ? (
         <>
           <p>Save these recovery codes somewhere private. Each code works once.</p>
-          <div className="my-4 grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-lg bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
+          <div className="my-4 grid grid-cols-2 gap-2">{recovery.map((item) => <code key={item} className="rounded-md bg-muted px-2 py-2 text-center font-mono text-sm">{item}</code>)}</div>
           <Button type="button" onClick={() => void navigate('/')}>Continue</Button>
         </>
       ) : (
@@ -377,14 +377,14 @@ export function ResetPage() {
   return (
     <AuthShell title="Reset password" lede="Email reset works when SMTP is configured. Otherwise an administrator can set a temporary password.">
       {token ? (
-        <form onSubmit={(event) => void reset(event)}>
+        <form className='space-y-3' onSubmit={(event) => void reset(event)}>
           <Field label="New password">
             <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required />
           </Field>
           <Button type="submit">Save password</Button>
         </form>
       ) : (
-        <form onSubmit={(event) => void requestReset(event)}>
+        <form className='space-y-3' onSubmit={(event) => void requestReset(event)}>
           <Field label="Email">
             <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </Field>

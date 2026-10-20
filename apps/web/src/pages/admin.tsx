@@ -65,8 +65,13 @@ export function AdminUsersPage() {
   }
 
   async function update(id: string, patch: Record<string, unknown>) {
-    await api(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) })
-    await load()
+    setError('')
+    try {
+      await api(`/api/admin/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) })
+      await load()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not update the user')
+    }
   }
 
   return (
@@ -231,13 +236,20 @@ function smtpStatus(settings: Settings): string {
 
 export function AdminAuditPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([])
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   useEffect(() => {
-    void api<{ entries: AuditEntry[] }>('/api/admin/audit').then((result) => setEntries(result.entries))
+    void api<{ entries: AuditEntry[] }>('/api/admin/audit')
+      .then((result) => setEntries(result.entries))
+      .catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load the audit log'))
+      .finally(() => setLoading(false))
   }, [])
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-4xl font-medium tracking-tight">Audit</h1>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Card className="min-w-0"><CardContent className="min-w-0">
+        {loading ? <p className="text-sm text-muted-foreground">Loading audit log…</p> : entries.length === 0 ? <p className="text-sm text-muted-foreground">No audit events yet.</p> : (
         <Table className="min-w-full w-max">
           <TableHeader><TableRow><TableHead>When</TableHead><TableHead>User</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead></TableRow></TableHeader>
           <TableBody>
@@ -251,6 +263,7 @@ export function AdminAuditPage() {
             ))}
           </TableBody>
         </Table>
+        )}
       </CardContent></Card>
     </section>
   )

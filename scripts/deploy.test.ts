@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { upsertEnvKeys } from './env-file.ts'
 import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, linuxDistro, nodeInstallScript, provisionHost, psqlCommand } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
+import { activateRelease } from './release.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
 describe('deploy safety', () => {
@@ -41,6 +42,47 @@ describe('deploy safety', () => {
     expect(asRoot).toContain('id -u')
     expect(asRoot).toContain('sudo -n')
     expect(asRoot).toContain('systemctl restart sharry')
+  })
+})
+
+describe('release activation', () => {
+  it('prunes only after the health check and restores the previous release when it fails', async () => {
+    const steps: string[] = []
+    await expect(activateRelease({
+      previous: '/var/www/sharry/releases/old',
+      switchCurrent: async () => { steps.push('switch') },
+      restart: async () => { steps.push('restart') },
+      health: async () => { throw new Error('Health check failed') },
+      prune: async () => { steps.push('prune') },
+      restorePrevious: async () => { steps.push('restore') },
+    })).rejects.toThrow('Health check failed')
+    expect(steps).toEqual(['switch', 'restart', 'restore', 'restart'])
+  })
+
+  it('leaves the new release in place when health passes', async () => {
+    const steps: string[] = []
+    await activateRelease({
+      previous: '/var/www/sharry/releases/old',
+      switchCurrent: async () => { steps.push('switch') },
+      restart: async () => { steps.push('restart') },
+      health: async () => { steps.push('health') },
+      prune: async () => { steps.push('prune') },
+      restorePrevious: async () => { steps.push('restore') },
+    })
+    expect(steps).toEqual(['switch', 'restart', 'health', 'prune'])
+  })
+
+  it('does not restore a release on the first deploy', async () => {
+    const steps: string[] = []
+    await expect(activateRelease({
+      previous: '',
+      switchCurrent: async () => { steps.push('switch') },
+      restart: async () => { steps.push('restart') },
+      health: async () => { throw new Error('Health check failed') },
+      prune: async () => { steps.push('prune') },
+      restorePrevious: async () => { steps.push('restore') },
+    })).rejects.toThrow('Health check failed')
+    expect(steps).toEqual(['switch', 'restart'])
   })
 })
 

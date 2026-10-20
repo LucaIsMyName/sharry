@@ -10,6 +10,7 @@ export function DashboardPage() {
   const [links, setLinks] = useState<ShortLink[]>([])
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     void Promise.all([
@@ -19,6 +20,7 @@ export function DashboardPage() {
       setLinks(linkData.links)
       setAnalytics(analyticsData)
     }).catch((caught: unknown) => setError(caught instanceof Error ? caught.message : 'Could not load the overview'))
+      .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -44,7 +46,7 @@ export function DashboardPage() {
       <Card className="mt-4">
         <CardContent>
           <h2 className="mb-2 text-lg font-medium">Recent links</h2>
-          {links.length === 0 ? <p className="text-sm text-muted-foreground">No links yet.</p> : (
+          {loading ? <p className="text-sm text-muted-foreground">Loading links…</p> : links.length === 0 ? <p className="text-sm text-muted-foreground">No links yet.</p> : (
             <Table>
               <TableBody>
                 {links.map((link) => (

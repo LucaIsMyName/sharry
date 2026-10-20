@@ -35,6 +35,38 @@ describe('qr export', () => {
     expect(jpeg.rawPayload.subarray(0, 2).toString('hex')).toBe('ffd8')
   })
 
+  it('lists saved QR codes newest first', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const link = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/qr', slug: 'poster' },
+    })
+    const older = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/qr',
+      headers: { cookie: user.cookie },
+      payload: { linkId: link.json().id, name: 'Older', style: defaultQrStyle },
+    })
+    const newer = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/qr',
+      headers: { cookie: user.cookie },
+      payload: { linkId: link.json().id, name: 'Newer', style: defaultQrStyle },
+    })
+    await ctx.db.update(qrCodes).set({ createdAt: new Date('2026-01-01T00:00:00.000Z') }).where(eq(qrCodes.id, older.json().id as string))
+    await ctx.db.update(qrCodes).set({ createdAt: new Date('2026-06-01T00:00:00.000Z') }).where(eq(qrCodes.id, newer.json().id as string))
+    const listed = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${link.json().id}/qr`,
+      headers: { cookie: user.cookie },
+    })
+    expect(listed.statusCode).toBe(200)
+    expect((listed.json().qrCodes as { name: string }[]).map((code) => code.name)).toEqual(['Newer', 'Older'])
+  })
+
   it('deletes a center image', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })

@@ -68,7 +68,7 @@ function Item({ to, end, icon, children }: { to: string; end?: boolean; icon: Re
       to={to}
       end={end}
       className={({ isActive }) => cn(
-        'flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[#d9d1c5] hover:bg-sidebar-accent hover:text-white',
+        'flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[#d9d1c5] hover:bg-sidebar-accent hover:text-white',
         isActive && 'bg-sidebar-accent text-white',
       )}
     >

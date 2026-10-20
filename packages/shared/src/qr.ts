@@ -50,7 +50,7 @@ export function parseQrStyle(value: unknown): QrStyle {
     cornersSquareType: parsed.cornersSquareType ?? 'extra-rounded',
     cornersSquareColor: parsed.cornersSquareColor ?? '#1a1814',
     cornersDotType: parsed.cornersDotType ?? 'dot',
-    cornersDotColor: parsed.dotsColor ?? '#1a1814',
+    cornersDotColor: parsed.cornersDotColor ?? '#1a1814',
     backgroundColor: parsed.backgroundColor ?? '#ffffff',
     backgroundTransparent: parsed.backgroundTransparent ?? false,
     errorCorrectionLevel: parsed.errorCorrectionLevel ?? 'H',
@@ -149,7 +149,7 @@ function finderMarkupAt(style: QrStyle, x: number, y: number, cell: number): str
   const innerRadius = style.cornersDotType === 'dot' ? inner / 2 : inner * 0.2
   return `<path fill="${style.cornersSquareColor}" d="${roundRect(x, y, outer, outerRadius)}"/>
 <path fill="${background}" d="${roundRect(x + midOffset, y + midOffset, mid, midRadius)}"/>
-<path fill="${style.dotsColor}" d="${roundRect(x + innerOffset, y + innerOffset, inner, innerRadius)}"/>`
+<path fill="${style.cornersDotColor}" d="${roundRect(x + innerOffset, y + innerOffset, inner, innerRadius)}"/>`
 }
 
 function finderRadius(type: QrStyle['cornersSquareType'], size: number): number {

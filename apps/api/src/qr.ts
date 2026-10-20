@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import sharp from 'sharp'
 import { qrCodes, trackingVariants, type Database } from '@sharry/database'
@@ -33,7 +33,11 @@ export function registerQrRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string }
     const link = await getLinkForActor(app.db, actor, id)
     const settings = await getSettings(app.db, app.env)
-    const rows = await app.db.select().from(qrCodes).where(eq(qrCodes.linkId, link.id))
+    const rows = await app.db
+      .select()
+      .from(qrCodes)
+      .where(eq(qrCodes.linkId, link.id))
+      .orderBy(desc(qrCodes.createdAt))
     return { qrCodes: rows.map((row) => serializeQr(row, settings.shortUrlBase, settings.shortUrlPrefix, link.slug)) }
   })
 

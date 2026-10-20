@@ -39,6 +39,7 @@ export async function tryShortLink(
     reply.code(410).type('text/plain').send('This link has expired')
     return true
   }
+  let justUnlocked = false
   if (link.passwordHash && !unlockValid(request.cookies[UNLOCK_COOKIE], link.id, app.env.SESSION_SECRET)) {
     if (request.method === 'POST') {
       if (!allowLinkPasswordAttempt(request.ip)) {
@@ -60,6 +61,7 @@ export async function tryShortLink(
         path: '/',
         maxAge: 15 * 60,
       })
+      justUnlocked = true
     } else {
       reply.code(200).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'prompt'))
       return true
@@ -70,19 +72,25 @@ export async function tryShortLink(
     return true
   }
   const destination = await buildDestination(app, link, url.searchParams)
-  const status = Number(link.redirectType)
-  if (request.method === 'GET') {
-    const draft = await clickDraft(app, request, link, url.searchParams, destination.utm)
+  if (request.method === 'GET' || justUnlocked) {
+    const draft = await clickDraft(app, request, link, destination)
     reply.recordClick = draft
     rememberClick(reply, draft)
   }
-  reply.code(status === 301 || status === 302 || status === 307 || status === 308 ? status : 302)
-  if (status === 302 || status === 307 || link.passwordHash) reply.header('cache-control', 'no-store')
+  reply.code(redirectStatus(link.redirectType, request.method === 'POST'))
+  reply.header('cache-control', 'no-store')
   reply.header('location', destination.url).send()
   return true
 }
 
-async function buildDestination(app: FastifyInstance, link: LinkRecord, query: URLSearchParams) {
+type ResolvedDestination = {
+  url: string
+  utm: UtmParams
+  qrCodeId: string | null
+  trackingVariantId: string | null
+}
+
+async function buildDestination(app: FastifyInstance, link: LinkRecord, query: URLSearchParams): Promise<ResolvedDestination> {
   const configs = await app.db.select().from(trackingConfigs).where(eq(trackingConfigs.linkId, link.id)).limit(1)
   const base = cleanUtm({
     utm_source: configs[0]?.utmSource,
@@ -92,63 +100,52 @@ async function buildDestination(app: FastifyInstance, link: LinkRecord, query: U
     utm_term: configs[0]?.utmTerm,
     utm_content: configs[0]?.utmContent,
   })
-  const variantId = await resolveVariant(app, link.id, query)
-  let override: UtmParams = {}
-  if (variantId) {
-    const variants = await app.db.select().from(trackingVariants).where(eq(trackingVariants.id, variantId)).limit(1)
-    const variant = variants[0]
-    if (variant && variant.linkId === link.id) override = variantUtm(variant)
+  const tracking = await resolveTracking(app, link.id, query)
+  const utm = mergeUtm(base, tracking.variant ? variantUtm(tracking.variant) : {})
+  return {
+    url: applyUtm(link.destinationUrl, utm),
+    utm,
+    qrCodeId: tracking.qrCodeId,
+    trackingVariantId: tracking.variant?.id ?? null,
   }
-  const utm = mergeUtm(base, override)
-  return { url: applyUtm(link.destinationUrl, utm), utm, variantId }
 }
 
-async function resolveVariant(app: FastifyInstance, linkId: string, query: URLSearchParams): Promise<string | null> {
+async function resolveTracking(app: FastifyInstance, linkId: string, query: URLSearchParams) {
   const qrId = query.get('qr')
   if (qrId && isUuid(qrId)) {
     const found = await app.db.select().from(qrCodes).where(eq(qrCodes.id, qrId)).limit(1)
     const qr = found[0]
-    if (qr && qr.linkId === linkId) return qr.trackingVariantId
+    if (qr && qr.linkId === linkId) {
+      return { qrCodeId: qr.id, variant: await variantOwnedByLink(app, linkId, qr.trackingVariantId) }
+    }
   }
-  return variantOwnedByLink(app, linkId, query.get('v'))
+  return { qrCodeId: null, variant: await variantOwnedByLink(app, linkId, query.get('v')) }
 }
 
-async function variantOwnedByLink(app: FastifyInstance, linkId: string, variantId: string | null): Promise<string | null> {
+async function variantOwnedByLink(app: FastifyInstance, linkId: string, variantId: string | null) {
   if (!variantId || !isUuid(variantId)) return null
   const found = await app.db
-    .select({ id: trackingVariants.id })
+    .select()
     .from(trackingVariants)
     .where(and(eq(trackingVariants.id, variantId), eq(trackingVariants.linkId, linkId)))
     .limit(1)
-  return found[0]?.id ?? null
+  return found[0] ?? null
 }
 
 async function clickDraft(
   app: FastifyInstance,
   request: FastifyRequest,
   link: LinkRecord,
-  query: URLSearchParams,
-  utm: UtmParams,
+  destination: ResolvedDestination,
 ): Promise<ClickDraft> {
   const userAgent = request.headers['user-agent']
   const parsed = parseUserAgent(typeof userAgent === 'string' ? userAgent : undefined)
   const geo = await lookupGeo(request.ip, app.env.GEOIP_DB_PATH)
-  const qrId = query.get('qr')
-  const variantFromQuery = query.get('v')
-  let qrCodeId: string | null = null
-  let trackingVariantId: string | null = null
-  if (qrId && isUuid(qrId)) {
-    const found = await app.db.select().from(qrCodes).where(eq(qrCodes.id, qrId)).limit(1)
-    if (found[0]?.linkId === link.id) {
-      qrCodeId = found[0].id
-      trackingVariantId = found[0].trackingVariantId
-    }
-  }
-  if (!trackingVariantId) trackingVariantId = await variantOwnedByLink(app, link.id, variantFromQuery)
+  const { utm } = destination
   return {
     linkId: link.id,
-    trackingVariantId,
-    qrCodeId,
+    trackingVariantId: destination.trackingVariantId,
+    qrCodeId: destination.qrCodeId,
     referrer: referrerHost(typeof request.headers.referer === 'string' ? request.headers.referer : undefined),
     countryCode: geo.countryCode,
     region: geo.region,
@@ -249,6 +246,12 @@ function allowLinkPasswordAttempt(ip: string): boolean {
   recent.push(now)
   passwordAttempts.set(ip, recent)
   return true
+}
+
+function redirectStatus(redirectType: string, forceGet: boolean): number {
+  if (forceGet) return 303
+  const status = Number(redirectType)
+  return status === 301 || status === 302 || status === 307 || status === 308 ? status : 302
 }
 
 function isUuid(value: string): boolean {

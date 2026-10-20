@@ -15,6 +15,7 @@ import {
 import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
 import { ensureBuildMemoryCommand, provisionHost } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
+import { activateRelease } from './release.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
 const syncEnv = process.argv.includes('--sync-env')
@@ -142,15 +143,22 @@ try {
   await exec(conn, `cd ${release} && SHARRY_ENV_FILE=${envFile} npm run db:migrate`, secrets)
   const previous = (await exec(conn, `readlink ${remote}/current || true`, secrets)).stdout.trim()
   if (previous) await writeRemoteFile(conn, `${remote}/previous-release`, `${previous}\n`, 0o644)
-  await exec(conn, `ln -sfn ${release} ${remote}/current`, secrets)
   await installService(conn, remote, deployEnv.DEPLOY_RESTART_SERVICE, secrets)
-  await exec(
-    conn,
-    privileged(`systemctl daemon-reload && systemctl enable ${deployEnv.DEPLOY_RESTART_SERVICE} && systemctl restart ${deployEnv.DEPLOY_RESTART_SERVICE}`),
-    secrets,
-  )
-  await pruneReleases(conn, remote, secrets)
-  await waitForHealth(deployEnv.DEPLOY_HEALTHCHECK_URL)
+  const restart = async () => {
+    await exec(
+      conn,
+      privileged(`systemctl daemon-reload && systemctl enable ${deployEnv.DEPLOY_RESTART_SERVICE} && systemctl restart ${deployEnv.DEPLOY_RESTART_SERVICE}`),
+      secrets,
+    )
+  }
+  await activateRelease({
+    previous,
+    switchCurrent: () => exec(conn, `ln -sfn ${release} ${remote}/current`, secrets).then(() => undefined),
+    restart,
+    health: () => waitForHealth(deployEnv.DEPLOY_HEALTHCHECK_URL),
+    prune: () => pruneReleases(conn, remote, secrets),
+    restorePrevious: () => exec(conn, `ln -sfn ${previous} ${remote}/current`, secrets).then(() => undefined),
+  })
   log('Deployment finished and the health check passed')
 } catch (error) {
   const message = error instanceof Error ? error.message : 'Deployment failed'

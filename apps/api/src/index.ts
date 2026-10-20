@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { createDb, runMigrations, sessions } from '@sharry/database'
 import { parseRuntimeEnv } from '@sharry/shared'
 import { purgeOldClicks } from './analytics.ts'
+import { purgeExpiredResetTokens } from './auth.ts'
 import { loadEnvFile } from './load-env.ts'
 import { provisionAdmin } from './provision.ts'
 import { buildApp } from './server.ts'
@@ -37,14 +38,30 @@ function startupMessage(error: unknown): string {
   return cause && !error.message.includes(cause) ? `${error.message}\n${cause}` : error.message
 }
 
-const app = await buildApp({ env, db, pool })
+let app: Awaited<ReturnType<typeof buildApp>>
+try {
+  app = await buildApp({ env, db, pool })
+} catch (error) {
+  console.error(startupMessage(error))
+  await pool.end()
+  process.exit(1)
+}
+
+async function runRetention(): Promise<void> {
+  const settings = await getSettings(db, env)
+  await purgeOldClicks(db, settings.analyticsRetentionDays)
+  await purgeExpiredResetTokens(db)
+  await db.delete(sessions).where(sql`${sessions.expiresAt} < now()`)
+}
+
+try {
+  await runRetention()
+} catch (error) {
+  app.log.error({ err: error }, 'Retention purge failed')
+}
 
 const timer = setInterval(() => {
-  void (async () => {
-    const settings = await getSettings(db, env)
-    await purgeOldClicks(db, settings.analyticsRetentionDays)
-    await db.delete(sessions).where(sql`${sessions.expiresAt} < now()`)
-  })().catch((error: unknown) => {
+  void runRetention().catch((error: unknown) => {
     app.log.error({ err: error }, 'Retention purge failed')
   })
 }, 60 * 60 * 1000)
@@ -66,4 +83,10 @@ process.on('SIGTERM', () => {
   void close().then(() => process.exit(0))
 })
 
-await app.listen({ host: env.APP_HOST, port: env.APP_PORT })
+try {
+  await app.listen({ host: env.APP_HOST, port: env.APP_PORT })
+} catch (error) {
+  console.error(startupMessage(error))
+  await close()
+  process.exit(1)
+}

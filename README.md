@@ -67,7 +67,7 @@ Public URLs look like `https://share.example.com/s/summer-sale`. The prefix is s
 
 Slugs are unique without regard to case. A taken slug returns: "This short URL is already in use. Please choose a different slug."
 
-Destination edits keep the slug and the click history. A link can expire, can be disabled, and can require a password before it redirects. Redirects default to 302 and can be 301, 307, or 308.
+Destination edits keep the slug and the click history. A link can expire, can be disabled, and can require a password before it redirects. Redirects default to 302 and can be 301, 307, or 308. Every redirect sends `Cache-Control: no-store`, and a correct password continues with 303.
 
 Each link can store `utm_source`, `utm_medium`, `utm_campaign`, `utm_id`, `utm_term`, and `utm_content`. Those values are added to the destination at redirect time. Existing unrelated query parameters and the URL fragment are kept. Replacing a UTM value that is already on the destination shows a warning first.
 
@@ -147,10 +147,10 @@ The script then does the following, in order:
 10. Writes `shared/.env` on the first install, and again when `--sync-env` is set.
 11. Runs `npm run backup`, writing a custom-format dump to `$DEPLOY_REMOTE_DIR/backups`.
 12. Runs migrations.
-13. Records the previous `current` target in `previous-release`, then points `current` at the new release.
-14. Installs `deploy/systemd/sharry.service` with the remote directory filled in, reloads systemd, enables the service, and restarts it.
-15. Deletes old releases and keeps the five newest.
-16. Requests `https://DOMAIN/health` up to 30 times, once a second. The deploy is finished when that URL returns OK.
+13. Records the previous `current` target in `previous-release`.
+14. Installs `deploy/systemd/sharry.service` with the remote directory filled in.
+15. Points `current` at the new release, reloads systemd, enables the service, and restarts it.
+16. Requests `https://DOMAIN/health` up to 30 times, once a second. When that fails and a previous release exists, deploy points `current` back at it, restarts, and exits with an error. Old releases are deleted only after the health check passes, and the five newest are kept.
 
 Secrets are not printed. The service listens on `APP_PORT` (3000 by default) as the `sharry` user. The unit file is `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` and `ExecStart=/usr/bin/node apps/api/dist/index.js`.
 
@@ -161,6 +161,8 @@ Sign in with the initial administrator and choose a new password. Mail and the t
 `npm run backup` writes a custom-format `pg_dump` using `DATABASE_URL` without putting the URL on the command line. Deploy runs this before migrations. Schedule it with cron on the server as well.
 
 ### Rollback
+
+A failed health check restores the previous release and restarts the service when `previous-release` is set. To roll back by hand:
 
 1. Point `current` at the previous release directory recorded in `previous-release`.
 2. Restart the systemd service.
