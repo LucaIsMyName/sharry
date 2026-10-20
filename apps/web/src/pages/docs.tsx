@@ -26,7 +26,11 @@ const pageOrder = [
   'user/qr-codes',
   'user/analytics',
   'user/api-keys',
+  'user/settings',
+  'user/users',
   'developer/backend/overview',
+  'developer/backend/development',
+  'developer/backend/deploy',
   'developer/backend/auth',
   'developer/backend/redirects',
   'developer/frontend/overview',
@@ -67,7 +71,7 @@ export function DocsPage() {
           <DocLink to="/docs/api">Reference</DocLink>
         </div>
       </nav>
-      <article className="min-w-0 max-w-xl">
+      <article className="min-w-0 max-w-3xl">
         {slug === 'api' ? <ApiReference /> : page ? <Markdown source={page.markdown} /> : <p className="text-sm text-muted-foreground">That page is not in the docs.</p>}
       </article>
     </div>

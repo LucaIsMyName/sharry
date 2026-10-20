@@ -2,6 +2,22 @@
 
 `tryShortLink` in `apps/api/src/redirect.ts` handles `GET`, `HEAD`, and `POST` paths with two segments, such as `/s/summer-sale`. The first segment must be the active prefix or an enabled legacy prefix. Anything else falls through to the dashboard.
 
-Reserved names in `packages/shared/src/prefix.ts` include `api`, `docs`, and the dashboard paths, so a short-link prefix cannot take those URLs.
+The catch-all route is registered for `GET`, `HEAD`, and `POST`. It tries a short link first. A handled short link ends the response. A `POST` that is not a short link, and any path under `/api` that reached the catch-all, returns 404. Other `GET` and `HEAD` requests receive the dashboard HTML in production, or a development hint when Vite is serving the UI.
 
-A password-protected link renders a small HTML form and sets an unlock cookie. A successful password submission answers with 303 so the browser follows the destination with GET, and that unlock is counted as a click. Later visits use the link's redirect type. Every redirect sends `Cache-Control: no-store`, including 301 and 308, so a destination edit is not stuck in the browser. Clicks are recorded after the response. UTM values from the link, and from a `v` variant or a `qr` code when it belongs to that link, are resolved once and merged onto the destination.
+## Prefix and slug
+
+Reserved names in `packages/shared/src/prefix.ts` include `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, and `docs`. A short-link prefix cannot take those URLs. Slugs reserve the same names plus `favicon.ico` and `robots.txt`.
+
+The prefix is not stored on the link. Displayed short URLs are built from `SHORT_URL_BASE`, the current prefix, and the slug. Changing the prefix in Settings rewrites every displayed link on the next read. Printed QR codes still contain the old path. Enabling legacy prefixes keeps resolving previous prefixes. That change asks for confirmation because saved addresses would otherwise 404.
+
+Slug uniqueness is case-insensitive. The taken-slug response is 409 with "This short URL is already in use. Please choose a different slug."
+
+## Password, cache, and clicks
+
+A password-protected link renders a small HTML form and sets an unlock cookie. A successful password submission answers with 303 so the browser follows the destination with GET, and that unlock is counted as a click. Later visits use the link's redirect type. Every redirect sends `Cache-Control: no-store`, including 301 and 308, so a destination edit is not stuck in the browser.
+
+Clicks are recorded after the response, from an `onResponse` hook. A paused, missing, or expired link does not record a click. The anonymous visitor id is a daily HMAC of a truncated IP and the user agent. The raw IP is not stored. Referrers are stored as hostnames.
+
+## UTM merge
+
+UTM values from the link, and from a `v` variant or a `qr` code when it belongs to that link, are resolved once and merged onto the destination. A variant or QR id from another link is ignored. Blank variant fields keep the link’s values. Query parameters on the destination that are not being replaced, and the URL fragment, are kept.

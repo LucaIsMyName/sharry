@@ -57,7 +57,7 @@ The key can do what that user can. A standard userâ€™s key sees only that userâ€
 
 ## Documentation
 
-Signed-in users open `/docs` for user guides, backend and frontend notes, and the API reference. User and developer pages are markdown files in `apps/web/docs`. The API reference is generated from the JSDoc block above each route in `apps/api/src`.
+Signed-in users open `/docs` for the same guides: how to use links, campaigns, QR codes, analytics, API keys, settings, and users, plus local development, deploy, and the API reference. The pages are markdown files in `apps/web/docs`. The API reference is generated from the JSDoc block above each route in `apps/api/src`. You can read those files in the repository before the app is running. This README is the short copy of local development and deploy.
 
 Password reset email uses the SMTP host, port, username, password, and from address saved in Settings. The password is encrypted in the database and is not shown again. Until a host and from address are saved there, Sharry falls back to `SMTP_HOST` and `EMAIL_FROM` in the server environment when those are set.
 
