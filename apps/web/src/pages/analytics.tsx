@@ -71,11 +71,11 @@ export function AnalyticsPage() {
           </div>
         </div>
       ) : null}
-      <Card className="mt-4">
-        <CardContent>
+      <Card className="mt-4 min-w-0">
+        <CardContent className="min-w-0">
           <h2 className="mb-3 text-lg font-medium">Links</h2>
           {links.length === 0 ? <p className="text-sm text-muted-foreground">No links yet.</p> : (
-            <Table>
+            <Table className="min-w-full w-max">
               <TableHeader>
                 <TableRow>
                   <TableHead>Link</TableHead>

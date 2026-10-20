@@ -237,13 +237,13 @@ export function AdminAuditPage() {
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-4xl font-medium tracking-tight">Audit</h1>
-      <Card><CardContent>
-        <Table>
+      <Card className="min-w-0"><CardContent className="min-w-0">
+        <Table className="min-w-full w-max">
           <TableHeader><TableRow><TableHead>When</TableHead><TableHead>User</TableHead><TableHead>Action</TableHead><TableHead>Entity</TableHead></TableRow></TableHeader>
           <TableBody>
             {entries.map((entry) => (
               <TableRow key={entry.id}>
-                <TableCell className="whitespace-normal">{new Date(entry.createdAt).toLocaleString()}</TableCell>
+                <TableCell>{new Date(entry.createdAt).toLocaleString()}</TableCell>
                 <TableCell>{entry.actorUsername ?? '—'}</TableCell>
                 <TableCell>{entry.action}</TableCell>
                 <TableCell className="text-muted-foreground">{entry.entityType}</TableCell>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Check, Copy, Save, Trash2 } from 'lucide-react'
+import { Check, Copy, ExternalLink, Save, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { applyUtm, defaultQrStyle, qrWarnings, utmConflicts, type QrStyle, type UtmParams } from '@sharry/shared'
 import { api, type Analytics, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
@@ -78,17 +78,31 @@ export function LinksPage() {
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Slug, title, or destination" />
       </Field>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Card className="mt-4">
-        <CardContent>
+      <Card className="mt-4 min-w-0">
+        <CardContent className="min-w-0">
         {links.length === 0 ? <p className="text-sm text-muted-foreground">No links match.</p> : (
-          <Table>
-            <TableHeader><TableRow><TableHead>Short URL</TableHead><TableHead>Destination</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+          <Table className="min-w-full w-max">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Short URL</TableHead>
+                <TableHead>Destination</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead><span className="sr-only">Test</span></TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {links.map((link) => (
                 <TableRow key={link.id}>
-                  <TableCell className="whitespace-normal"><Link className="font-mono text-sm break-all text-muted-foreground hover:text-primary" to={`/links/${link.id}`}>{link.shortUrl}</Link></TableCell>
-                  <TableCell className="whitespace-normal text-muted-foreground">{link.destinationUrl}</TableCell>
+                  <TableCell><Link className="font-medium hover:text-primary" to={`/links/${link.id}`}>{link.title?.trim() || link.slug}</Link></TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{link.shortUrl}</TableCell>
+                  <TableCell className="text-muted-foreground">{link.destinationUrl}</TableCell>
                   <TableCell><Badge variant={link.status === 'active' ? 'secondary' : 'destructive'}>{link.status}</Badge></TableCell>
+                  <TableCell>
+                    <a className={buttonVariants({ variant: 'outline', size: 'icon' })} href={link.shortUrl} target="_blank" rel="noreferrer" aria-label={`Test ${link.title?.trim() || link.slug}`}>
+                      <ExternalLink />
+                    </a>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
