@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { Client } from 'ssh2'
 import {
+  applyPublicUrls,
   parseDeployEnv,
   parseEnvFile,
   parseRuntimeEnv,
@@ -11,29 +12,47 @@ import {
   serializeEnv,
   splitEnv,
 } from '@sharry/shared'
-import { assertSafeRemoteDir, assertSafeServiceName, hostKeyMatches } from './ssh.ts'
+import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
+import { provisionHost } from './provision.ts'
+import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
+import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
 const syncEnv = process.argv.includes('--sync-env')
-const envPath = process.env.SHARRY_ENV_FILE ?? '.env'
+const envPath = resolveEnvFile('production')
 if (!fs.existsSync(envPath)) {
-  console.error('Create a local .env before deploying.')
+  console.error('Create .env.production before deploying. Copy .env.example and fill in DOMAIN, the SSH login, and the first administrator.')
   process.exit(1)
 }
 
-const fileVars = parseEnvFile(fs.readFileSync(envPath, 'utf8'))
-const { runtime, deploy } = splitEnv(fileVars)
+const fileVars: Record<string, string> = {}
+try {
+  for (const [key, value] of Object.entries(applyPublicUrls(parseEnvFile(fs.readFileSync(envPath, 'utf8'))))) {
+    if (typeof value === 'string') fileVars[key] = value
+  }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : 'Invalid environment configuration')
+  process.exit(1)
+}
+const secretUpdates = ensureLocalSecrets(fileVars)
+Object.assign(fileVars, secretUpdates)
+const domain = fileVars.DOMAIN?.trim() ?? ''
+if (!domain) {
+  console.error('Set DOMAIN in .env.production to the public hostname, for example share.example.com.')
+  process.exit(1)
+}
+const { deploy } = splitEnv(fileVars)
 const deployEnv = parseDeployEnv(deploy)
-const runtimeEnv = parseRuntimeEnv(runtime)
-const secrets = [
-  runtimeEnv.SESSION_SECRET,
-  runtimeEnv.ENCRYPTION_KEY,
-  runtimeEnv.INITIAL_ADMIN_PASSWORD ?? '',
-  runtimeEnv.SMTP_PASSWORD,
-  runtimeEnv.DATABASE_URL,
-].filter((value) => value.length >= 8)
+const secrets: string[] = []
+const remember = (value: string | undefined) => {
+  if (value && value.length >= 8 && !secrets.includes(value)) secrets.push(value)
+}
+for (const key of ['SESSION_SECRET', 'ENCRYPTION_KEY', 'DATABASE_URL', 'INITIAL_ADMIN_PASSWORD', 'SMTP_PASSWORD']) {
+  remember(fileVars[key])
+}
+for (const value of Object.values(secretUpdates)) remember(value)
 
 if (deployEnv.DEPLOY_ENABLED !== 'true') {
-  console.error('Set DEPLOY_ENABLED=true in the local deployment .env before deploying.')
+  console.error('Set DEPLOY_ENABLED=true in .env.production before deploying.')
   process.exit(1)
 }
 
@@ -44,24 +63,59 @@ const remote = deployEnv.DEPLOY_REMOTE_DIR
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '')
 const release = `${remote}/releases/${stamp}`
 const knownHostsPath = deployEnv.DEPLOY_KNOWN_HOSTS_PATH ?? path.join(os.homedir(), '.ssh', 'known_hosts')
-if (!fs.existsSync(knownHostsPath)) {
-  console.error(`Known hosts file not found at ${knownHostsPath}. Refusing to trust an unknown server.`)
-  process.exit(1)
-}
-const knownHosts = fs.readFileSync(knownHostsPath, 'utf8')
+const knownHosts = await ensureKnownHost(knownHostsPath, deployEnv.DEPLOY_HOST, deployEnv.DEPLOY_PORT)
 const privateKey = fs.readFileSync(deployEnv.DEPLOY_SSH_KEY_PATH)
 
 const log = (message: string) => console.log(redactSecrets(message, secrets))
 
 const conn = await connect()
 try {
-  await exec(conn, 'node -p process.versions.node', secrets)
-  const version = (await exec(conn, 'node -p process.versions.node', secrets)).stdout.trim()
+  const savedDatabaseUrl = fileVars.DATABASE_URL?.trim() ?? ''
+  await provisionHost((command) => exec(conn, command, secrets), {
+    domain,
+    databaseUrl: savedDatabaseUrl,
+    generatedDatabaseUrl: () => {
+      const url = generatedDatabaseUrl()
+      remember(url)
+      return url
+    },
+    beforeDatabaseChanges: (databaseUrl) => {
+      fileVars.DATABASE_URL = databaseUrl
+      remember(databaseUrl)
+      try {
+        remember(decodeURIComponent(new URL(databaseUrl).password))
+      } catch {
+        // The full URL is still redacted when it appears in an error.
+      }
+      if (!savedDatabaseUrl) upsertEnvKeys(envPath, { DATABASE_URL: databaseUrl })
+    },
+  })
+  const version = (await exec(conn, '/usr/bin/node -p process.versions.node', secrets)).stdout.trim()
   const major = Number(version.split('.')[0])
   if (!Number.isFinite(major) || major < 22) {
-    throw new Error(`The server must have Node.js 22 or newer. Found ${version}`)
+    throw new Error(`The server must have Node.js 22 or newer. Found ${version || 'no Node.js binary'}`)
   }
-  await exec(conn, `mkdir -p ${remote}/releases ${remote}/shared/data ${remote}/backups ${release}`, secrets)
+  const { runtime } = splitEnv(fileVars)
+  const runtimeEnv = parseRuntimeEnv(runtime)
+  remember(runtimeEnv.SESSION_SECRET)
+  remember(runtimeEnv.ENCRYPTION_KEY)
+  remember(runtimeEnv.DATABASE_URL)
+  remember(runtimeEnv.INITIAL_ADMIN_PASSWORD)
+  remember(runtimeEnv.SMTP_PASSWORD)
+  await exec(
+    conn,
+    privileged(
+      `mkdir -p ${remote}/releases ${remote}/shared/data ${remote}/backups ${release} && chown -R ${deployEnv.DEPLOY_USER} ${remote} && chown -R sharry:sharry ${remote}/shared/data && chmod 750 ${remote}/shared/data`,
+    ),
+    secrets,
+  )
+  const envFile = `${remote}/shared/.env`
+  const envExists = (await exec(conn, `test -f ${envFile} && echo yes || echo no`, secrets)).stdout.includes('yes')
+  if ((secretUpdates.SESSION_SECRET || secretUpdates.ENCRYPTION_KEY) && envExists && !syncEnv) {
+    throw new Error(
+      'SESSION_SECRET or ENCRYPTION_KEY is empty, but the server already has a runtime environment. Copy the existing values into .env.production. Deploy does not rotate them.',
+    )
+  }
   const archive = path.join(os.tmpdir(), `sharry-${stamp}.tgz`)
   await tarRepo(archive)
   await upload(conn, archive, `${remote}/incoming.tgz`)
@@ -69,13 +123,10 @@ try {
   await exec(conn, `tar -xzf ${remote}/incoming.tgz -C ${release} && rm -f ${remote}/incoming.tgz`, secrets)
   await exec(conn, `ln -sfn ${remote}/shared/data ${release}/data`, secrets)
   await exec(conn, `cd ${release} && npm ci && npm run build`, secrets)
-  const envFile = `${remote}/shared/.env`
-  const envExists = (await exec(conn, `test -f ${envFile} && echo yes || echo no`, secrets)).stdout.includes('yes')
-  if (syncEnv) {
+  if (Object.keys(secretUpdates).length > 0 && (syncEnv || !envExists)) upsertEnvKeys(envPath, secretUpdates)
+  if (syncEnv || !envExists) {
     await writeRemoteFile(conn, envFile, serializeEnv(runtime), 0o600)
-    log('Updated the server runtime environment')
-  } else if (!envExists) {
-    throw new Error('The server has no runtime environment. Deploy again with --sync-env.')
+    log(syncEnv ? 'Updated the server runtime environment' : 'Wrote the server runtime environment')
   }
   const backup = `${remote}/backups/sharry-${stamp}.dump`
   await exec(conn, `cd ${release} && SHARRY_ENV_FILE=${envFile} npm run backup -- ${backup}`, secrets)
@@ -84,7 +135,11 @@ try {
   if (previous) await writeRemoteFile(conn, `${remote}/previous-release`, `${previous}\n`, 0o644)
   await exec(conn, `ln -sfn ${release} ${remote}/current`, secrets)
   await installService(conn, remote, deployEnv.DEPLOY_RESTART_SERVICE, secrets)
-  await exec(conn, `sudo -n systemctl daemon-reload && sudo -n systemctl enable ${deployEnv.DEPLOY_RESTART_SERVICE} && sudo -n systemctl restart ${deployEnv.DEPLOY_RESTART_SERVICE}`, secrets)
+  await exec(
+    conn,
+    privileged(`systemctl daemon-reload && systemctl enable ${deployEnv.DEPLOY_RESTART_SERVICE} && systemctl restart ${deployEnv.DEPLOY_RESTART_SERVICE}`),
+    secrets,
+  )
   await pruneReleases(conn, remote, secrets)
   await waitForHealth(deployEnv.DEPLOY_HEALTHCHECK_URL)
   log('Deployment finished and the health check passed')
@@ -94,6 +149,46 @@ try {
   process.exitCode = 1
 } finally {
   conn.end()
+}
+
+async function ensureKnownHost(file: string, host: string, port: number): Promise<string> {
+  const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
+  if (hostIsListed(existing, host, port)) return existing
+  const scanned = await sshKeyScan(host, port)
+  const additions: string[] = []
+  for (const line of scanned.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const parts = trimmed.split(/\s+/)
+    const key = Buffer.from(parts[2] ?? '', 'base64')
+    if (parts.length < 3 || key.length === 0) continue
+    additions.push(trimmed)
+    console.log(`Recorded SSH host key for ${host}: ${opensshFingerprint(key)}`)
+  }
+  if (additions.length === 0) throw new Error(`ssh-keyscan returned no host key for ${host}.`)
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
+  const prefix = existing.length === 0 || existing.endsWith('\n') ? '' : '\n'
+  fs.appendFileSync(file, `${prefix}${additions.join('\n')}\n`, { mode: 0o644 })
+  return fs.readFileSync(file, 'utf8')
+}
+
+function sshKeyScan(host: string, port: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('ssh-keyscan', ['-p', String(port), '-T', '5', host], { stdio: ['ignore', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code === 0 && stdout.trim()) resolve(stdout)
+      else reject(new Error(`Could not read the SSH host key for ${host}. ${stderr.trim()}`))
+    })
+  })
 }
 
 function connect(): Promise<Client> {
@@ -182,7 +277,7 @@ async function installService(client: Client, appDir: string, service: string, s
   fs.writeFileSync(localUnit, unit)
   await upload(client, localUnit, `${appDir}/${service}.service`)
   fs.rmSync(localUnit, { force: true })
-  await exec(client, `sudo -n cp ${appDir}/${service}.service ${unitPath}`, secretValues)
+  await exec(client, privileged(`cp ${appDir}/${service}.service ${unitPath}`), secretValues)
 }
 
 async function pruneReleases(client: Client, appDir: string, secretValues: string[]): Promise<void> {
@@ -210,7 +305,7 @@ function tarRepo(archive: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       'tar',
-      ['-czf', archive, '--exclude', '.git', '--exclude', 'node_modules', '--exclude', '.env', '--exclude', 'data', '-C', process.cwd(), '.'],
+      ['-czf', archive, '--exclude', '.git', '--exclude', 'node_modules', '--exclude', '.env', '--exclude', '.env.*', '--exclude', 'data', '-C', process.cwd(), '.'],
       { stdio: 'inherit' },
     )
     child.on('close', (code) => {

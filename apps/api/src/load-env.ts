@@ -11,13 +11,21 @@ export function loadEnvFile(file = process.env.SHARRY_ENV_FILE ?? findEnvFile())
 }
 
 function findEnvFile(): string {
+  const development = findUp('.env.development')
+  if (development) return development
+  const legacy = findUp('.env')
+  if (legacy) return legacy
+  return path.resolve('.env.development')
+}
+
+function findUp(name: string): string | undefined {
   let dir = process.cwd()
   for (let depth = 0; depth < 5; depth += 1) {
-    const candidate = path.join(dir, '.env')
+    const candidate = path.join(dir, name)
     if (fs.existsSync(candidate)) return candidate
     const parent = path.dirname(dir)
     if (parent === dir) break
     dir = parent
   }
-  return path.resolve('.env')
+  return undefined
 }

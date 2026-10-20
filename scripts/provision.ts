@@ -1,0 +1,183 @@
+import { privileged } from './ssh.ts'
+
+export type RemoteExec = (command: string) => Promise<{ stdout: string; stderr: string }>
+
+const identifier = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+export function linuxDistro(osRelease: string): 'ubuntu' | 'debian' | null {
+  const match = osRelease.match(/^ID=(?:"?)([a-z0-9]+)(?:"?)\s*$/m)
+  if (match?.[1] === 'ubuntu' || match?.[1] === 'debian') return match[1]
+  return null
+}
+
+export function databaseTarget(url: string): { user: string; password: string; database: string } {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error('DATABASE_URL must be a PostgreSQL URL.')
+  }
+  const user = decodeURIComponent(parsed.username)
+  const password = decodeURIComponent(parsed.password)
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''))
+  if (!identifier.test(user) || !identifier.test(database)) {
+    throw new Error('DATABASE_URL user and database names must use letters, numbers, and underscores.')
+  }
+  if (!password) throw new Error('DATABASE_URL must include a password.')
+  return { user, password, database }
+}
+
+export function caddySiteBlock(domain: string): string {
+  return `${domain} {\n\treverse_proxy 127.0.0.1:3000\n}\n`
+}
+
+export function caddyHasSite(contents: string, domain: string): boolean {
+  return contents.split('\n').some((line) => {
+    const trimmed = line.trim().replace(/^https?:\/\//, '')
+    return trimmed === domain || trimmed.startsWith(`${domain} `) || trimmed.startsWith(`${domain}{`) || trimmed.startsWith(`${domain},`)
+  })
+}
+
+export function nodeInstallScript(): string {
+  return `set -euo pipefail
+if [ -x /usr/bin/node ]; then
+  major="$(/usr/bin/node -p 'process.versions.node.split(".")[0]')"
+else
+  major=0
+fi
+if [ "$major" -ge 22 ]; then
+  exit 0
+fi
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl xz-utils
+arch="$(uname -m)"
+case "$arch" in
+  x86_64) nodearch=x64 ;;
+  aarch64|arm64) nodearch=arm64 ;;
+  *) echo "Unsupported CPU architecture: $arch" >&2; exit 1 ;;
+esac
+workdir="$(mktemp -d)"
+trap 'rm -rf "$workdir"' EXIT
+curl -fsSL "https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt" -o "$workdir/SHASUMS256.txt"
+name="$(awk -v arch="$nodearch" '$2 ~ ("node-v[0-9.]+-linux-" arch "[.]tar[.]xz$") { print $2; exit }' "$workdir/SHASUMS256.txt")"
+if [ -z "$name" ]; then
+  echo "Could not find a Node.js 22 archive for $nodearch" >&2
+  exit 1
+fi
+curl -fsSL "https://nodejs.org/dist/latest-v22.x/\${name}" -o "$workdir/$name"
+(cd "$workdir" && grep "  \${name}$" SHASUMS256.txt | sha256sum -c -)
+tar -xJf "$workdir/$name" -C /usr/local --strip-components=1
+ln -sfn /usr/local/bin/node /usr/bin/node
+ln -sfn /usr/local/bin/npm /usr/bin/npm
+ln -sfn /usr/local/bin/npx /usr/bin/npx
+`
+}
+
+function sqlLiteral(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`
+}
+
+export function psqlCommand(sql: string, database?: string): string {
+  const encoded = Buffer.from(sql).toString('base64')
+  const db = database && identifier.test(database) ? ` -d ${database}` : ''
+  const args = `-v ON_ERROR_STOP=1 -tA${db} -f -`
+  return `if [ "$(id -u)" -eq 0 ]; then echo ${encoded} | base64 -d | runuser -u postgres -- psql ${args}; else echo ${encoded} | base64 -d | sudo -n -u postgres psql ${args}; fi`
+}
+
+export async function provisionHost(
+  run: RemoteExec,
+  input: {
+    domain: string
+    databaseUrl: string | undefined
+    generatedDatabaseUrl: () => string
+    beforeDatabaseChanges: (databaseUrl: string) => void
+  },
+): Promise<void> {
+  const osRelease = (await run('cat /etc/os-release')).stdout
+  const distro = linuxDistro(osRelease)
+  if (!distro) {
+    const id = osRelease.match(/^ID=(?:"?)([^"\n]+)/m)?.[1] ?? 'unknown'
+    throw new Error(`This deploy supports Ubuntu and Debian. This server reports ID=${id}.`)
+  }
+  await run(privileged(nodeInstallScript()))
+  await run(
+    privileged(`set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v pg_dump >/dev/null 2>&1 || ! command -v psql >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y postgresql postgresql-client
+fi
+systemctl enable --now postgresql
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  pg_isready -q && break
+  sleep 1
+done
+pg_isready -q
+if ! id sharry >/dev/null 2>&1; then
+  useradd --system --create-home --shell /usr/sbin/nologin sharry
+fi`),
+  )
+
+  let databaseUrl = input.databaseUrl?.trim() ?? ''
+  const roleName = databaseUrl ? databaseTarget(databaseUrl).user : 'sharry'
+  const role = (await run(psqlCommand(`SELECT 1 FROM pg_roles WHERE rolname = ${sqlLiteral(roleName)}`))).stdout.trim()
+  if (!databaseUrl) {
+    if (role === '1') {
+      throw new Error(
+        'The sharry database role already exists. Set DATABASE_URL in .env.production to its current connection string. Deploy does not change an existing database password.',
+      )
+    }
+    databaseUrl = input.generatedDatabaseUrl()
+  }
+  input.beforeDatabaseChanges(databaseUrl)
+  const target = databaseTarget(databaseUrl)
+  if (role !== '1') {
+    await run(psqlCommand(`CREATE ROLE ${target.user} LOGIN PASSWORD ${sqlLiteral(target.password)}`))
+  }
+  const database = (await run(psqlCommand(`SELECT 1 FROM pg_database WHERE datname = ${sqlLiteral(target.database)}`))).stdout.trim()
+  if (database !== '1') {
+    await run(psqlCommand(`CREATE DATABASE ${target.database} OWNER ${target.user}`))
+    await run(psqlCommand(`ALTER SCHEMA public OWNER TO ${target.user}`, target.database))
+  }
+
+  await run(
+    privileged(`set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v caddy >/dev/null 2>&1; then
+  apt-get update
+  apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl gnupg
+  install -d /usr/share/keyrings
+  rm -f /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' -o /etc/apt/sources.list.d/caddy-stable.list
+  apt-get update
+  apt-get install -y caddy
+fi
+systemctl enable --now caddy`),
+  )
+
+  let caddyfile = ''
+  try {
+    caddyfile = (await run(privileged('cat /etc/caddy/Caddyfile'))).stdout
+  } catch {
+    caddyfile = ''
+  }
+  if (!caddyHasSite(caddyfile, input.domain)) {
+    const next = `${caddyfile.trim() ? `${caddyfile.replace(/\s*$/, '')}\n\n` : ''}${caddySiteBlock(input.domain)}`
+    const encoded = Buffer.from(next).toString('base64')
+    await run(
+      privileged(`set -euo pipefail
+echo ${encoded} | base64 -d > /etc/caddy/Caddyfile
+systemctl reload caddy || systemctl restart caddy`),
+    )
+  }
+
+  await run(
+    privileged(`set -euo pipefail
+if command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; then
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+fi`),
+  )
+}

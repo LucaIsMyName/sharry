@@ -11,7 +11,7 @@ Requires Node.js 22 or newer. The app does not use Docker.
 `npm run dev` starts the dashboard, the API, and a local PostgreSQL when `DATABASE_URL` points at this machine and nothing is listening there. That database keeps its data in `data/pg-dev`. Closing the terminal stops it. The next `npm run dev` starts it again, then the API applies migrations. A server install still uses its own PostgreSQL.
 
 ```bash
-cp .env.example .env
+cp .env.example .env.development
 # Fill in DATABASE_URL, SESSION_SECRET, ENCRYPTION_KEY, and the initial admin password.
 npm install
 npm run db:migrate
@@ -26,16 +26,17 @@ On first startup Sharry creates the initial administrator from `INITIAL_ADMIN_*`
 
 ## Configuration
 
-Keep `.env` out of Git. `.env.example` contains placeholders only.
+Keep `.env.development` and `.env.production` out of Git. `.env.example` contains placeholders only.
 
-There are two configuration contexts:
+`npm run dev`, `npm run db:migrate`, `npm run setup`, `npm run create-admin`, and `npm run backup` read `.env.development` on this machine. `npm run deploy` reads `.env.production`. The server keeps its own runtime file at `$DEPLOY_REMOTE_DIR/shared/.env`.
 
-- **Local deployment `.env`:** VPS address, SSH user, SSH key path, remote directory, service name, and health-check URL. The private key stays on the deploy machine. `.env` stores only its path.
-- **Server runtime `.env`:** public URLs, database URL, session secret, encryption key, and optional email and GeoIP settings.
+`.env.production` holds the public hostname, VPS address, SSH user, and SSH key path. The private key stays on the deploy machine. The file stores only its path. Deploy copies the runtime values into the server file. Keys prefixed with `DEPLOY_` are never uploaded. `DOMAIN` stays in `.env.production`.
 
-`npm run deploy` copies runtime variables only when you pass `--sync-env`. Keys prefixed with `DEPLOY_` are never uploaded. An existing server environment is left untouched unless that flag is set.
+`npm run deploy` copies runtime variables when the server does not have them yet, and again when you pass `--sync-env`. An existing server environment is left untouched unless that flag is set.
 
-`APP_URL` and `SHORT_URL_BASE` are read from that server environment on each process start. Settings cannot change them.
+Set `DOMAIN` in `.env.production`. When `APP_URL`, `SHORT_URL_BASE`, or `DEPLOY_HEALTHCHECK_URL` are empty, deploy uses `https://DOMAIN` and `https://DOMAIN/health`. When `SESSION_SECRET`, `ENCRYPTION_KEY`, or `DATABASE_URL` are empty, the first deploy generates them and writes them back into `.env.production`. Later deploys reuse those lines. Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password unreadable.
+
+`APP_URL` and `SHORT_URL_BASE` are read from the server environment on each process start. Settings cannot change them.
 
 - `APP_URL` is the origin of password-reset links: `{APP_URL}/login/reset?token=...`.
 - `SHORT_URL_BASE` is the origin of short links shown in the dashboard, link CSV export, and newly encoded QR codes.
@@ -82,93 +83,64 @@ Administrators can export links and clicks as CSV. The click export includes eve
 
 ## Deploy on your own server
 
-Deploy runs from your machine over SSH. It does not create the Linux user, the database, or the TLS proxy.
+Two things stay outside the script:
 
-The server needs:
+- The VPS is already running Ubuntu or Debian, and it accepts SSH with the key in `.env.production`. `DEPLOY_USER` is `root`, or a user that can run `sudo -n`.
+- The domain’s A record points at the VPS IPv4 address. The provider’s firewall allows ports 22, 80, and 443. A cloud firewall is not the machine’s own firewall, so the script cannot open it.
 
-- Node.js 22 or newer available as `/usr/bin/node`. The systemd unit starts that exact path.
-- PostgreSQL on localhost, not exposed to the internet. `pg_dump` must be on the deploy user's `PATH`, because every deploy writes a backup before migrating.
-- A Linux user named `sharry`. The service runs as that user.
-- An SSH user that can log in with a key and run `sudo` without a password prompt. The script uses `sudo -n` for `systemctl daemon-reload`, `systemctl enable`, `systemctl restart`, and copying the unit file into `/etc/systemd/system`.
-- Caddy, or another reverse proxy, for HTTPS. Leave port 3000 and PostgreSQL closed to the public internet. Open SSH and HTTPS.
-- A DNS name pointed at the server.
+`npm run deploy` installs the rest. Caddy requests and renews the certificate because the site name is a hostname and ports 80 and 443 reach the server. Sharry does not call a certificate API.
 
-### 1. Prepare the server
-
-```bash
-sudo useradd --system --create-home --shell /usr/sbin/nologin sharry
-sudo -u postgres createuser --pwprompt sharry
-sudo -u postgres createdb --owner=sharry sharry
-```
-
-Install Node.js 22 so `node` resolves to `/usr/bin/node`, and install the PostgreSQL client so `pg_dump` is on `PATH`.
-
-Allow the SSH user passwordless sudo for `systemctl daemon-reload`, `systemctl enable`, `systemctl restart`, and copying the unit file into `/etc/systemd/system`. A sudo password prompt makes the deploy fail.
-
-### 2. Point DNS and HTTPS at the app
-
-Copy `deploy/Caddyfile.example`, replace `share.example.com` with your domain, and install that site for Caddy. Caddy proxies every request to `127.0.0.1:3000`. Reload Caddy after the first deploy, once the app is listening.
-
-### 3. Fill in the local `.env`
+### 1. Fill in `.env.production`
 
 On the machine you deploy from:
 
 ```bash
-cp .env.example .env
+cp .env.example .env.production
 ```
 
-Set the runtime values to the production server, not your laptop database:
+Set:
 
-- `APP_URL` is the public `https://` origin used in password-reset links.
-- `SHORT_URL_BASE` is the public `https://` origin encoded into short links and QR codes. It is often the same origin as `APP_URL`.
-- `DATABASE_URL` is the server database, for example `postgresql://sharry:PASSWORD@127.0.0.1:5432/sharry`. That host is the server's localhost. The deploy script runs the backup and migrations there.
-- `SESSION_SECRET` and `ENCRYPTION_KEY` are each at least 32 characters. Keep them. Replacing `ENCRYPTION_KEY` later makes saved two-factor secrets and the SMTP password unreadable.
-- `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` are used only the first time the database is empty. The password must be at least 12 characters. The first sign-in asks for a new password.
-
-Then set the deployment values. These stay on your machine and are not copied to the server:
-
+- `DOMAIN`, for example `share.example.com`
 - `DEPLOY_ENABLED=true`
-- `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`
+- `DEPLOY_HOST` and `DEPLOY_USER`
 - `DEPLOY_SSH_KEY_PATH` as an absolute path to the private key
-- `DEPLOY_REMOTE_DIR`, for example `/var/www/sharry`
-- `DEPLOY_RESTART_SERVICE=sharry`
-- `DEPLOY_HEALTHCHECK_URL`, for example `https://share.example.com/health`
-- `DEPLOY_BUILD_COMMAND` must stay `npm run build`
+- `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD`
 
-Add the server to your known hosts before the first deploy. The script refuses a host that is not already in `known_hosts` or in `DEPLOY_KNOWN_HOSTS_PATH`:
+Leave `APP_URL`, `SHORT_URL_BASE`, `DEPLOY_HEALTHCHECK_URL`, `SESSION_SECRET`, `ENCRYPTION_KEY`, and `DATABASE_URL` empty unless you already have values to keep. `DEPLOY_REMOTE_DIR` defaults to `/var/www/sharry`. The initial password is used only the first time the database is empty, must be at least 12 characters, and the first sign-in asks for a new one. If the server already has a runtime environment, copy its session secret and encryption key into `.env.production`. An empty value is not a request to replace them.
 
-```bash
-ssh-keyscan -p 22 your.server.example >> ~/.ssh/known_hosts
-```
+`APP_URL` is the public origin used in password-reset links. `SHORT_URL_BASE` is the origin encoded into short links and QR codes. Both become `https://DOMAIN` when they are empty.
 
-### 4. Deploy
+If the host is not already in `known_hosts` (or in `DEPLOY_KNOWN_HOSTS_PATH`), the first deploy records the key from `ssh-keyscan` and prints its fingerprint.
+
+### 2. Deploy
 
 ```bash
 npm install
-npm run deploy -- --sync-env
-```
-
-`--sync-env` writes the runtime variables to `$DEPLOY_REMOTE_DIR/shared/.env` with mode `0600`. Use it for the first install and whenever those values should change. Later releases keep that file. The first deploy fails if that file is missing and `--sync-env` was not passed.
-
-```bash
 npm run deploy
 ```
 
+The first deploy writes `$DEPLOY_REMOTE_DIR/shared/.env`. A later deploy keeps that file. Pass `--sync-env` when the runtime values should be copied again.
+
+On a server that is already in use, each step is safe to repeat. A newer Node.js install and an existing PostgreSQL cluster are left as they are. An existing database role or database is not dropped, and its password is not changed. A Caddy site that already names `DOMAIN` is left in place.
+
 The script then does the following, in order:
 
-1. Checks the SSH host key and refuses an unknown host.
-2. Requires Node.js 22 or newer on the server.
-3. Packs the repo, excluding `.git`, `node_modules`, `.env`, and `data`.
-4. Uploads the archive into `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
-5. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
-6. Runs `npm ci` and `npm run build` on the server.
-7. Writes `shared/.env` when `--sync-env` is set.
-8. Runs `npm run backup`, writing a custom-format dump to `$DEPLOY_REMOTE_DIR/backups`.
-9. Runs migrations.
-10. Records the previous `current` target in `previous-release`, then points `current` at the new release.
-11. Installs `deploy/systemd/sharry.service` with the remote directory filled in, reloads systemd, enables the service, and restarts it.
-12. Deletes old releases and keeps the five newest.
-13. Requests `DEPLOY_HEALTHCHECK_URL` up to 30 times, once a second. The deploy is finished when that URL returns OK.
+1. Checks `/etc/os-release` and stops unless the ID is `ubuntu` or `debian`.
+2. Installs Node.js 22 when `/usr/bin/node` is missing or older than 22.
+3. Installs PostgreSQL when `psql` or `pg_dump` is missing, and starts it.
+4. Creates the `sharry` system user, database role, and database when they are missing.
+5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000` and reloads Caddy.
+6. When `ufw` is already enabled, allows ports 80 and 443. It does not enable `ufw` when it is off.
+7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
+8. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
+9. Runs `npm ci` and `npm run build` on the server.
+10. Writes `shared/.env` on the first install, and again when `--sync-env` is set.
+11. Runs `npm run backup`, writing a custom-format dump to `$DEPLOY_REMOTE_DIR/backups`.
+12. Runs migrations.
+13. Records the previous `current` target in `previous-release`, then points `current` at the new release.
+14. Installs `deploy/systemd/sharry.service` with the remote directory filled in, reloads systemd, enables the service, and restarts it.
+15. Deletes old releases and keeps the five newest.
+16. Requests `https://DOMAIN/health` up to 30 times, once a second. The deploy is finished when that URL returns OK.
 
 Secrets are not printed. The service listens on `APP_PORT` (3000 by default) as the `sharry` user. The unit file is `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` and `ExecStart=/usr/bin/node apps/api/dist/index.js`.
 

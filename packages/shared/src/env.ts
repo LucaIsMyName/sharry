@@ -61,23 +61,42 @@ export const runtimeEnvSchema = z
 
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>
 
+const absoluteDir = z
+  .string()
+  .regex(/^\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/)
+  .refine((value) => !value.split('/').includes('..'), 'Remote directory cannot contain parent segments')
+
 export const deployEnvSchema = z.object({
   DEPLOY_ENABLED: z.enum(['true', 'false']).default('false'),
   DEPLOY_HOST: z.string().regex(/^[A-Za-z0-9.-]+$/),
   DEPLOY_PORT: port(22),
   DEPLOY_USER: z.string().regex(/^[a-z_][a-z0-9_-]*[$]?$/),
   DEPLOY_SSH_KEY_PATH: z.string().regex(/^\//, 'SSH key path must be absolute'),
-  DEPLOY_REMOTE_DIR: z
-    .string()
-    .regex(/^\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+$/)
-    .refine((value) => !value.split('/').includes('..'), 'Remote directory cannot contain parent segments'),
+  DEPLOY_REMOTE_DIR: z.preprocess(
+    (value) => (value === undefined || value === '' ? '/var/www/sharry' : value),
+    absoluteDir,
+  ),
   DEPLOY_BUILD_COMMAND: z.literal('npm run build').default('npm run build'),
-  DEPLOY_RESTART_SERVICE: z.string().regex(/^[a-zA-Z0-9._@-]+$/),
+  DEPLOY_RESTART_SERVICE: z.preprocess(
+    (value) => (value === undefined || value === '' ? 'sharry' : value),
+    z.string().regex(/^[a-zA-Z0-9._@-]+$/),
+  ),
   DEPLOY_HEALTHCHECK_URL: z.string().url(),
   DEPLOY_KNOWN_HOSTS_PATH: z.preprocess(emptyToUndefined, z.string().regex(/^\//).optional()),
 })
 
 export type DeployEnv = z.infer<typeof deployEnvSchema>
+
+export function chooseEnvFile(
+  purpose: 'development' | 'production',
+  present: { override?: string | undefined; development?: boolean; legacy?: boolean } = {},
+): string {
+  const override = present.override?.trim()
+  if (override) return override
+  if (purpose === 'production') return '.env.production'
+  if (present.development || !present.legacy) return '.env.development'
+  return '.env'
+}
 
 export function formatIssues(error: z.ZodError): string {
   return error.issues
@@ -85,8 +104,30 @@ export function formatIssues(error: z.ZodError): string {
     .join('\n')
 }
 
+const domainPattern = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i
+
+function blank(value: unknown): boolean {
+  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
+}
+
+export function applyPublicUrls(input: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...input }
+  const raw = next.DOMAIN
+  if (typeof raw !== 'string' || raw.trim() === '') return next
+  const domain = raw.trim().toLowerCase()
+  if (!domainPattern.test(domain)) {
+    throw new Error('DOMAIN must be a hostname such as share.example.com, without a scheme or path.')
+  }
+  next.DOMAIN = domain
+  const origin = `https://${domain}`
+  if (blank(next.APP_URL)) next.APP_URL = origin
+  if (blank(next.SHORT_URL_BASE)) next.SHORT_URL_BASE = origin
+  if (blank(next.DEPLOY_HEALTHCHECK_URL)) next.DEPLOY_HEALTHCHECK_URL = `${origin}/health`
+  return next
+}
+
 export function parseRuntimeEnv(input: Record<string, unknown>): RuntimeEnv {
-  const parsed = runtimeEnvSchema.safeParse(input)
+  const parsed = runtimeEnvSchema.safeParse(applyPublicUrls(input))
   if (!parsed.success) {
     throw new Error(`Invalid environment configuration\n${formatIssues(parsed.error)}`)
   }
@@ -94,7 +135,7 @@ export function parseRuntimeEnv(input: Record<string, unknown>): RuntimeEnv {
 }
 
 export function parseDeployEnv(input: Record<string, unknown>): DeployEnv {
-  const parsed = deployEnvSchema.safeParse(input)
+  const parsed = deployEnvSchema.safeParse(applyPublicUrls(input))
   if (!parsed.success) {
     throw new Error(`Invalid deployment configuration\n${formatIssues(parsed.error)}`)
   }
@@ -109,7 +150,7 @@ export function splitEnv(vars: Record<string, string>): {
   const deploy: Record<string, string> = {}
   for (const [key, value] of Object.entries(vars)) {
     if (key.startsWith('DEPLOY_')) deploy[key] = value
-    else if (key !== 'REDIS_URL') runtime[key] = value
+    else if (key !== 'REDIS_URL' && key !== 'DOMAIN') runtime[key] = value
   }
   return { runtime, deploy }
 }
