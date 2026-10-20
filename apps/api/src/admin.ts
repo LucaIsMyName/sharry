@@ -1,8 +1,9 @@
 import { desc, eq, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { auditLogs, links, users, type Database, type UserRecord } from '@sharry/database'
+import { apiKeys, auditLogs, links, users, type Database, type UserRecord } from '@sharry/database'
 import {
   buildShortUrl,
+  createApiKeySchema,
   createUserSchema,
   settingsUpdateSchema,
   updateUserSchema,
@@ -14,9 +15,16 @@ import { writeAudit } from './audit.ts'
 import { smtpSource } from './mail.ts'
 import { hashPassword } from './passwords.ts'
 import { rowsOf, getSettings, invalidateSettings, writeSetting, type AppSettings } from './settings-store.ts'
-import { AppError, csv, encryptString, isUniqueViolation, parseBody } from './support.ts'
+import { AppError, csv, encryptString, hashToken, isUniqueViolation, parseBody, randomToken } from './support.ts'
 
 export function registerAdminRoutes(app: FastifyInstance): void {
+  /**
+   * Read the public short-link settings used by the dashboard.
+   * @route GET /api/settings/public
+   * @tag Settings
+   * @auth api-key or session
+   * @response 200 { shortUrlPrefix, shortUrlBase, appUrl, defaultRedirectType, slugLength, defaultQrStyle, appName }
+   */
   app.get('/api/settings/public', async (request) => {
     const { requireUser } = await import('./auth.ts')
     const actor = await requireUser(app, request, ['full'])
@@ -24,12 +32,28 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     return { ...publicSettings(settings, actor.role === 'admin'), appName: app.env.APP_NAME }
   })
 
+  /**
+   * List every account.
+   * @route GET /api/admin/users
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @response 200 { users: User[] }
+   */
   app.get('/api/admin/users', async (request) => {
     await requireAdmin(app, request)
     const rows = await app.db.select().from(users).orderBy(desc(users.createdAt))
     return { users: rows.map(publicAdminUser) }
   })
 
+  /**
+   * Create an account. The person must change the temporary password on first sign-in.
+   * @route POST /api/admin/users
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @body JSON { username, email, password, role }
+   * @response 200 User
+   * @response 409 That username or email is already in use
+   */
   app.post('/api/admin/users', async (request) => {
     const actor = await requireAdmin(app, request)
     const body = parseBody(createUserSchema, request.body)
@@ -61,6 +85,15 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     }
   })
 
+  /**
+   * Change an account role, active flag, or temporary password.
+   * @route PATCH /api/admin/users/:id
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @param id string User id
+   * @body JSON { role?, isActive?, password? }
+   * @response 200 User
+   */
   app.patch('/api/admin/users/:id', async (request) => {
     const actor = await requireAdmin(app, request)
     const { id } = request.params as { id: string }
@@ -99,12 +132,27 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     return publicAdminUser(updated)
   })
 
+  /**
+   * Read administrator settings, including mail configuration. The SMTP password is not returned.
+   * @route GET /api/admin/settings
+   * @tag Settings
+   * @auth admin api-key or admin session
+   * @response 200 Settings
+   */
   app.get('/api/admin/settings', async (request) => {
     await requireAdmin(app, request)
     const settings = await getSettings(app.db, app.env)
     return adminSettingsView(settings, app.env)
   })
 
+  /**
+   * Update prefix, retention, session length, two-factor requirement, and mail settings.
+   * @route PATCH /api/admin/settings
+   * @tag Settings
+   * @auth admin api-key or admin session
+   * @body JSON settings fields. shortUrlPrefix changes require confirmPrefixChange
+   * @response 200 Settings
+   */
   app.patch('/api/admin/settings', async (request) => {
     const actor = await requireAdmin(app, request)
     const body = parseBody(settingsUpdateSchema, request.body)
@@ -183,6 +231,15 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     return adminSettingsView(settings, app.env)
   })
 
+  /**
+   * List audit events, newest first.
+   * @route GET /api/admin/audit
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @query limit number Page size, 1–200, default 50
+   * @query offset number Number of rows to skip
+   * @response 200 { entries: AuditEntry[] }
+   */
   app.get('/api/admin/audit', async (request) => {
     await requireAdmin(app, request)
     const query = request.query as { limit?: string; offset?: string }
@@ -218,6 +275,13 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     }
   })
 
+  /**
+   * Download every short link as CSV.
+   * @route GET /api/admin/export/links.csv
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @response 200 text/csv
+   */
   app.get('/api/admin/export/links.csv', async (request, reply) => {
     await requireAdmin(app, request)
     const settings = await getSettings(app.db, app.env)
@@ -242,6 +306,13 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     return reply.header('content-disposition', 'attachment; filename="sharry-links.csv"').type('text/csv').send(body)
   })
 
+  /**
+   * Download click events as CSV, including UTM columns.
+   * @route GET /api/admin/export/clicks.csv
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @response 200 text/csv
+   */
   app.get('/api/admin/export/clicks.csv', async (request, reply) => {
     await requireAdmin(app, request)
     const result = await app.db.execute<{
@@ -303,6 +374,116 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       ]),
     ])
     return reply.header('content-disposition', 'attachment; filename="sharry-clicks.csv"').type('text/csv').send(body)
+  })
+
+  /**
+   * List API keys. The secret is never returned.
+   * @route GET /api/admin/api-keys
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @response 200 { keys: ApiKey[] }
+   */
+  app.get('/api/admin/api-keys', async (request) => {
+    await requireAdmin(app, request)
+    const rows = await app.db
+      .select({
+        id: apiKeys.id,
+        name: apiKeys.name,
+        userId: apiKeys.userId,
+        username: users.username,
+        tokenPrefix: apiKeys.tokenPrefix,
+        createdAt: apiKeys.createdAt,
+        lastUsedAt: apiKeys.lastUsedAt,
+        revokedAt: apiKeys.revokedAt,
+      })
+      .from(apiKeys)
+      .innerJoin(users, eq(apiKeys.userId, users.id))
+      .orderBy(desc(apiKeys.createdAt))
+    return {
+      keys: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        userId: row.userId,
+        username: row.username,
+        tokenPrefix: row.tokenPrefix,
+        createdAt: row.createdAt.toISOString(),
+        lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+        revokedAt: row.revokedAt?.toISOString() ?? null,
+      })),
+    }
+  })
+
+  /**
+   * Create an API key for a user. The secret is returned once.
+   * @route POST /api/admin/api-keys
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @body JSON { name, userId }
+   * @response 200 { id, name, userId, username, tokenPrefix, secret, createdAt }
+   * @response 404 User not found
+   */
+  app.post('/api/admin/api-keys', async (request) => {
+    const actor = await requireAdmin(app, request)
+    const body = parseBody(createApiKeySchema, request.body)
+    const found = await app.db.select().from(users).where(eq(users.id, body.userId)).limit(1)
+    const user = found[0]
+    if (!user) throw new AppError(404, 'User not found')
+    const secret = `sharry_${randomToken(32)}`
+    const [created] = await app.db
+      .insert(apiKeys)
+      .values({
+        userId: user.id,
+        name: body.name,
+        tokenHash: hashToken(secret, app.env.SESSION_SECRET),
+        tokenPrefix: secret.slice(0, 12),
+        createdBy: actor.id,
+      })
+      .returning()
+    if (!created) throw new AppError(500, 'Could not create the API key')
+    await writeAudit(app.db, {
+      actorUserId: actor.id,
+      action: 'api_key.create',
+      entityType: 'api_key',
+      entityId: created.id,
+      metadata: { name: created.name, userId: user.id, username: user.username },
+    })
+    return {
+      id: created.id,
+      name: created.name,
+      userId: user.id,
+      username: user.username,
+      tokenPrefix: created.tokenPrefix,
+      secret,
+      createdAt: created.createdAt.toISOString(),
+    }
+  })
+
+  /**
+   * Revoke an API key. A second revoke leaves the key revoked.
+   * @route POST /api/admin/api-keys/:id/revoke
+   * @tag Admin
+   * @auth admin api-key or admin session
+   * @param id string Key id
+   * @response 200 { ok: true }
+   * @response 404 API key not found
+   */
+  app.post('/api/admin/api-keys/:id/revoke', async (request) => {
+    const actor = await requireAdmin(app, request)
+    const { id } = request.params as { id: string }
+    const found = await app.db.select().from(apiKeys).where(eq(apiKeys.id, id)).limit(1)
+    const key = found[0]
+    if (!key) throw new AppError(404, 'API key not found')
+    if (!key.revokedAt) {
+      await app.db.update(apiKeys).set({ revokedAt: new Date() }).where(eq(apiKeys.id, key.id))
+      await writeAudit(app.db, {
+        actorUserId: actor.id,
+        action: 'api_key.revoke',
+        entityType: 'api_key',
+        entityId: key.id,
+        metadata: { name: key.name, userId: key.userId },
+      })
+    }
+    return { ok: true }
   })
 }
 

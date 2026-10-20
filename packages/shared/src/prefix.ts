@@ -8,6 +8,7 @@ export const RESERVED_PREFIXES = [
   'campaigns',
   'analytics',
   'admin',
+  'docs',
 ] as const
 
 export const RESERVED_SLUGS = [
@@ -22,6 +23,7 @@ export const RESERVED_SLUGS = [
   'analytics',
   'favicon.ico',
   'robots.txt',
+  'docs',
 ] as const
 
 export function validatePrefix(prefix: string): string | null {

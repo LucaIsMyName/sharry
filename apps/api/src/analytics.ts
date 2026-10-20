@@ -27,6 +27,15 @@ export type ClickDraft = {
 }
 
 export function registerAnalyticsRoutes(app: FastifyInstance): void {
+  /**
+   * Summarize clicks for the caller. Administrators see every link.
+   * @route GET /api/analytics
+   * @tag Analytics
+   * @auth api-key or session
+   * @query from string Start day, YYYY-MM-DD. Defaults to 30 days before to
+   * @query to string End day, YYYY-MM-DD. Defaults to today
+   * @response 200 totals, daily series, referrer, country, browser, device, and utm breakdowns, plus links
+   */
   app.get('/api/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const range = parseRange(request.query)
@@ -35,6 +44,16 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
     return { ...analytics, links: await loadLinkStats(app.db, filter, range) }
   })
 
+  /**
+   * Summarize clicks for one short link.
+   * @route GET /api/links/:id/analytics
+   * @tag Analytics
+   * @auth api-key or session
+   * @param id string Link id
+   * @query from string Start day, YYYY-MM-DD
+   * @query to string End day, YYYY-MM-DD
+   * @response 200 totals, daily series, referrer, country, browser, device, and utm breakdowns
+   */
   app.get('/api/links/:id/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }

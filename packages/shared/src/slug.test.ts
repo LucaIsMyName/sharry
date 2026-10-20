@@ -4,6 +4,7 @@ import { allocateRandomSlug, validatePrefix, validateSlug } from './prefix.ts'
 describe('slugs and prefixes', () => {
   it('rejects reserved prefixes', () => {
     expect(validatePrefix('/api')).toMatch(/conflicts/)
+    expect(validatePrefix('/docs')).toMatch(/conflicts/)
     expect(validatePrefix('/s')).toBeNull()
     expect(validatePrefix('s')).toMatch(/start/)
   })
@@ -27,6 +28,7 @@ describe('slugs and prefixes', () => {
 
   it('rejects reserved slugs', () => {
     expect(validateSlug('admin')).toMatch(/reserved/)
+    expect(validateSlug('docs')).toMatch(/reserved/)
     expect(validateSlug('summer-sale')).toBeNull()
   })
 })

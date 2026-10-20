@@ -77,6 +77,7 @@ export async function resetDatabase(db: Database): Promise<void> {
       tracking_campaigns,
       password_reset_tokens,
       recovery_codes,
+      api_keys,
       sessions,
       audit_logs,
       links,

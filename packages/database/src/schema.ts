@@ -220,6 +220,24 @@ export const recoveryCodes = pgTable(
   (table) => [index('recovery_codes_user_id_idx').on(table.userId)],
 )
 
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    tokenPrefix: text('token_prefix').notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('api_keys_user_id_idx').on(table.userId)],
+)
+
 export const passwordResetTokens = pgTable('password_reset_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
@@ -234,3 +252,4 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
 export type UserRecord = typeof users.$inferSelect
 export type LinkRecord = typeof links.$inferSelect
 export type SessionRecord = typeof sessions.$inferSelect
+export type ApiKeyRecord = typeof apiKeys.$inferSelect

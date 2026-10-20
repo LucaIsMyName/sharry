@@ -85,6 +85,11 @@ export const createUserSchema = z.object({
   role: z.enum(['admin', 'user']),
 })
 
+export const createApiKeySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  userId: z.string().uuid(),
+})
+
 export const updateUserSchema = z.object({
   role: z.enum(['admin', 'user']).optional(),
   isActive: z.boolean().optional(),

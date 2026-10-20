@@ -11,6 +11,7 @@ import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastif
 import type pg from 'pg'
 import { type Database } from '@sharry/database'
 import { isAllowedOrigin, type RuntimeEnv } from '@sharry/shared'
+import { bearerToken, isAccountPath } from './api-keys.ts'
 import { registerAdminRoutes } from './admin.ts'
 import { registerAnalyticsRoutes } from './analytics.ts'
 import { registerAuthRoutes } from './auth.ts'
@@ -18,7 +19,7 @@ import { registerLinkRoutes } from './links.ts'
 import type { Mailer } from './mail.ts'
 import { registerQrRoutes } from './qr.ts'
 import { recordPendingClick, sendSpa, tryShortLink } from './redirect.ts'
-import { AppError } from './support.ts'
+import { AppError, hashToken } from './support.ts'
 import { registerTrackingRoutes } from './tracking.ts'
 import type { ClickDraft } from './analytics.ts'
 
@@ -75,6 +76,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await app.register(rateLimit, { global: false })
   await app.register(multipart, { limits: { fileSize: 512 * 1024, files: 1 } })
 
+  const limitApiKeys = app.rateLimit({
+    max: 120,
+    timeWindow: '1 minute',
+    keyGenerator(request) {
+      return hashToken(bearerToken(request) ?? '', options.env.SESSION_SECRET)
+    },
+  })
+
   app.addHook('preHandler', async (request) => {
     if (!request.url.startsWith('/api')) return
     if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return
@@ -83,6 +92,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (!isAllowedOrigin(origin, options.env.APP_URL, options.env.SHORT_URL_BASE, options.env.NODE_ENV)) {
       throw new AppError(403, 'Request origin is not allowed')
     }
+  })
+  app.addHook('preHandler', async (request, reply) => {
+    const pathname = request.url.split('?')[0] ?? ''
+    const token = bearerToken(request)
+    if (isAccountPath(pathname)) {
+      if (token !== null) throw new AppError(401, 'API keys cannot be used for account routes')
+      return
+    }
+    if (token === null || !pathname.startsWith('/api/')) return
+    await limitApiKeys.call(app, request, reply)
   })
   app.addHook('onResponse', async (_request, reply) => {
     await recordPendingClick(app, reply)

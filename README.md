@@ -47,7 +47,17 @@ A domain change means editing the server `.env` (or deploying with `--sync-env`)
 
 ## Roles
 
-Administrators manage every user, link, campaign, QR code, setting, and audit event. Standard users manage only their own links, campaigns, and analytics. Those checks run in the API.
+Administrators manage every user, link, campaign, QR code, setting, audit event, and API key. Standard users manage only their own links, campaigns, and analytics. Those checks run in the API.
+
+## API keys
+
+Administrators create a named key for a chosen user from API keys in the dashboard. The secret is shown once and is stored only as a hash. Send it as `Authorization: Bearer sharry_...` to `https://DOMAIN/api/...`.
+
+The key can do what that user can. A standard user’s key sees only that user’s links, campaigns, QR codes, and analytics. An administrator’s key can also call admin routes. Sign-in, password changes, and two-factor routes under `/api/auth` accept only the session cookie.
+
+## Documentation
+
+Signed-in users open `/docs` for user guides, backend and frontend notes, and the API reference. User and developer pages are markdown files in `apps/web/docs`. The API reference is generated from the JSDoc block above each route in `apps/api/src`.
 
 Password reset email uses the SMTP host, port, username, password, and from address saved in Settings. The password is encrypted in the database and is not shown again. Until a host and from address are saved there, Sharry falls back to `SMTP_HOST` and `EMAIL_FROM` in the server environment when those are set.
 

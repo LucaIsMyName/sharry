@@ -19,6 +19,7 @@ import {
   mfaSchema,
   resetPasswordSchema,
 } from '@sharry/shared'
+import { actorFromApiKey, bearerToken, isAccountPath } from './api-keys.ts'
 import { writeAudit } from './audit.ts'
 import type { Mailer } from './mail.ts'
 import { hashPassword, verifyPassword } from './passwords.ts'
@@ -50,6 +51,15 @@ function dummyHash(): Promise<string> {
 export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null): void {
   const limit = { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }
 
+  /**
+   * Sign in with a username or email and a password.
+   * @route POST /api/auth/login
+   * @tag Account
+   * @auth session
+   * @body JSON { usernameOrEmail, password }
+   * @response 200 { scope, user, tokenIssued }
+   * @response 401 Invalid username or password
+   */
   app.post('/api/auth/login', limit, async (request, reply) => {
     const body = parseBody(loginSchema, request.body)
     const identifier = body.usernameOrEmail.toLowerCase()
@@ -75,6 +85,15 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { scope, user: publicUser(user), tokenIssued: Boolean(token) }
   })
 
+  /**
+   * Finish sign-in with an authenticator or recovery code.
+   * @route POST /api/auth/mfa
+   * @tag Account
+   * @auth session
+   * @body JSON { code }
+   * @response 200 { scope, user }
+   * @response 401 That code is not valid
+   */
   app.post('/api/auth/mfa', limit, async (request, reply) => {
     const actor = await requireUser(app, request, ['mfa_challenge'])
     const body = parseBody(mfaSchema, request.body)
@@ -89,6 +108,13 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { scope: 'full' as const, user: publicUser({ ...user, totpEnabled: true }) }
   })
 
+  /**
+   * End the current session.
+   * @route POST /api/auth/logout
+   * @tag Account
+   * @auth session
+   * @response 200 { ok: true }
+   */
   app.post('/api/auth/logout', async (request, reply) => {
     const token = request.cookies[SESSION_COOKIE]
     if (token) {
@@ -98,6 +124,13 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { ok: true }
   })
 
+  /**
+   * Return the signed-in account and session scope.
+   * @route GET /api/auth/me
+   * @tag Account
+   * @auth session
+   * @response 200 { user, scope, mfaRequired, mailConfigured }
+   */
   app.get('/api/auth/me', async (request) => {
     const actor = await requireUser(app, request, ['full', 'password_change', 'mfa_enroll', 'mfa_challenge'])
     const settings = await getSettings(app.db, app.env)
@@ -110,6 +143,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     }
   })
 
+  /**
+   * Replace the account image. Send one PNG, JPEG, or WebP file up to 512 KB.
+   * @route POST /api/auth/avatar
+   * @tag Account
+   * @auth session
+   * @body multipart file
+   * @response 200 { hasAvatar, updatedAt }
+   */
   app.post('/api/auth/avatar', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const file = await request.file()
@@ -131,6 +172,13 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { hasAvatar: true, updatedAt: updatedAt.toISOString() }
   })
 
+  /**
+   * Remove the account image.
+   * @route DELETE /api/auth/avatar
+   * @tag Account
+   * @auth session
+   * @response 204 Empty
+   */
   app.delete('/api/auth/avatar', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const user = await requireRecord(app.db, actor.id)
@@ -139,6 +187,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return reply.code(204).send()
   })
 
+  /**
+   * Download the signed-in account image.
+   * @route GET /api/auth/avatar
+   * @tag Account
+   * @auth session
+   * @response 200 Image bytes
+   * @response 404 No account image
+   */
   app.get('/api/auth/avatar', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const user = await requireRecord(app.db, actor.id)
@@ -147,6 +203,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return reply.header('cache-control', 'private, no-cache').type(file.mime).send(file.buffer)
   })
 
+  /**
+   * Replace the current password. Required before the dashboard opens on a new account.
+   * @route POST /api/auth/change-password
+   * @tag Account
+   * @auth session
+   * @body JSON { currentPassword, newPassword }
+   * @response 200 { scope }
+   */
   app.post('/api/auth/change-password', async (request, reply) => {
     const actor = await requireUser(app, request, ['full', 'password_change'])
     const body = parseBody(changePasswordSchema, request.body)
@@ -171,6 +235,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { scope }
   })
 
+  /**
+   * Email a password reset link when the address matches an account.
+   * @route POST /api/auth/forgot-password
+   * @tag Account
+   * @auth session
+   * @body JSON { email }
+   * @response 200 { ok: true }
+   */
   app.post('/api/auth/forgot-password', limit, async (request) => {
     const body = parseBody(forgotPasswordSchema, request.body)
     const email = body.email.toLowerCase()
@@ -195,6 +267,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { ok: true }
   })
 
+  /**
+   * Set a new password with a reset token from email.
+   * @route POST /api/auth/reset-password
+   * @tag Account
+   * @auth session
+   * @body JSON { token, newPassword }
+   * @response 200 { ok: true }
+   */
   app.post('/api/auth/reset-password', limit, async (request) => {
     const body = parseBody(resetPasswordSchema, request.body)
     const tokenHash = hashToken(body.token, app.env.SESSION_SECRET)
@@ -220,6 +300,13 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { ok: true }
   })
 
+  /**
+   * Start authenticator enrollment and return the otpauth URL.
+   * @route POST /api/auth/mfa/setup
+   * @tag Account
+   * @auth session
+   * @response 200 { secret, otpauthUrl }
+   */
   app.post('/api/auth/mfa/setup', async (request) => {
     const actor = await requireUser(app, request, ['full', 'mfa_enroll'])
     const user = await requireRecord(app.db, actor.id)
@@ -237,6 +324,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { secret: secret.base32, otpauthUrl: totp.toString() }
   })
 
+  /**
+   * Confirm authenticator enrollment with a current code.
+   * @route POST /api/auth/mfa/confirm
+   * @tag Account
+   * @auth session
+   * @body JSON { code }
+   * @response 200 { scope, recoveryCodes }
+   */
   app.post('/api/auth/mfa/confirm', async (request, reply) => {
     const actor = await requireUser(app, request, ['full', 'mfa_enroll'])
     const body = parseBody(mfaSchema, request.body)
@@ -256,6 +351,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { scope: 'full' as const, recoveryCodes: codes }
   })
 
+  /**
+   * Turn off two-factor authentication after checking the current password.
+   * @route POST /api/auth/mfa/disable
+   * @tag Account
+   * @auth session
+   * @body JSON { currentPassword }
+   * @response 200 { totpEnabled: false }
+   */
   app.post('/api/auth/mfa/disable', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(changePasswordSchema.pick({ currentPassword: true }), request.body)
@@ -279,6 +382,14 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     return { totpEnabled: false }
   })
 
+  /**
+   * Replace recovery codes after checking the current password.
+   * @route POST /api/auth/recovery-codes
+   * @tag Account
+   * @auth session
+   * @body JSON { currentPassword }
+   * @response 200 { recoveryCodes }
+   */
   app.post('/api/auth/recovery-codes', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(changePasswordSchema.pick({ currentPassword: true }), request.body)
@@ -296,6 +407,9 @@ export async function requireUser(
   request: FastifyRequest,
   scopes: SessionScope[],
 ): Promise<Actor> {
+  const pathname = request.url.split('?')[0] ?? ''
+  const presented = bearerToken(request)
+  if (presented !== null && !isAccountPath(pathname)) return actorFromApiKey(app, presented)
   const token = request.cookies[SESSION_COOKIE]
   if (!token) throw new AppError(401, 'Sign in required')
   const tokenHash = hashToken(token, app.env.SESSION_SECRET)

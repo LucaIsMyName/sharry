@@ -1,10 +1,14 @@
+import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
+import { apiDocsPlugin } from './api-docs-plugin.ts'
+
+const webRoot = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), apiDocsPlugin(path.resolve(webRoot, '../api/src'))],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

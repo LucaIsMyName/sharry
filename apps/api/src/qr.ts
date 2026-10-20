@@ -20,6 +20,14 @@ import { getSettings } from './settings-store.ts'
 import { AppError, parseBody } from './support.ts'
 
 export function registerQrRoutes(app: FastifyInstance): void {
+  /**
+   * List QR codes saved for a short link.
+   * @route GET /api/links/:id/qr
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string Link id
+   * @response 200 { qrCodes: QrCode[] }
+   */
   app.get('/api/links/:id/qr', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -29,6 +37,14 @@ export function registerQrRoutes(app: FastifyInstance): void {
     return { qrCodes: rows.map((row) => serializeQr(row, settings.shortUrlBase, settings.shortUrlPrefix, link.slug)) }
   })
 
+  /**
+   * Save a QR code for a short link. The image encodes the short URL plus a qr id.
+   * @route POST /api/qr
+   * @tag QR codes
+   * @auth api-key or session
+   * @body JSON { linkId, name, style, trackingVariantId? }
+   * @response 200 QrCode with warnings
+   */
   app.post('/api/qr', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(createQrSchema, request.body)
@@ -58,6 +74,15 @@ export function registerQrRoutes(app: FastifyInstance): void {
     }
   })
 
+  /**
+   * Update a QR code name, style, or campaign variant.
+   * @route PATCH /api/qr/:id
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string QR code id
+   * @body JSON { name?, style?, trackingVariantId? }
+   * @response 200 QrCode with warnings
+   */
   app.patch('/api/qr/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
@@ -79,6 +104,14 @@ export function registerQrRoutes(app: FastifyInstance): void {
     }
   })
 
+  /**
+   * Delete a QR code and its center image.
+   * @route DELETE /api/qr/:id
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string QR code id
+   * @response 204 Empty
+   */
   app.delete('/api/qr/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
@@ -87,6 +120,15 @@ export function registerQrRoutes(app: FastifyInstance): void {
     return reply.code(204).send()
   })
 
+  /**
+   * Upload a center image. PNG, JPEG, or WebP, up to 512 KB and 1024 pixels on each side.
+   * @route POST /api/qr/:id/logo
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string QR code id
+   * @body multipart file
+   * @response 200 { logoPath, warnings }
+   */
   app.post('/api/qr/:id/logo', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
@@ -112,6 +154,14 @@ export function registerQrRoutes(app: FastifyInstance): void {
     return { logoPath: filename, warnings: qrWarnings(style, true) }
   })
 
+  /**
+   * Remove the center image from a QR code.
+   * @route DELETE /api/qr/:id/logo
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string QR code id
+   * @response 204 Empty
+   */
   app.delete('/api/qr/:id/logo', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
@@ -120,6 +170,15 @@ export function registerQrRoutes(app: FastifyInstance): void {
     return reply.code(204).send()
   })
 
+  /**
+   * Download the center image.
+   * @route GET /api/qr/:id/logo
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string QR code id
+   * @response 200 Image bytes
+   * @response 404 This QR code has no center image
+   */
   app.get('/api/qr/:id/logo', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
@@ -128,6 +187,15 @@ export function registerQrRoutes(app: FastifyInstance): void {
     return reply.type(file.mime).send(file.buffer)
   })
 
+  /**
+   * Download a QR code as SVG, PNG, or JPEG.
+   * @route GET /api/qr/:id/export
+   * @tag QR codes
+   * @auth api-key or session
+   * @param id string QR code id
+   * @query format string svg, png, or jpeg. Default svg
+   * @response 200 Image bytes
+   */
   app.get('/api/qr/:id/export', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)

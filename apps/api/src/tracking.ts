@@ -20,6 +20,14 @@ import { AppError, parseBody } from './support.ts'
 import { z } from 'zod'
 
 export function registerTrackingRoutes(app: FastifyInstance): void {
+  /**
+   * Preview a destination with UTM parameters applied.
+   * @route POST /api/utm/preview
+   * @tag Campaigns
+   * @auth api-key or session
+   * @body JSON { destinationUrl, utm }
+   * @response 200 { url, conflicts }
+   */
   app.post('/api/utm/preview', async (request) => {
     await requireUser(app, request, ['full'])
     const body = parseBody(z.object({ destinationUrl: destinationSchema, utm: utmSchema }), request.body)
@@ -30,6 +38,13 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     }
   })
 
+  /**
+   * List campaigns visible to the caller.
+   * @route GET /api/campaigns
+   * @tag Campaigns
+   * @auth api-key or session
+   * @response 200 { campaigns: Campaign[] }
+   */
   app.get('/api/campaigns', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const rows = await app.db
@@ -40,6 +55,14 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return { campaigns: rows.map(serializeCampaign) }
   })
 
+  /**
+   * Create a campaign.
+   * @route POST /api/campaigns
+   * @tag Campaigns
+   * @auth api-key or session
+   * @body JSON { name, description? }
+   * @response 200 Campaign
+   */
   app.post('/api/campaigns', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(createCampaignSchema, request.body)
@@ -58,6 +81,15 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return serializeCampaign(created)
   })
 
+  /**
+   * Read a campaign and its variants.
+   * @route GET /api/campaigns/:id
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Campaign id
+   * @response 200 Campaign with variants
+   * @response 404 Campaign not found
+   */
   app.get('/api/campaigns/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -66,6 +98,15 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return { ...serializeCampaign(campaign), variants: variants.map(serializeVariant) }
   })
 
+  /**
+   * Rename a campaign or change its description.
+   * @route PATCH /api/campaigns/:id
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Campaign id
+   * @body JSON { name?, description? }
+   * @response 200 Campaign
+   */
   app.patch('/api/campaigns/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -84,6 +125,14 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return serializeCampaign(updated)
   })
 
+  /**
+   * Delete a campaign and its variants.
+   * @route DELETE /api/campaigns/:id
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Campaign id
+   * @response 204 Empty
+   */
   app.delete('/api/campaigns/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -99,6 +148,15 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return reply.code(204).send()
   })
 
+  /**
+   * Add a variant that can override a link's UTM parameters.
+   * @route POST /api/campaigns/:id/variants
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Campaign id
+   * @body JSON { linkId, name, utm? }
+   * @response 200 Variant
+   */
   app.post('/api/campaigns/:id/variants', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -119,6 +177,14 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return serializeVariant(created)
   })
 
+  /**
+   * List variants attached to a short link.
+   * @route GET /api/links/:id/variants
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Link id
+   * @response 200 { variants: Variant[] }
+   */
   app.get('/api/links/:id/variants', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -135,6 +201,15 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return { variants: rows.map((row) => serializeVariant(row.variant)) }
   })
 
+  /**
+   * Update a variant name or its UTM overrides.
+   * @route PATCH /api/variants/:id
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Variant id
+   * @body JSON { name?, utm? }
+   * @response 200 Variant
+   */
   app.patch('/api/variants/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -153,6 +228,14 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     return serializeVariant(updated)
   })
 
+  /**
+   * Delete a variant.
+   * @route DELETE /api/variants/:id
+   * @tag Campaigns
+   * @auth api-key or session
+   * @param id string Variant id
+   * @response 204 Empty
+   */
   app.delete('/api/variants/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }

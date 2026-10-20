@@ -2,6 +2,8 @@ import { createBrowserRouter, redirect } from 'react-router'
 import { api, type Me } from './api.ts'
 import { Shell } from './components/shell.tsx'
 import { AdminAuditPage, AdminSettingsPage, AdminUsersPage } from './pages/admin.tsx'
+import { ApiKeysPage } from './pages/api-keys.tsx'
+import { DocsPage } from './pages/docs.tsx'
 import { AnalyticsPage } from './pages/analytics.tsx'
 import { AccountPage, EnrollPage, LoginPage, MfaPage, PasswordPage, ResetPage } from './pages/auth.tsx'
 import { CampaignDetailPage, CampaignsPage } from './pages/campaigns.tsx'
@@ -64,8 +66,11 @@ export const router = createBrowserRouter([
       { path: 'campaigns', element: <CampaignsPage /> },
       { path: 'campaigns/:id', element: <CampaignDetailPage /> },
       { path: 'analytics', element: <AnalyticsPage /> },
+      { path: 'docs', loader: () => redirect('/docs/user/signing-in') },
+      { path: 'docs/*', element: <DocsPage /> },
       { path: 'account', element: <AccountPage /> },
       { path: 'admin/users', loader: adminLoader, element: <AdminUsersPage /> },
+      { path: 'admin/api-keys', loader: adminLoader, element: <ApiKeysPage /> },
       { path: 'admin/settings', loader: adminLoader, element: <AdminSettingsPage /> },
       { path: 'admin/audit', loader: adminLoader, element: <AdminAuditPage /> },
     ],

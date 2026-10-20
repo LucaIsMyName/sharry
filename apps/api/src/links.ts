@@ -20,6 +20,16 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 
 export function registerLinkRoutes(app: FastifyInstance): void {
+  /**
+   * List short links visible to the caller.
+   * @route GET /api/links
+   * @tag Links
+   * @auth api-key or session
+   * @query q string Filter by slug, title, or destination
+   * @query limit number Page size, 1–100, default 50
+   * @query offset number Number of rows to skip
+   * @response 200 { links: Link[], total: number }
+   */
   app.get('/api/links', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const query = request.query as { q?: string; limit?: string; offset?: string }
@@ -33,6 +43,15 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     return { links: rows.map((row) => serializeLink(row, settings, configs.get(row.id))), total }
   })
 
+  /**
+   * Check whether a slug is free.
+   * @route GET /api/links/availability
+   * @tag Links
+   * @auth api-key or session
+   * @query slug string Slug to check
+   * @query exceptId string Link id to ignore while editing
+   * @response 200 { available: boolean, error: string | null }
+   */
   app.get('/api/links/availability', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const query = request.query as { slug?: string; exceptId?: string }
@@ -44,6 +63,15 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     return { available, error: available ? null : SLUG_TAKEN_MESSAGE }
   })
 
+  /**
+   * Create a short link. Omit slug to assign a random one.
+   * @route POST /api/links
+   * @tag Links
+   * @auth api-key or session
+   * @body JSON { destinationUrl, title?, description?, slug?, redirectType?, expiresAt?, password?, utm? }
+   * @response 200 Link
+   * @response 409 This short URL is already in use
+   */
   app.post('/api/links', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(createLinkSchema, request.body)
@@ -53,6 +81,15 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     return serializeLink(link, settings, config)
   })
 
+  /**
+   * Read one short link.
+   * @route GET /api/links/:id
+   * @tag Links
+   * @auth api-key or session
+   * @param id string Link id
+   * @response 200 Link
+   * @response 404 Link not found
+   */
   app.get('/api/links/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -62,6 +99,15 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     return serializeLink(link, settings, config)
   })
 
+  /**
+   * Update a short link. The slug and click history stay unless slug is sent.
+   * @route PATCH /api/links/:id
+   * @tag Links
+   * @auth api-key or session
+   * @param id string Link id
+   * @body JSON { destinationUrl?, title?, description?, slug?, redirectType?, status?, expiresAt?, password?, utm? }
+   * @response 200 Link
+   */
   app.patch('/api/links/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
@@ -72,6 +118,14 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     return serializeLink(link, settings, config)
   })
 
+  /**
+   * Delete a short link and its click history.
+   * @route DELETE /api/links/:id
+   * @tag Links
+   * @auth api-key or session
+   * @param id string Link id
+   * @response 204 Empty
+   */
   app.delete('/api/links/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
