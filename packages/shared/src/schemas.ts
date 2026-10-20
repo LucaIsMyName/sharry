@@ -106,6 +106,11 @@ export const createVariantSchema = z.object({
   utm: utmOverride.optional(),
 })
 
+export const updateVariantSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  utm: utmOverride.optional(),
+})
+
 export const createQrSchema = z.object({
   linkId: z.string().uuid(),
   name: z.string().trim().min(1).max(120),
@@ -120,8 +125,6 @@ export const updateQrSchema = z.object({
 })
 
 export const settingsUpdateSchema = z.object({
-  appUrl: z.string().url().optional(),
-  shortUrlBase: z.string().url().optional(),
   shortUrlPrefix: z.string().min(2).optional(),
   confirmPrefixChange: z.boolean().optional(),
   legacyPrefixEnabled: z.boolean().optional(),

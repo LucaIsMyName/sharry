@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { clickEvents, links } from '@sharry/database'
+import { defaultQrStyle } from '@sharry/shared'
 import { createLink } from '../src/links.ts'
 import { clearLinkPasswordAttempts } from '../src/redirect.ts'
-import { getSettings } from '../src/settings-store.ts'
+import { getSettings, writeSetting } from '../src/settings-store.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 import type { Actor } from '../src/auth.ts'
 
@@ -357,6 +358,159 @@ describe('short links', () => {
 
     const rows = await waitForClicks(ctx.db, 3)
     expect(rows.map((row) => row.trackingVariantId).sort()).toEqual([null, null, own.json().id].sort())
+  })
+
+  it('updates a variant in place and lists it only on its link', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const first = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/alpha', slug: 'alpha' },
+    })
+    const second = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/beta', slug: 'beta' },
+    })
+    const campaign = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: { cookie: user.cookie },
+      payload: { name: 'Summer' },
+    })
+    const own = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${campaign.json().id}/variants`,
+      headers: { cookie: user.cookie },
+      payload: { linkId: first.json().id, name: 'Email', utm: { utm_source: 'email' } },
+    })
+    const foreign = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${campaign.json().id}/variants`,
+      headers: { cookie: user.cookie },
+      payload: { linkId: second.json().id, name: 'Poster', utm: { utm_source: 'poster' } },
+    })
+    const updated = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/variants/${own.json().id}`,
+      headers: { cookie: user.cookie },
+      payload: { name: 'Newsletter', utm: { utm_medium: 'email' } },
+    })
+    expect(updated.statusCode).toBe(200)
+    expect(updated.json()).toMatchObject({
+      name: 'Newsletter',
+      linkId: first.json().id,
+      utm: { utm_source: null, utm_medium: 'email' },
+    })
+    const listed = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${first.json().id}/variants`,
+      headers: { cookie: user.cookie },
+    })
+    expect(listed.statusCode).toBe(200)
+    expect(listed.json().variants.map((variant: { id: string }) => variant.id)).toEqual([own.json().id])
+    const other = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${second.json().id}/variants`,
+      headers: { cookie: user.cookie },
+    })
+    expect(other.json().variants.map((variant: { id: string }) => variant.id)).toEqual([foreign.json().id])
+  })
+
+  it('counts stored UTM values in analytics', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const link = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/alpha', slug: 'alpha' },
+    })
+    const campaign = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: { cookie: user.cookie },
+      payload: { name: 'Summer' },
+    })
+    const variant = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${campaign.json().id}/variants`,
+      headers: { cookie: user.cookie },
+      payload: { linkId: link.json().id, name: 'Email', utm: { utm_source: 'newsletter', utm_medium: 'email' } },
+    })
+    const clicked = await ctx.app.inject({ method: 'GET', url: `/s/alpha?v=${variant.json().id}` })
+    expect(clicked.headers.location).toBe('https://example.com/alpha?utm_source=newsletter&utm_medium=email')
+    await waitForClicks(ctx.db, 1)
+    const analytics = await ctx.app.inject({ method: 'GET', url: '/api/analytics', headers: { cookie: user.cookie } })
+    expect(analytics.statusCode).toBe(200)
+    expect(analytics.json().utmSources).toEqual([{ name: 'newsletter', clicks: 1 }])
+    expect(analytics.json().utmMediums).toEqual([{ name: 'email', clicks: 1 }])
+    expect(analytics.json().utmCampaigns).toEqual([{ name: 'Not set', clicks: 1 }])
+  })
+
+  it('rejects a QR code attached to another link’s variant', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const first = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/alpha', slug: 'alpha' },
+    })
+    const second = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/beta', slug: 'beta' },
+    })
+    const campaign = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: { cookie: user.cookie },
+      payload: { name: 'Summer' },
+    })
+    const variant = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${campaign.json().id}/variants`,
+      headers: { cookie: user.cookie },
+      payload: { linkId: second.json().id, name: 'Poster' },
+    })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/qr',
+      headers: { cookie: user.cookie },
+      payload: {
+        linkId: first.json().id,
+        name: 'Poster',
+        style: defaultQrStyle,
+        trackingVariantId: variant.json().id,
+      },
+    })
+    expect(created.statusCode).toBe(400)
+    expect(created.json().error).toBe('That variant does not belong to this link')
+  })
+
+  it('keeps public URLs on the server environment', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    await writeSetting(ctx.db, 'app_url', 'https://old.example', admin.id)
+    await writeSetting(ctx.db, 'short_url_base', 'https://old.example', admin.id)
+    const saved = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/admin/settings',
+      headers: { cookie: admin.cookie },
+      payload: { appUrl: 'https://evil.example', shortUrlBase: 'https://evil.example', slugLength: 6 },
+    })
+    expect(saved.statusCode).toBe(200)
+    const settings = await getSettings(ctx.db, ctx.env)
+    expect(settings.appUrl).toBe('http://127.0.0.1:5173')
+    expect(settings.shortUrlBase).toBe('http://127.0.0.1:3000')
+    expect(settings.slugLength).toBe(6)
+    expect(saved.json().appUrl).toBe('http://127.0.0.1:5173')
+    expect(saved.json().shortUrlBase).toBe('http://127.0.0.1:3000')
   })
 
   it('limits password guesses without limiting ordinary redirects', async () => {

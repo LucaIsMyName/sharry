@@ -109,6 +109,12 @@ export async function loadAnalytics(
     browsers: await grouped(db, 'browser', where),
     operatingSystems: await grouped(db, 'operating_system', where),
     devices: await grouped(db, 'device_type', where),
+    utmSources: await grouped(db, 'utm_source', where, 'Not set'),
+    utmMediums: await grouped(db, 'utm_medium', where, 'Not set'),
+    utmCampaigns: await grouped(db, 'utm_campaign', where, 'Not set'),
+    utmIds: await grouped(db, 'utm_id', where, 'Not set'),
+    utmTerms: await grouped(db, 'utm_term', where, 'Not set'),
+    utmContents: await grouped(db, 'utm_content', where, 'Not set'),
     campaigns: rowsOf<{ name: string; clicks: number }>(
       await db.execute(sql`
         select coalesce(c.name, 'Direct') as name, count(*)::int as clicks
@@ -180,7 +186,7 @@ function whereAlias(filter: { linkId?: string; userId?: string }, range: { from:
   return sql.join(parts, sql` and `)
 }
 
-async function grouped(db: Database, column: string, where: ReturnType<typeof filterSql>) {
+async function grouped(db: Database, column: string, where: ReturnType<typeof filterSql>, emptyLabel = 'Direct') {
   const rows = rowsOf<{ name: string | null; clicks: number }>(
     await db.execute(sql`
       select ${sql.raw(column)} as name, count(*)::int as clicks
@@ -191,7 +197,7 @@ async function grouped(db: Database, column: string, where: ReturnType<typeof fi
       limit 8
     `),
   )
-  return rows.map((row) => ({ name: row.name || 'Direct', clicks: row.clicks }))
+  return rows.map((row) => ({ name: row.name || emptyLabel, clicks: row.clicks }))
 }
 
 function fillSeries(rows: { date: string; clicks: number }[], range: { from: Date; to: Date }) {

@@ -1,6 +1,8 @@
 # Sharry
 
-Sharry is a self-hosted link shortener. One Node.js process serves the dashboard, the API, and public redirects. PostgreSQL stores links, users, and the active URL prefix.
+Sharry is a self-hosted link shortener. One Node.js process serves the dashboard, the API, and public redirects. PostgreSQL stores links, users, click events, and settings such as the active URL prefix.
+
+People create short links, attach UTM parameters, group tracked copies in campaigns, design QR codes, and read click analytics. Registration is closed. Administrators create accounts. New accounts change a temporary password on first sign-in. Two-factor authentication stays off until someone turns it on from Account, or an administrator requires it in Settings.
 
 ## Local development
 
@@ -18,7 +20,7 @@ npm run dev
 
 The dashboard runs at `http://127.0.0.1:5173` and proxies `/api` to the API on port 3000. Short links in development use `SHORT_URL_BASE`, which should point at the API origin so every prefix resolves without a Vite proxy rule.
 
-On first startup Sharry creates the initial administrator from `INITIAL_ADMIN_*` when no administrator exists. The password is hashed with Argon2id and is never printed. The account must change that password before the dashboard opens. Two-factor authentication stays off until that person turns it on from Account. Later startups do not reset that password, and a deleted administrator is not recreated after initialization.
+On first startup Sharry creates the initial administrator from `INITIAL_ADMIN_*` when no administrator exists. The password is hashed with Argon2id and is never printed. The account must change that password before the dashboard opens. Later startups do not reset that password, and a deleted administrator is not recreated after initialization.
 
 `npm run create-admin` creates another administrator from the same variables. If the username or email already exists, it stops and does not change the password.
 
@@ -29,9 +31,16 @@ Keep `.env` out of Git. `.env.example` contains placeholders only.
 There are two configuration contexts:
 
 - **Local deployment `.env`:** VPS address, SSH user, SSH key path, remote directory, service name, and health-check URL. The private key stays on the deploy machine. `.env` stores only its path.
-- **Server runtime `.env`:** public URL, short-link prefix, database URL, session secret, encryption key, and email settings.
+- **Server runtime `.env`:** public URLs, database URL, session secret, encryption key, and optional email and GeoIP settings.
 
 `npm run deploy` copies runtime variables only when you pass `--sync-env`. Keys prefixed with `DEPLOY_` are never uploaded. An existing server environment is left untouched unless that flag is set.
+
+`APP_URL` and `SHORT_URL_BASE` are read from that server environment on each process start. Settings cannot change them.
+
+- `APP_URL` is the origin of password-reset links: `{APP_URL}/login/reset?token=...`.
+- `SHORT_URL_BASE` is the origin of short links shown in the dashboard, link CSV export, and newly encoded QR codes.
+
+A domain change means editing the server `.env` (or deploying with `--sync-env`) and restarting the service. QR images that were already downloaded keep the address that was encoded at the time. Redirects match the path, so a host that still reaches this process keeps working. CORS also uses these two environment values.
 
 `REDIS_URL` is reserved and unused.
 
@@ -39,33 +48,41 @@ There are two configuration contexts:
 
 Administrators manage every user, link, campaign, QR code, setting, and audit event. Standard users manage only their own links, campaigns, and analytics. Those checks run in the API.
 
-Registration stays closed. Administrators create accounts and set a temporary password. New accounts change that password on first sign-in. Two-factor authentication stays off until someone turns it on from Account, or an administrator requires it for every account in Settings.
-
-Password reset email uses the SMTP host, port, username, password, and from address saved in Settings. The password is encrypted in the database and is not shown again.
+Password reset email uses the SMTP host, port, username, password, and from address saved in Settings. The password is encrypted in the database and is not shown again. Until a host and from address are saved there, Sharry falls back to `SMTP_HOST` and `EMAIL_FROM` in the server environment when those are set.
 
 ## Short links
 
-Public URLs look like `https://share.example.com/s/summer-sale`. The prefix comes from the database after installation. Changing it in Settings updates every link immediately because the prefix is not stored on the link. Printed QR codes still contain the old path. Enable legacy prefixes to keep resolving the previous path.
+Public URLs look like `https://share.example.com/s/summer-sale`. The prefix is stored in the database after installation and can be changed in Settings. Changing it updates every displayed link immediately because the prefix is not stored on the link. Printed QR codes still contain the old path. Enable legacy prefixes to keep resolving the previous path. That change asks for confirmation.
 
 Slugs are unique without regard to case. A taken slug returns: "This short URL is already in use. Please choose a different slug."
 
-Destination edits keep the slug and the click history. Redirects default to 302 and can be 301, 307, or 308.
+Destination edits keep the slug and the click history. A link can expire, can be disabled, and can require a password before it redirects. Redirects default to 302 and can be 301, 307, or 308.
 
-## Tracking and QR codes
+Each link can store `utm_source`, `utm_medium`, `utm_campaign`, `utm_id`, `utm_term`, and `utm_content`. Those values are added to the destination at redirect time. Existing unrelated query parameters and the URL fragment are kept. Replacing a UTM value that is already on the destination shows a warning first.
 
-The UTM builder keeps unrelated query parameters and the URL fragment. Replacing an existing UTM value shows a warning first. Campaign variants can override those parameters. Click events store the UTM values used at redirect time.
+## Campaigns
 
-QR codes encode the short URL plus a `qr` id, so a destination change does not require a new code. The editor supports square, rounded, dot, and extra-rounded modules, finder styles, colors, a transparent background, quiet zone, error correction, and a center image. Downloads are PNG, JPEG, and SVG. JPEG always uses a solid background.
+A campaign is a named group of variants. It does not change the destination and it is not an A/B test.
 
-Center images are stored on disk under `QR_DATA_DIR`, not in PostgreSQL.
+A variant belongs to one short link and can override that link’s UTM parameters. Blank fields keep the link’s values. The variant is used when the short link is opened with `?v=<variant id>`, or when a QR code is saved with that variant. A variant id from another link is ignored. The tracked address looks like `https://share.example.com/s/summer-sale?v=<variant id>`.
 
-## Privacy
+## QR codes
 
-Sharry does not store raw IP addresses. The anonymous visitor id is a daily HMAC of a truncated address and the user agent. Country and region are filled only when `GEOIP_DB_PATH` points at a local MaxMind database. Referrers are stored as hostnames. `analytics_retention_days` deletes older click events. Use `0` to keep them.
+QR codes encode the short URL plus a `qr` id, so a destination change does not require a new code. A code can also carry a campaign variant. The editor supports square, rounded, dot, and extra-rounded modules, finder styles, colors, a transparent background, quiet zone, error correction, and a center image. Downloads are PNG, JPEG, and SVG. JPEG always uses a solid background.
+
+Center images are stored on disk under `QR_DATA_DIR`, not in PostgreSQL. Account thumbnails use `AVATAR_DATA_DIR`. On a server those directories live under `shared/data`, which each release links as `data`.
+
+## Analytics
+
+The dashboard shows clicks, unique visitors, bot clicks, a daily series, and breakdowns for referrer, country, browser, device, and each `utm_*` value. A blank UTM value is counted as “Not set”. Country and region are filled only when `GEOIP_DB_PATH` points at a local MaxMind database.
+
+Sharry does not store raw IP addresses. The anonymous visitor id is a daily HMAC of a truncated address and the user agent. Referrers are stored as hostnames. `analytics_retention_days` in Settings deletes older click events on startup. Use `0` to keep them.
+
+Administrators can export links and clicks as CSV. The click export includes every UTM column.
 
 ## Deploy on your own server
 
-Deploy runs from your machine over SSH. It uploads a release, installs dependencies, builds, backs up the database, runs migrations, points `current` at the new release, and restarts the service. It does not create the server user, the database, or the TLS proxy.
+Deploy runs from your machine over SSH. It does not create the Linux user, the database, or the TLS proxy.
 
 The server needs:
 
@@ -102,7 +119,8 @@ cp .env.example .env
 
 Set the runtime values to the production server, not your laptop database:
 
-- `APP_URL` and `SHORT_URL_BASE` are the public `https://` origin.
+- `APP_URL` is the public `https://` origin used in password-reset links.
+- `SHORT_URL_BASE` is the public `https://` origin encoded into short links and QR codes. It is often the same origin as `APP_URL`.
 - `DATABASE_URL` is the server database, for example `postgresql://sharry:PASSWORD@127.0.0.1:5432/sharry`. That host is the server's localhost. The deploy script runs the backup and migrations there.
 - `SESSION_SECRET` and `ENCRYPTION_KEY` are each at least 32 characters. Keep them. Replacing `ENCRYPTION_KEY` later makes saved two-factor secrets and the SMTP password unreadable.
 - `INITIAL_ADMIN_USERNAME`, `INITIAL_ADMIN_EMAIL`, and `INITIAL_ADMIN_PASSWORD` are used only the first time the database is empty. The password must be at least 12 characters. The first sign-in asks for a new password.
@@ -130,17 +148,31 @@ npm install
 npm run deploy -- --sync-env
 ```
 
-`--sync-env` writes the runtime variables to `$DEPLOY_REMOTE_DIR/shared/.env` on the server. Use it for the first install and whenever those values should change. Later releases keep that file:
+`--sync-env` writes the runtime variables to `$DEPLOY_REMOTE_DIR/shared/.env` with mode `0600`. Use it for the first install and whenever those values should change. Later releases keep that file. The first deploy fails if that file is missing and `--sync-env` was not passed.
 
 ```bash
 npm run deploy
 ```
 
-The script checks the host key, requires Node.js 22 on the server, builds the release, dumps the database to `$DEPLOY_REMOTE_DIR/backups`, applies migrations, switches `current`, and restarts the service. The deploy is finished when `DEPLOY_HEALTHCHECK_URL` returns OK. Secrets are not printed.
+The script then does the following, in order:
+
+1. Checks the SSH host key and refuses an unknown host.
+2. Requires Node.js 22 or newer on the server.
+3. Packs the repo, excluding `.git`, `node_modules`, `.env`, and `data`.
+4. Uploads the archive into `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
+5. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
+6. Runs `npm ci` and `npm run build` on the server.
+7. Writes `shared/.env` when `--sync-env` is set.
+8. Runs `npm run backup`, writing a custom-format dump to `$DEPLOY_REMOTE_DIR/backups`.
+9. Runs migrations.
+10. Records the previous `current` target in `previous-release`, then points `current` at the new release.
+11. Installs `deploy/systemd/sharry.service` with the remote directory filled in, reloads systemd, enables the service, and restarts it.
+12. Deletes old releases and keeps the five newest.
+13. Requests `DEPLOY_HEALTHCHECK_URL` up to 30 times, once a second. The deploy is finished when that URL returns OK.
+
+Secrets are not printed. The service listens on `APP_PORT` (3000 by default) as the `sharry` user. The unit file is `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` and `ExecStart=/usr/bin/node apps/api/dist/index.js`.
 
 Sign in with the initial administrator and choose a new password. Mail and the two-factor requirement are configured in Settings after that.
-
-Each release is unpacked under `$DEPLOY_REMOTE_DIR/releases`. `current` points at the live release. The previous target is written to `previous-release`.
 
 ### Backup
 

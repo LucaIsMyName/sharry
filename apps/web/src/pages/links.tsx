@@ -6,6 +6,7 @@ import { applyUtm, defaultQrStyle, qrWarnings, utmConflicts, type QrStyle, type 
 import { api, type Analytics, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
 import { choiceNote, correctionOptions, redirectOptions } from '../choices.ts'
 import { downloadQr, QrPreview } from '../components/qr-preview.tsx'
+import { UtmFields } from '../components/utm-fields.tsx'
 import { Badge } from '../components/ui/badge.tsx'
 import { Button, buttonVariants } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
@@ -16,9 +17,12 @@ import { copyText } from '../components/ui/copy.ts'
 import { Field } from '../components/ui/field.tsx'
 import { Input } from '../components/ui/input.tsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table.tsx'
-import { Breakdown, ClickChart } from './analytics.tsx'
+import { Breakdown, ClickChart, UtmBreakdowns } from './analytics.tsx'
 
 const emptyUtm: UtmParams = {}
+const noVariant = 'none'
+
+type LinkVariant = { id: string; name: string; utm: UtmParams }
 
 const statusOptions = [
   { value: 'active', label: 'active' },
@@ -176,6 +180,8 @@ export function LinkDetailPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoInputKey, setLogoInputKey] = useState(0)
   const [activeQr, setActiveQr] = useState<QrCode | null>(null)
+  const [variants, setVariants] = useState<LinkVariant[]>([])
+  const [trackingVariantId, setTrackingVariantId] = useState(noVariant)
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -188,10 +194,11 @@ export function LinkDetailPage() {
     let cancelled = false
     void (async () => {
       try {
-        const [next, codes, stats] = await Promise.all([
+        const [next, codes, stats, variantData] = await Promise.all([
           api<ShortLink>(`/api/links/${id}`),
           api<{ qrCodes: QrCode[] }>(`/api/links/${id}/qr`),
           api<Analytics>(`/api/links/${id}/analytics`),
+          api<{ variants: LinkVariant[] }>(`/api/links/${id}/variants`),
         ])
         if (cancelled) return
         setError('')
@@ -205,12 +212,14 @@ export function LinkDetailPage() {
         setUtm(next.utm)
         setQrCodes(codes.qrCodes)
         setAnalytics(stats)
+        setVariants(variantData.variants)
         let nextLogo: string | null = null
         const saved = codes.qrCodes[0]
         if (saved) {
           setActiveQr(saved)
           setStyle(saved.style)
           setQrName(saved.name)
+          setTrackingVariantId(saved.trackingVariantId ?? noVariant)
           if (saved.hasLogo) {
             const response = await fetch(`/api/qr/${saved.id}/logo`, { credentials: 'include' })
             if (cancelled) return
@@ -218,6 +227,7 @@ export function LinkDetailPage() {
           }
         } else {
           setActiveQr(null)
+          setTrackingVariantId(noVariant)
         }
         if (cancelled) {
           if (nextLogo) URL.revokeObjectURL(nextLogo)
@@ -312,14 +322,15 @@ export function LinkDetailPage() {
     event.preventDefault()
     setError('')
     try {
+      const variantId = trackingVariantId === noVariant ? null : trackingVariantId
       const created = activeQr
         ? await api<QrCode>(`/api/qr/${activeQr.id}`, {
             method: 'PATCH',
-            body: JSON.stringify({ name: qrName, style }),
+            body: JSON.stringify({ name: qrName, style, trackingVariantId: variantId }),
           })
         : await api<QrCode>('/api/qr', {
             method: 'POST',
-            body: JSON.stringify({ linkId: id, name: qrName, style }),
+            body: JSON.stringify({ linkId: id, name: qrName, style, trackingVariantId: variantId }),
           })
       if (logoFile) {
         const body = new FormData()
@@ -426,6 +437,18 @@ export function LinkDetailPage() {
         <form className="grid gap-3" onSubmit={(event) => void createQr(event)}>
           <h2>QR code</h2>
           <Field label="Name"><Input value={qrName} onChange={(event) => setQrName(event.target.value)} required /></Field>
+          <Field label="Campaign variant">
+            <Select
+              value={trackingVariantId}
+              placeholder="No variant"
+              options={[
+                { value: noVariant, label: 'No variant' },
+                ...variants.map((variant) => ({ value: variant.id, label: variant.name })),
+              ]}
+              onValueChange={setTrackingVariantId}
+            />
+            <p className="text-[13px] leading-snug font-normal text-muted-foreground">The QR code uses this variant’s UTM values when someone scans it.</p>
+          </Field>
           <Field label="Modules">
             <Select value={style.dotsType} options={[...moduleOptions]} onValueChange={(dotsType) => setStyle({ ...style, dotsType })} />
           </Field>
@@ -479,6 +502,7 @@ export function LinkDetailPage() {
                     setActiveQr(code)
                     setStyle(code.style)
                     setQrName(code.name)
+                    setTrackingVariantId(code.trackingVariantId ?? noVariant)
                   }}
                 >
                   {code.name}
@@ -493,7 +517,10 @@ export function LinkDetailPage() {
       {analytics ? (
         <div className="grid gap-4">
           <Card><CardContent><ClickChart series={analytics.series} /></CardContent></Card>
-          <Breakdown title="QR codes" rows={analytics.qrCodes.map((row) => ({ name: row.name, clicks: row.clicks }))} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <Breakdown title="QR codes" rows={analytics.qrCodes.map((row) => ({ name: row.name, clicks: row.clicks }))} />
+            <UtmBreakdowns analytics={analytics} />
+          </div>
         </div>
       ) : null}
       <ConfirmDialog
@@ -517,15 +544,3 @@ export function LinkDetailPage() {
   )
 }
 
-function UtmFields({ utm, onChange }: { utm: UtmParams; onChange: (utm: UtmParams) => void }) {
-  const fields = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'] as const
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {fields.map((key) => (
-        <Field key={key} label={key}>
-          <Input value={utm[key] ?? ''} onChange={(event) => onChange({ ...utm, [key]: event.target.value })} />
-        </Field>
-      ))}
-    </div>
-  )
-}

@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { trackingCampaigns, trackingVariants, type Database } from '@sharry/database'
 import {
@@ -8,6 +8,7 @@ import {
   createVariantSchema,
   destinationSchema,
   updateCampaignSchema,
+  updateVariantSchema,
   utmConflicts,
   utmSchema,
   type UtmParams,
@@ -111,28 +112,73 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
         campaignId: campaign.id,
         linkId: body.linkId,
         name: body.name,
-        utmSource: utm.utm_source ?? null,
-        utmMedium: utm.utm_medium ?? null,
-        utmCampaign: utm.utm_campaign ?? null,
-        utmId: utm.utm_id ?? null,
-        utmTerm: utm.utm_term ?? null,
-        utmContent: utm.utm_content ?? null,
+        ...utmColumns(utm),
       })
       .returning()
     if (!created) throw new AppError(500, 'Could not create the variant')
     return serializeVariant(created)
   })
 
+  app.get('/api/links/:id/variants', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const { id } = request.params as { id: string }
+    await getLinkForActor(app.db, actor, id)
+    const rows = await app.db
+      .select({ variant: trackingVariants })
+      .from(trackingVariants)
+      .innerJoin(trackingCampaigns, eq(trackingVariants.campaignId, trackingCampaigns.id))
+      .where(
+        actor.role === 'admin'
+          ? eq(trackingVariants.linkId, id)
+          : and(eq(trackingVariants.linkId, id), eq(trackingCampaigns.userId, actor.id)),
+      )
+    return { variants: rows.map((row) => serializeVariant(row.variant)) }
+  })
+
+  app.patch('/api/variants/:id', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const { id } = request.params as { id: string }
+    const variant = await findVariant(app.db, id)
+    await getCampaign(app.db, actor, variant.campaignId)
+    const body = parseBody(updateVariantSchema, request.body)
+    const [updated] = await app.db
+      .update(trackingVariants)
+      .set({
+        name: body.name ?? variant.name,
+        ...(body.utm === undefined ? {} : utmColumns(cleanUtm(body.utm))),
+      })
+      .where(eq(trackingVariants.id, variant.id))
+      .returning()
+    if (!updated) throw new AppError(404, 'Variant not found')
+    return serializeVariant(updated)
+  })
+
   app.delete('/api/variants/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
-    const found = await app.db.select().from(trackingVariants).where(eq(trackingVariants.id, id)).limit(1)
-    const variant = found[0]
-    if (!variant) throw new AppError(404, 'Variant not found')
+    const variant = await findVariant(app.db, id)
     await getCampaign(app.db, actor, variant.campaignId)
     await app.db.delete(trackingVariants).where(eq(trackingVariants.id, variant.id))
     return reply.code(204).send()
   })
+}
+
+async function findVariant(db: Database, id: string) {
+  const found = await db.select().from(trackingVariants).where(eq(trackingVariants.id, id)).limit(1)
+  const variant = found[0]
+  if (!variant) throw new AppError(404, 'Variant not found')
+  return variant
+}
+
+function utmColumns(utm: UtmParams) {
+  return {
+    utmSource: utm.utm_source ?? null,
+    utmMedium: utm.utm_medium ?? null,
+    utmCampaign: utm.utm_campaign ?? null,
+    utmId: utm.utm_id ?? null,
+    utmTerm: utm.utm_term ?? null,
+    utmContent: utm.utm_content ?? null,
+  }
 }
 
 async function getCampaign(db: Database, actor: Actor, id: string) {

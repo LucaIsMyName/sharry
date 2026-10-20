@@ -22,8 +22,6 @@ type AdminUser = {
 }
 
 type Settings = {
-  appUrl: string
-  shortUrlBase: string
   shortUrlPrefix: string
   legacyPrefixEnabled: boolean
   legacyPrefixes: string[]
@@ -139,8 +137,19 @@ export function AdminSettingsPage() {
       const next = await api<Settings>('/api/admin/settings', {
         method: 'PATCH',
         body: JSON.stringify({
-          ...settings,
+          shortUrlPrefix: settings.shortUrlPrefix,
+          legacyPrefixEnabled: settings.legacyPrefixEnabled,
+          defaultRedirectType: settings.defaultRedirectType,
+          slugLength: settings.slugLength,
+          analyticsRetentionDays: settings.analyticsRetentionDays,
+          registrationPolicy: settings.registrationPolicy,
+          sessionTtlHours: settings.sessionTtlHours,
           defaultQrStyle: settings.defaultQrStyle ?? defaultQrStyle,
+          mfaRequired: settings.mfaRequired,
+          smtpHost: settings.smtpHost,
+          smtpPort: settings.smtpPort,
+          smtpUser: settings.smtpUser,
+          emailFrom: settings.emailFrom,
           ...extra,
           ...(smtpPassword ? { smtpPassword } : {}),
         }),
@@ -161,12 +170,10 @@ export function AdminSettingsPage() {
     <section className="grid gap-4">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Mail and two-factor rules are saved here. The session secret and encryption key stay in the server environment.</p>
+        <p className="text-sm text-muted-foreground">Mail and two-factor rules are saved here. The public site address, short-link origin, session secret, and encryption key stay in the server environment.</p>
       </div>
       <Card><CardContent>
       <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); void save() }}>
-        <Field label="Public application URL"><Input value={settings.appUrl} onChange={(event) => setSettings({ ...settings, appUrl: event.target.value })} /></Field>
-        <Field label="Short URL base"><Input value={settings.shortUrlBase} onChange={(event) => setSettings({ ...settings, shortUrlBase: event.target.value })} /></Field>
         <Field label="Public prefix"><Input value={settings.shortUrlPrefix} onChange={(event) => setSettings({ ...settings, shortUrlPrefix: event.target.value })} /></Field>
         <Toggle checked={settings.legacyPrefixEnabled} onChange={(legacyPrefixEnabled) => setSettings({ ...settings, legacyPrefixEnabled })} label="Keep previous prefixes working" />
         {settings.legacyPrefixes.length > 0 ? <p className="text-sm text-muted-foreground">Legacy prefixes: {settings.legacyPrefixes.join(', ')}</p> : null}

@@ -67,6 +67,7 @@ export function AnalyticsPage() {
             <Breakdown title="Countries" rows={analytics.countries} />
             <Breakdown title="Browsers" rows={analytics.browsers} />
             <Breakdown title="Devices" rows={analytics.devices} />
+            <UtmBreakdowns analytics={analytics} />
           </div>
         </div>
       ) : null}
@@ -117,6 +118,18 @@ export function ClickChart({ series }: { series: Analytics['series'] }) {
       </ResponsiveContainer>
     </div>
   )
+}
+
+export function UtmBreakdowns({ analytics }: { analytics: Analytics }) {
+  const rows = [
+    ['utm_source', analytics.utmSources],
+    ['utm_medium', analytics.utmMediums],
+    ['utm_campaign', analytics.utmCampaigns],
+    ['utm_id', analytics.utmIds],
+    ['utm_term', analytics.utmTerms],
+    ['utm_content', analytics.utmContents],
+  ] as const
+  return rows.map(([title, values]) => <Breakdown key={title} title={title} rows={values} />)
 }
 
 export function Breakdown({ title, rows }: { title: string; rows: { name: string; clicks: number }[] }) {

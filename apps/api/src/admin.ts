@@ -138,8 +138,6 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     } else if (body.legacyPrefixEnabled !== undefined) {
       await writeSetting(app.db, 'legacy_prefix_enabled', body.legacyPrefixEnabled ? 'true' : 'false', actor.id)
     }
-    if (body.appUrl) await writeSetting(app.db, 'app_url', trim(body.appUrl), actor.id)
-    if (body.shortUrlBase) await writeSetting(app.db, 'short_url_base', trim(body.shortUrlBase), actor.id)
     if (body.defaultRedirectType) await writeSetting(app.db, 'default_redirect_type', body.defaultRedirectType, actor.id)
     if (body.slugLength) await writeSetting(app.db, 'slug_length', String(body.slugLength), actor.id)
     if (body.analyticsRetentionDays !== undefined) {
@@ -256,10 +254,14 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       device_type: string | null
       is_bot: boolean
       utm_source: string | null
+      utm_medium: string | null
       utm_campaign: string | null
+      utm_id: string | null
+      utm_term: string | null
+      utm_content: string | null
     }>(sql`
       select e.occurred_at, l.slug, e.referrer, e.country_code, e.browser, e.operating_system,
-             e.device_type, e.is_bot, e.utm_source, e.utm_campaign
+             e.device_type, e.is_bot, e.utm_source, e.utm_medium, e.utm_campaign, e.utm_id, e.utm_term, e.utm_content
       from click_events e
       join links l on l.id = e.link_id
       order by e.occurred_at desc
@@ -275,10 +277,14 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       device_type: string | null
       is_bot: boolean
       utm_source: string | null
+      utm_medium: string | null
       utm_campaign: string | null
+      utm_id: string | null
+      utm_term: string | null
+      utm_content: string | null
     }>(result)
     const body = csv([
-      ['occurred_at', 'slug', 'referrer', 'country', 'browser', 'os', 'device', 'bot', 'utm_source', 'utm_campaign'],
+      ['occurred_at', 'slug', 'referrer', 'country', 'browser', 'os', 'device', 'bot', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_id', 'utm_term', 'utm_content'],
       ...exported.map((row) => [
         new Date(row.occurred_at).toISOString(),
         row.slug,
@@ -289,7 +295,11 @@ export function registerAdminRoutes(app: FastifyInstance): void {
         row.device_type ?? '',
         row.is_bot ? 'true' : 'false',
         row.utm_source ?? '',
+        row.utm_medium ?? '',
         row.utm_campaign ?? '',
+        row.utm_id ?? '',
+        row.utm_term ?? '',
+        row.utm_content ?? '',
       ]),
     ])
     return reply.header('content-disposition', 'attachment; filename="sharry-clicks.csv"').type('text/csv').send(body)
@@ -343,10 +353,6 @@ function publicAdminUser(user: UserRecord) {
     mustChangePassword: user.mustChangePassword,
     createdAt: user.createdAt.toISOString(),
   }
-}
-
-function trim(value: string): string {
-  return value.endsWith('/') ? value.slice(0, -1) : value
 }
 
 export async function countOwnedLinks(db: Database, userId: string): Promise<number> {

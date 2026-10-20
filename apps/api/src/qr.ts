@@ -1,9 +1,9 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import sharp from 'sharp'
-import { qrCodes, type Database } from '@sharry/database'
+import { qrCodes, trackingVariants, type Database } from '@sharry/database'
 import {
   buildShortUrl,
   createQrSchema,
@@ -33,6 +33,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(createQrSchema, request.body)
     const link = await getLinkForActor(app.db, actor, body.linkId)
+    await assertVariantOnLink(app.db, link.id, body.trackingVariantId)
     const [created] = await app.db
       .insert(qrCodes)
       .values({
@@ -61,6 +62,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
     const actor = await requireUser(app, request, ['full'])
     const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
     const body = parseBody(updateQrSchema, request.body)
+    if (body.trackingVariantId) await assertVariantOnLink(app.db, current.link.id, body.trackingVariantId)
     const [updated] = await app.db
       .update(qrCodes)
       .set({
@@ -150,6 +152,16 @@ export function registerQrRoutes(app: FastifyInstance): void {
 export async function renderExport(svg: string, format: 'png' | 'jpeg', jpegBackground: string): Promise<Buffer> {
   if (format === 'jpeg') return sharp(Buffer.from(svg)).flatten({ background: jpegBackground }).jpeg({ quality: 90 }).toBuffer()
   return sharp(Buffer.from(svg)).png().toBuffer()
+}
+
+async function assertVariantOnLink(db: Database, linkId: string, variantId: string | null | undefined): Promise<void> {
+  if (!variantId) return
+  const found = await db
+    .select({ id: trackingVariants.id })
+    .from(trackingVariants)
+    .where(and(eq(trackingVariants.id, variantId), eq(trackingVariants.linkId, linkId)))
+    .limit(1)
+  if (!found[0]) throw new AppError(400, 'That variant does not belong to this link')
 }
 
 async function getQrForActor(app: FastifyInstance, actor: Actor, id: string) {

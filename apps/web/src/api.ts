@@ -85,6 +85,12 @@ export type Analytics = {
   browsers: { name: string; clicks: number }[]
   operatingSystems: { name: string; clicks: number }[]
   devices: { name: string; clicks: number }[]
+  utmSources: { name: string; clicks: number }[]
+  utmMediums: { name: string; clicks: number }[]
+  utmCampaigns: { name: string; clicks: number }[]
+  utmIds: { name: string; clicks: number }[]
+  utmTerms: { name: string; clicks: number }[]
+  utmContents: { name: string; clicks: number }[]
   campaigns: { name: string; clicks: number }[]
   qrCodes: { id: string; name: string; clicks: number }[]
 }
