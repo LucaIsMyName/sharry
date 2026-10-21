@@ -53,23 +53,25 @@ function Navigation({ admin, onNavigate }: { admin: boolean; onNavigate: () => v
       <Item to="/links" icon={<Link size={18} />}>Links</Item>
       <Item to="/campaigns" icon={<Megaphone size={18} />}>Campaigns</Item>
       <Item to="/analytics" icon={<ChartColumn size={18} />}>Analytics</Item>
-      <Item to="/docs" icon={<BookOpen size={18} />}>Docs</Item>
-      {admin ? <Item to="/admin/users" icon={<Users size={18} />}>Users</Item> : null}
-      {admin ? <Item to="/admin/api-keys" icon={<KeyRound size={18} />}>API keys</Item> : null}
-      {admin ? <Item to="/admin/settings" icon={<Settings size={18} />}>Settings</Item> : null}
-      {admin ? <Item to="/admin/server" icon={<Server size={18} />}>Server</Item> : null}
-      {admin ? <Item to="/admin/audit" icon={<ScrollText size={18} />}>Audit</Item> : null}
+      <hr className="my-2 border-0 border-t border-sidebar-border" />
+      <Item compact to="/docs" icon={<BookOpen size={14} />}>Docs</Item>
+      {admin ? <Item compact to="/admin/users" icon={<Users size={14} />}>Users</Item> : null}
+      {admin ? <Item compact to="/admin/api-keys" icon={<KeyRound size={14} />}>API keys</Item> : null}
+      {admin ? <Item compact to="/admin/settings" icon={<Settings size={14} />}>Settings</Item> : null}
+      {admin ? <Item compact to="/admin/server" icon={<Server size={14} />}>Server</Item> : null}
+      {admin ? <Item compact to="/admin/audit" icon={<ScrollText size={14} />}>Audit</Item> : null}
     </nav>
   )
 }
 
-function Item({ to, end, icon, children }: { to: string; end?: boolean; icon: ReactNode; children: string }) {
+function Item({ to, end, icon, compact = false, children }: { to: string; end?: boolean; icon: ReactNode; compact?: boolean; children: string }) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) => cn(
-        'flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white',
+        'flex min-w-0 items-center rounded-md text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white',
+        compact ? 'gap-2 px-2.5 py-1.5 text-xs' : 'gap-2.5 px-2.5 py-2 text-sm',
         isActive && 'bg-sidebar-accent text-white',
       )}
     >
