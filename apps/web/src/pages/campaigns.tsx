@@ -4,6 +4,7 @@ import { Check, Copy, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 import type { UtmParams } from '@sharry/shared'
 import { api, type ShortLink } from '../api.ts'
+import { PageTitle } from '../components/page-title.tsx'
 import { UtmFields, utmSummary } from '../components/utm-fields.tsx'
 import { Button } from '../components/ui/button.tsx'
 import { Card, CardContent } from '../components/ui/card.tsx'
@@ -267,6 +268,7 @@ export function CampaignDetailPage() {
 
   return (
     <section className="grid gap-4">
+      <PageTitle title={campaign?.name ?? 'Campaign'} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-4xl font-medium tracking-tight">{loading ? 'Loading campaign…' : campaign?.name ?? 'Campaign'}</h1>

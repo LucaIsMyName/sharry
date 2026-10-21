@@ -4,6 +4,7 @@ import { NavLink, useParams } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import { cn } from 'cn'
 import apiDocs, { type ApiDoc } from 'virtual:api-docs'
+import { PageTitle } from '../components/page-title.tsx'
 
 const rawPages = import.meta.glob('../../docs/**/*.md', {
   query: '?raw',
@@ -58,8 +59,10 @@ export function DocsPage() {
   const params = useParams()
   const slug = params['*'] ?? ''
   const page = pages.find((item) => item.slug === slug)
+  const documentTitle = slug === 'api' ? 'API reference' : page?.title ?? 'Docs'
   return (
     <div className="grid items-start gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
+      <PageTitle title={documentTitle} />
       <nav className="grid content-start gap-4">
         <DocGroup label="User" pages={pages.filter((item) => item.group === 'User')} />
         <div className="grid gap-2">

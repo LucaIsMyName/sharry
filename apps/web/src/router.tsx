@@ -1,5 +1,6 @@
-import { createBrowserRouter, redirect } from 'react-router'
+import { Outlet, createBrowserRouter, redirect } from 'react-router'
 import { api, type Me } from './api.ts'
+import { DocumentHead } from './components/page-title.tsx'
 import { Shell } from './components/shell.tsx'
 import { AdminAuditPage, AdminSettingsPage, AdminUsersPage } from './pages/admin.tsx'
 import { ServerPage } from './pages/server.tsx'
@@ -55,32 +56,46 @@ async function scopeLoader(scope: Me['scope']) {
   }
 }
 
+function RootLayout() {
+  return (
+    <>
+      <DocumentHead />
+      <Outlet />
+    </>
+  )
+}
+
 export const router = createBrowserRouter([
-  { path: '/login', element: <LoginPage /> },
-  { path: '/login/mfa', loader: () => scopeLoader('mfa_challenge'), element: <MfaPage /> },
-  { path: '/login/reset', element: <ResetPage /> },
-  { path: '/account/password', loader: () => scopeLoader('password_change'), element: <PasswordPage /> },
-  { path: '/account/mfa', loader: () => scopeLoader('mfa_enroll'), element: <EnrollPage /> },
   {
-    path: '/',
-    loader: appLoader,
-    element: <Shell />,
+    element: <RootLayout />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: 'links', element: <LinksPage /> },
-      { path: 'links/new', element: <LinkFormPage /> },
-      { path: 'links/:id', element: <LinkDetailPage /> },
-      { path: 'campaigns', element: <CampaignsPage /> },
-      { path: 'campaigns/:id', element: <CampaignDetailPage /> },
-      { path: 'analytics', element: <AnalyticsPage /> },
-      { path: 'docs', loader: () => redirect('/docs/user/signing-in') },
-      { path: 'docs/*', element: <DocsPage /> },
-      { path: 'account', element: <AccountPage /> },
-      { path: 'admin/users', loader: adminLoader, element: <AdminUsersPage /> },
-      { path: 'admin/api-keys', loader: adminLoader, element: <ApiKeysPage /> },
-      { path: 'admin/settings', loader: adminLoader, element: <AdminSettingsPage /> },
-      { path: 'admin/server', loader: adminLoader, element: <ServerPage /> },
-      { path: 'admin/audit', loader: adminLoader, element: <AdminAuditPage /> },
+      { path: '/login', handle: { title: 'Sign in' }, element: <LoginPage /> },
+      { path: '/login/mfa', loader: () => scopeLoader('mfa_challenge'), handle: { title: 'Two-factor code' }, element: <MfaPage /> },
+      { path: '/login/reset', handle: { title: 'Reset password' }, element: <ResetPage /> },
+      { path: '/account/password', loader: () => scopeLoader('password_change'), handle: { title: 'Choose a new password' }, element: <PasswordPage /> },
+      { path: '/account/mfa', loader: () => scopeLoader('mfa_enroll'), handle: { title: 'Turn on two-factor' }, element: <EnrollPage /> },
+      {
+        path: '/',
+        loader: appLoader,
+        element: <Shell />,
+        children: [
+          { index: true, handle: { title: 'Overview' }, element: <DashboardPage /> },
+          { path: 'links', handle: { title: 'Links' }, element: <LinksPage /> },
+          { path: 'links/new', handle: { title: 'New link' }, element: <LinkFormPage /> },
+          { path: 'links/:id', handle: { title: 'Link' }, element: <LinkDetailPage /> },
+          { path: 'campaigns', handle: { title: 'Campaigns' }, element: <CampaignsPage /> },
+          { path: 'campaigns/:id', handle: { title: 'Campaign' }, element: <CampaignDetailPage /> },
+          { path: 'analytics', handle: { title: 'Analytics' }, element: <AnalyticsPage /> },
+          { path: 'docs', loader: () => redirect('/docs/user/signing-in') },
+          { path: 'docs/*', handle: { title: 'Docs' }, element: <DocsPage /> },
+          { path: 'account', handle: { title: 'Account' }, element: <AccountPage /> },
+          { path: 'admin/users', loader: adminLoader, handle: { title: 'Users' }, element: <AdminUsersPage /> },
+          { path: 'admin/api-keys', loader: adminLoader, handle: { title: 'API keys' }, element: <ApiKeysPage /> },
+          { path: 'admin/settings', loader: adminLoader, handle: { title: 'Settings' }, element: <AdminSettingsPage /> },
+          { path: 'admin/server', loader: adminLoader, handle: { title: 'Server' }, element: <ServerPage /> },
+          { path: 'admin/audit', loader: adminLoader, handle: { title: 'Audit' }, element: <AdminAuditPage /> },
+        ],
+      },
     ],
   },
 ])

@@ -4,6 +4,7 @@ import { Check, Copy, ExternalLink, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { applyUtm, defaultQrStyle, utmConflicts, type QrStyle, type UtmParams } from '@sharry/shared'
 import { api, type Analytics, type LinkSummary, type PublicSettings, type QrCode, type ShortLink } from '../api.ts'
+import { PageTitle } from '../components/page-title.tsx'
 import { choiceNote, correctionOptions, redirectOptions } from '../choices.ts'
 import { downloadQr, QrPreview } from '../components/qr-preview.tsx'
 import { UtmFields } from '../components/utm-fields.tsx'
@@ -505,6 +506,7 @@ export function LinkDetailPage() {
 
   return (
     <section className="grid gap-4">
+      <PageTitle title={link?.title?.trim() || link?.slug || 'Link'} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-4xl font-medium tracking-tight">{link?.title?.trim() || link?.slug || 'Link'}</h1>

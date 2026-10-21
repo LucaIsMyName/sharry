@@ -2,6 +2,8 @@
 
 `apps/web/src/router.tsx` uses React Router. Signed-in pages sit under the shell. Loaders call `/api/auth/me` and send people to sign-in, a password change, two-factor enrollment, or the authenticator challenge when the session is not ready for that page. A password-change session that opens the enrollment page goes to the password page, not back to sign-in.
 
+Every route sets a document title, `Page · Sharry`. A link, campaign, or doc page uses its own name once that record has loaded. The initial HTML and the React tree both include `<meta name="robots" content="noindex, nofollow">`, so the dashboard is not indexed.
+
 ## Public routes
 
 | Path | Who can open it |
