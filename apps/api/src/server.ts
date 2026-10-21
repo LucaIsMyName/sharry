@@ -66,6 +66,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         ? {
             directives: {
               defaultSrc: ["'self'"],
+              connectSrc: ["'self'", 'blob:'],
               imgSrc: ["'self'", 'data:', 'blob:'],
               styleSrc: ["'self'", "'unsafe-inline'"],
               scriptSrc: ["'self'"],

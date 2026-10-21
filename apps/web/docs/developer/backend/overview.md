@@ -16,7 +16,7 @@ The same purge runs every hour. `SIGINT` and `SIGTERM` close the HTTP server and
 
 PostgreSQL is accessed through Drizzle in `packages/database`. Schema changes go through `npm run db:generate` and `npm run db:migrate`. Request bodies are checked with Zod schemas in `packages/shared`.
 
-In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link returns the dashboard `index.html`. `POST` to an unknown path, and any unknown `/api` path, returns 404. In development, Vite serves the dashboard and this process serves only the API, health check, and short links.
+In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link returns the dashboard `index.html`. `POST` to an unknown path, and any unknown `/api` path, returns 404. In development, Vite serves the dashboard and this process serves only the API, health check, and short links. Production sends a Content-Security-Policy that allows `blob:` connections so a QR center image can be embedded.
 
 ## Request path
 
