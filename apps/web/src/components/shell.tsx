@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { BookOpen, ChartColumn, KeyRound, LayoutDashboard, Link, Megaphone, Menu, ScrollText, Settings, Users } from 'lucide-react'
+import { BookOpen, ChartColumn, KeyRound, LayoutDashboard, Link, Megaphone, Menu, ScrollText, Server, Settings, Users } from 'lucide-react'
 import { NavLink, Outlet, useLoaderData, useNavigate } from 'react-router'
 import { cn } from 'cn'
 import { api, type Me } from '../api.ts'
@@ -57,6 +57,7 @@ function Navigation({ admin, onNavigate }: { admin: boolean; onNavigate: () => v
       {admin ? <Item to="/admin/users" icon={<Users size={18} />}>Users</Item> : null}
       {admin ? <Item to="/admin/api-keys" icon={<KeyRound size={18} />}>API keys</Item> : null}
       {admin ? <Item to="/admin/settings" icon={<Settings size={18} />}>Settings</Item> : null}
+      {admin ? <Item to="/admin/server" icon={<Server size={18} />}>Server</Item> : null}
       {admin ? <Item to="/admin/audit" icon={<ScrollText size={18} />}>Audit</Item> : null}
     </nav>
   )

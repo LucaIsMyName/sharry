@@ -2,6 +2,7 @@ import { createBrowserRouter, redirect } from 'react-router'
 import { api, type Me } from './api.ts'
 import { Shell } from './components/shell.tsx'
 import { AdminAuditPage, AdminSettingsPage, AdminUsersPage } from './pages/admin.tsx'
+import { ServerPage } from './pages/server.tsx'
 import { ApiKeysPage } from './pages/api-keys.tsx'
 import { DocsPage } from './pages/docs.tsx'
 import { AnalyticsPage } from './pages/analytics.tsx'
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
       { path: 'admin/users', loader: adminLoader, element: <AdminUsersPage /> },
       { path: 'admin/api-keys', loader: adminLoader, element: <ApiKeysPage /> },
       { path: 'admin/settings', loader: adminLoader, element: <AdminSettingsPage /> },
+      { path: 'admin/server', loader: adminLoader, element: <ServerPage /> },
       { path: 'admin/audit', loader: adminLoader, element: <AdminAuditPage /> },
     ],
   },

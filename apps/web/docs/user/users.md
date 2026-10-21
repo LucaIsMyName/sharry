@@ -8,7 +8,7 @@ Enter a username, an email, a temporary password, and a role. The username and e
 
 The temporary password must be at least 12 characters. Generate password fills a 16-character password and shows it so you can copy it and send it to the person. Their first sign-in asks for a new password before the dashboard opens. The temporary password is stored as an Argon2id hash.
 
-The role is `user` or `admin`. A standard user manages only their own links, campaigns, and analytics. An administrator manages every account and every link, plus Settings, API keys, and Audit.
+The role is `user` or `admin`. A standard user manages only their own links, campaigns, and analytics. An administrator manages every account and every link, plus Settings, Server, API keys, and Audit.
 
 ## Change an account
 

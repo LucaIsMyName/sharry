@@ -13,6 +13,7 @@ import { type Database } from '@sharry/database'
 import { isAllowedOrigin, type RuntimeEnv } from '@sharry/shared'
 import { bearerToken, isAccountPath } from './api-keys.ts'
 import { registerAdminRoutes } from './admin.ts'
+import { registerSystemRoutes } from './system.ts'
 import { registerAnalyticsRoutes } from './analytics.ts'
 import { registerAuthRoutes } from './auth.ts'
 import { registerLinkRoutes } from './links.ts'
@@ -118,6 +119,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAnalyticsRoutes(app)
   registerQrRoutes(app)
   registerAdminRoutes(app)
+  registerSystemRoutes(app)
 
   if (options.env.NODE_ENV === 'production') {
     const assets = path.resolve(process.cwd(), 'apps/web/dist/assets')

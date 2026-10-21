@@ -27,6 +27,7 @@ const pageOrder = [
   'user/analytics',
   'user/api-keys',
   'user/settings',
+  'user/server',
   'user/users',
   'developer/backend/overview',
   'developer/backend/development',

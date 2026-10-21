@@ -35,6 +35,7 @@ Admin pages add a loader that allows only the admin role. Anyone else is sent to
 | `/admin/users` | Create and manage accounts |
 | `/admin/api-keys` | API keys |
 | `/admin/settings` | Prefix, sessions, mail, and CSV export |
+| `/admin/server` | Host memory, disk, operating system, and installed runtime |
 | `/admin/audit` | Audit log |
 
 Docs are available to every signed-in user at `/docs`. The page list comes from markdown files under `apps/web/docs`. The order is the `pageOrder` array in `apps/web/src/pages/docs.tsx`. A file that is not in that array still appears, at the end. The API reference is generated from JSDoc while Vite builds.

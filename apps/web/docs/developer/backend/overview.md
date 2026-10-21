@@ -11,6 +11,7 @@ The same purge runs every hour. `SIGINT` and `SIGTERM` close the HTTP server and
 - `auth.ts` for sessions, passwords, and two-factor authentication
 - `links.ts`, `tracking.ts`, `analytics.ts`, and `qr.ts` for the product
 - `admin.ts` for users, settings, audit, exports, and API keys
+- `system.ts` for the administrator server snapshot
 - `redirect.ts` for short links that are not under `/api`
 
 PostgreSQL is accessed through Drizzle in `packages/database`. Schema changes go through `npm run db:generate` and `npm run db:migrate`. Request bodies are checked with Zod schemas in `packages/shared`.
