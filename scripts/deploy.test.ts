@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { upsertEnvKeys } from './env-file.ts'
-import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, linuxDistro, nodeInstallScript, provisionHost, psqlCommand } from './provision.ts'
+import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, linuxDistro, minimumNodeVersion, nodeInstallScript, nodeVersionIsCurrent, provisionHost, psqlCommand } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { activateRelease } from './release.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
@@ -135,7 +135,14 @@ describe('server bootstrap', () => {
     const script = nodeInstallScript()
     expect(script).toContain('/usr/bin/node')
     expect(script).toContain('latest-v22.x')
+    expect(script).toContain(minimumNodeVersion)
+    expect(script).toContain('sort -V')
     expect(spawnSync('bash', ['-n'], { input: script }).status).toBe(0)
+    expect(nodeVersionIsCurrent('22.21.0')).toBe(false)
+    expect(nodeVersionIsCurrent('22.23.3')).toBe(false)
+    expect(nodeVersionIsCurrent('22.23.4')).toBe(true)
+    expect(nodeVersionIsCurrent('22.24.0')).toBe(true)
+    expect(nodeVersionIsCurrent('20.19.6')).toBe(false)
     const archive = spawnSync('awk', ['-v', 'arch=x64', '$2 ~ ("node-v[0-9.]+-linux-" arch "[.]tar[.]xz$") { print $2; exit }'], {
       input: 'abc  node-v22.21.0-linux-arm64.tar.xz\nabc  node-v22.21.0-linux-x64.tar.xz\n',
     })

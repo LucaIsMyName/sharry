@@ -89,12 +89,12 @@ npm run deploy
 
 Pass `--sync-env` when the runtime values should be copied to the server again.
 
-On a server that is already in use, each step is safe to repeat. A newer Node.js install and an existing PostgreSQL cluster are left as they are. An existing database role or database is not dropped, and its password is not changed. If the `sharry` role already exists and `DATABASE_URL` is empty, deploy stops and asks you to set the current connection string. A Caddy site that already names `DOMAIN` is left in place.
+On a server that is already in use, each step is safe to repeat. Node.js 22.23.4 or newer stays installed. An existing PostgreSQL cluster is left as it is. An existing database role or database is not dropped, and its password is not changed. If the `sharry` role already exists and `DATABASE_URL` is empty, deploy stops and asks you to set the current connection string. A Caddy site that already names `DOMAIN` is left in place.
 
 The script then does the following, in order:
 
 1. Checks `/etc/os-release` and stops unless the ID is `ubuntu` or `debian`.
-2. Installs Node.js 22 when `/usr/bin/node` is missing or older than 22. Supported CPUs are x86_64 and arm64.
+2. Installs the latest Node.js 22 release when `/usr/bin/node` is missing or older than 22.23.4. Supported CPUs are x86_64 and arm64.
 3. Installs PostgreSQL when `psql` or `pg_dump` is missing, and starts it.
 4. Creates the `sharry` system user, database role, and database when they are missing. The role is not given a new password when it already exists.
 5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000` and reloads Caddy.

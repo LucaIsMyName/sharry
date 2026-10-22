@@ -1,6 +1,6 @@
 # Local development
 
-Sharry runs on Node.js 22 or newer. It does not use Docker. One command starts the API, the dashboard, and a local PostgreSQL when you do not already have one listening.
+Sharry runs on Node.js 22.23.4 or newer. It does not use Docker. One command starts the API, the dashboard, and a local PostgreSQL when you do not already have one listening.
 
 ## First setup
 

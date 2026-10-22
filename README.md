@@ -6,7 +6,7 @@ People create short links, attach UTM parameters, group tracked copies in campai
 
 ## Local development
 
-Requires Node.js 22 or newer. The app does not use Docker.
+Requires Node.js 22.23.4 or newer. The app does not use Docker.
 
 `npm run dev` starts the dashboard, the API, and a local PostgreSQL when `DATABASE_URL` points at this machine and nothing is listening there. That database keeps its data in `data/pg-dev`. Closing the terminal stops it. The next `npm run dev` starts it again, then the API applies migrations. A server install still uses its own PostgreSQL.
 
@@ -131,12 +131,12 @@ npm run deploy
 
 The first deploy writes `$DEPLOY_REMOTE_DIR/shared/.env`. A later deploy keeps that file. Pass `--sync-env` when the runtime values should be copied again.
 
-On a server that is already in use, each step is safe to repeat. A newer Node.js install and an existing PostgreSQL cluster are left as they are. An existing database role or database is not dropped, and its password is not changed. A Caddy site that already names `DOMAIN` is left in place.
+On a server that is already in use, each step is safe to repeat. Node.js 22.23.4 or newer stays installed. An existing PostgreSQL cluster is left as it is. An existing database role or database is not dropped, and its password is not changed. A Caddy site that already names `DOMAIN` is left in place.
 
 The script then does the following, in order:
 
 1. Checks `/etc/os-release` and stops unless the ID is `ubuntu` or `debian`.
-2. Installs Node.js 22 when `/usr/bin/node` is missing or older than 22.
+2. Installs the latest Node.js 22 release when `/usr/bin/node` is missing or older than 22.23.4.
 3. Installs PostgreSQL when `psql` or `pg_dump` is missing, and starts it.
 4. Creates the `sharry` system user, database role, and database when they are missing.
 5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000` and reloads Caddy.

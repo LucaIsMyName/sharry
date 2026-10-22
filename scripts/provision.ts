@@ -38,14 +38,39 @@ export function caddyHasSite(contents: string, domain: string): boolean {
   })
 }
 
+/** Oldest Node.js 22 release that includes the October 21, 2026 security fixes. */
+export const minimumNodeVersion = '22.23.4'
+
+export function nodeVersionIsCurrent(version: string, minimum = minimumNodeVersion): boolean {
+  const current = numericParts(version)
+  const required = numericParts(minimum)
+  if (!current || !required) return false
+  const length = Math.max(current.length, required.length)
+  for (let index = 0; index < length; index += 1) {
+    const left = current[index] ?? 0
+    const right = required[index] ?? 0
+    if (left > right) return true
+    if (left < right) return false
+  }
+  return true
+}
+
+function numericParts(version: string): number[] | null {
+  const match = version.trim().match(/^v?(\d+(?:\.\d+)*)$/)
+  if (!match?.[1]) return null
+  return match[1].split('.').map((part) => Number(part))
+}
+
 export function nodeInstallScript(): string {
   return `set -euo pipefail
+required='${minimumNodeVersion}'
 if [ -x /usr/bin/node ]; then
-  major="$(/usr/bin/node -p 'process.versions.node.split(".")[0]')"
+  current="$(/usr/bin/node -p 'process.versions.node')"
 else
-  major=0
+  current=0
 fi
-if [ "$major" -ge 22 ]; then
+lowest="$(printf '%s\\n%s\\n' "$required" "$current" | sort -V | head -n1)"
+if [ "$lowest" = "$required" ]; then
   exit 0
 fi
 export DEBIAN_FRONTEND=noninteractive

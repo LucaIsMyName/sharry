@@ -13,7 +13,7 @@ import {
   splitEnv,
 } from '@sharry/shared'
 import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
-import { ensureBuildMemoryCommand, provisionHost } from './provision.ts'
+import { ensureBuildMemoryCommand, minimumNodeVersion, nodeVersionIsCurrent, provisionHost } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { activateRelease } from './release.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
@@ -92,9 +92,8 @@ try {
     },
   })
   const version = (await exec(conn, '/usr/bin/node -p process.versions.node', secrets)).stdout.trim()
-  const major = Number(version.split('.')[0])
-  if (!Number.isFinite(major) || major < 22) {
-    throw new Error(`The server must have Node.js 22 or newer. Found ${version || 'no Node.js binary'}`)
+  if (!nodeVersionIsCurrent(version)) {
+    throw new Error(`The server must have Node.js ${minimumNodeVersion} or newer. Found ${version || 'no Node.js binary'}`)
   }
   const { runtime } = splitEnv(fileVars)
   const runtimeEnv = parseRuntimeEnv(runtime)
