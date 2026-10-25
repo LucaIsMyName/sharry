@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.ts";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toastCaught } from "../components/ui/toast.tsx";
 
 type Usage = { totalBytes: number; availableBytes: number; usedBytes: number };
 
@@ -29,18 +29,14 @@ type SystemSnapshot = {
 
 export function ServerPage() {
   const [snapshot, setSnapshot] = useState<SystemSnapshot | null>(null);
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(true);
 
   async function load() {
     setPending(true);
-    setError("");
     try {
       setSnapshot(await api<SystemSnapshot>("/api/admin/system"));
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not load the server",
-      );
+      toastCaught(caught, "Could not load the server");
     } finally {
       setPending(false);
     }
@@ -76,7 +72,6 @@ export function ServerPage() {
               : "Refresh"}
         </Button>
       </div>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       {!snapshot && pending ? (
         <p className="text-sm text-muted-foreground">Loading server status…</p>
       ) : null}

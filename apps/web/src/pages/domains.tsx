@@ -12,9 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog.tsx";
-import { Field } from "../components/ui/field.tsx";
+import { Field, FieldMessage } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toastCaught } from "../components/ui/toast.tsx";
 import {
   Table,
   TableBody,
@@ -45,7 +45,6 @@ export function AdminDomainsPage() {
   const [hostname, setHostname] = useState("");
   const [setup, setSetup] = useState<RedirectDomain | null>(null);
   const [deleteFor, setDeleteFor] = useState<RedirectDomain | null>(null);
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [verifyingId, setVerifyingId] = useState("");
 
@@ -58,15 +57,12 @@ export function AdminDomainsPage() {
 
   useEffect(() => {
     void load().catch((caught: unknown) =>
-      setError(
-        caught instanceof Error ? caught.message : "Could not load domains",
-      ),
+      toastCaught(caught, "Could not load domains"),
     );
   }, []);
 
   async function create(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       const created = await api<{
@@ -81,16 +77,13 @@ export function AdminDomainsPage() {
       setSetup(created.domain);
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not add the domain",
-      );
+      toastCaught(caught, "Could not add the domain");
     } finally {
       setPending(false);
     }
   }
 
   async function verify(domain: RedirectDomain) {
-    setError("");
     setVerifyingId(domain.id);
     try {
       await api(`/api/admin/redirect-domains/${domain.id}/verify`, {
@@ -98,11 +91,7 @@ export function AdminDomainsPage() {
       });
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not verify the domain",
-      );
+      toastCaught(caught, "Could not verify the domain");
       await load().catch(() => undefined);
     } finally {
       setVerifyingId("");
@@ -111,7 +100,6 @@ export function AdminDomainsPage() {
 
   async function remove() {
     if (!deleteFor) return;
-    setError("");
     try {
       await api(`/api/admin/redirect-domains/${deleteFor.id}`, {
         method: "DELETE",
@@ -120,11 +108,7 @@ export function AdminDomainsPage() {
       if (setup?.id === deleteFor.id) setSetup(null);
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not delete the domain",
-      );
+      toastCaught(caught, "Could not delete the domain");
     }
   }
 
@@ -151,7 +135,6 @@ export function AdminDomainsPage() {
                 required
               />
             </Field>
-            {error ? <Notice tone="error">{error}</Notice> : null}
             <Button type="submit" disabled={pending}>
               {pending ? "Adding…" : "Add domain"}
             </Button>
@@ -179,14 +162,18 @@ export function AdminDomainsPage() {
                 domains.map((domain) => (
                   <TableRow key={domain.id}>
                     <TableCell className="whitespace-normal">
-                      <span className="font-mono text-sm">
-                        {domain.hostname}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono text-sm">
+                          {domain.hostname}
+                        </span>
+                        {domain.lastError ? (
+                          <FieldMessage
+                            tone="error"
+                            message={domain.lastError}
+                            initialOpen={false}
+                          />
+                        ) : null}
                       </span>
-                      {domain.lastError ? (
-                        <p className="text-sm text-destructive">
-                          {domain.lastError}
-                        </p>
-                      ) : null}
                     </TableCell>
                     <TableCell>
                       {domain.status === "verified" ? "Verified" : "Pending"}

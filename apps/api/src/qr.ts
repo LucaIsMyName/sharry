@@ -8,7 +8,7 @@ import {
   buildShortUrl,
   createQrSchema,
   parseQrStyle,
-  qrWarnings,
+  qrWarningMessages,
   renderQrSvg,
   updateQrSchema,
   type QrStyle,
@@ -77,7 +77,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
     const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
     return {
       ...serializeQr(created, originForLink(link, settings, hosts), settings.shortUrlPrefix, link.slug),
-      warnings: qrWarnings(parseQrStyle(body.style), false),
+      warnings: qrWarningMessages(parseQrStyle(body.style), false),
     }
   })
 
@@ -107,7 +107,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
     if (!updated) throw new AppError(404, 'QR code not found')
     return {
       ...serializeQr(updated, current.base, current.prefix, current.link.slug),
-      warnings: qrWarnings(updated.styleConfig, Boolean(updated.logoPath)),
+      warnings: qrWarningMessages(updated.styleConfig, Boolean(updated.logoPath)),
     }
   })
 
@@ -158,7 +158,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
     await app.db.update(qrCodes).set({ logoPath: filename }).where(eq(qrCodes.id, current.qr.id))
     const style = { ...current.qr.styleConfig, errorCorrectionLevel: 'H' as const }
     await app.db.update(qrCodes).set({ styleConfig: style }).where(eq(qrCodes.id, current.qr.id))
-    return { logoPath: filename, warnings: qrWarnings(style, true) }
+    return { logoPath: filename, warnings: qrWarningMessages(style, true) }
   })
 
   /**
@@ -269,7 +269,7 @@ function serializeQr(
     hasLogo: Boolean(qr.logoPath),
     createdAt: qr.createdAt.toISOString(),
     url: buildShortUrl(base, prefix, slug, { qr: qr.id, v: qr.trackingVariantId ?? undefined }),
-    warnings: qrWarnings(qr.styleConfig as QrStyle, Boolean(qr.logoPath)),
+    warnings: qrWarningMessages(qr.styleConfig as QrStyle, Boolean(qr.logoPath)),
   }
 }
 

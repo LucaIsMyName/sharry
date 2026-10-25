@@ -11,11 +11,17 @@ export function Select<T extends string>({
   onValueChange,
   options,
   placeholder = "Choose",
+  id,
+  "aria-invalid": invalid,
+  "aria-describedby": describedBy,
 }: {
   value: T;
   onValueChange: (value: T) => void;
   options: { value: T; label: string; description?: string }[];
   placeholder?: string;
+  id?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
 }) {
   return (
     <SelectRoot
@@ -28,7 +34,12 @@ export function Select<T extends string>({
         if (typeof next === "string") onValueChange(next as T);
       }}
     >
-      <SelectTrigger className="h-10 w-full">
+      <SelectTrigger
+        id={id}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        className="h-10 w-full"
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent

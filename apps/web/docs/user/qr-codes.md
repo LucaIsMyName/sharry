@@ -20,7 +20,7 @@ Open a link and use the QR code section under the link fields. The preview sits 
 | Error correction | L, M, Q, or H. H recovers about 30% of the code and is the right choice when a center image covers part of the pattern |
 | Quiet zone | Empty margin around the code, in modules |
 
-Scan warnings appear once, under the preview. They cover low contrast, a center image that is large, high error correction missing while a center image is shown, a quiet zone that is too small, and a transparent background that can fail on a dark surface.
+Scan warnings sit on the control they describe: foreground contrast, center image scale, error correction, quiet zone, and transparent background. They cover low contrast, a center image that is large, high error correction missing while a center image is shown, a quiet zone that is too small, and a transparent background that can fail on a dark surface.
 
 ## Downloads
 

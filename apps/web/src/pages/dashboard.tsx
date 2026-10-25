@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { api, type Analytics, type LinkSummary } from "../api.ts";
 import { buttonVariants } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toastCaught } from "../components/ui/toast.tsx";
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import { ClickChart } from "./analytics.tsx";
 export function DashboardPage() {
   const [links, setLinks] = useState<LinkSummary[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,13 +29,10 @@ export function DashboardPage() {
         setLinks(linkData.links);
         setAnalytics(analyticsData);
       })
-      .catch((caught: unknown) =>
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : "Could not load the overview",
-        ),
-      )
+      .catch((caught: unknown) => {
+        setFailed(true);
+        toastCaught(caught, "Could not load the overview");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -54,7 +51,6 @@ export function DashboardPage() {
           New link
         </Link>
       </div>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <div className="grid gap-3.5 sm:grid-cols-3">
         <Card>
           <CardContent>
@@ -85,7 +81,7 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      {error ? null : (
+      {failed ? null : (
         <Card className="mt-4">
           <CardContent>
             {analytics ? (
@@ -116,7 +112,7 @@ export function DashboardPage() {
                     Loading links…
                   </TableCell>
                 </TableRow>
-              ) : error ? (
+              ) : failed ? (
                 <TableRow>
                   <TableCell colSpan={3} className="text-muted-foreground">
                     Could not load links.

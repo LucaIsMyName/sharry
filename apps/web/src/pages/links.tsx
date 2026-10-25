@@ -5,8 +5,10 @@ import { Link, useNavigate, useParams } from "react-router";
 import {
   applyUtm,
   defaultQrStyle,
+  qrWarnings,
   utmConflicts,
   type QrStyle,
+  type QrWarning,
   type UtmParams,
 } from "@sharry/shared";
 import {
@@ -28,8 +30,8 @@ import { Checkbox } from "../components/ui/checkbox.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { copyText } from "../components/ui/copy.ts";
-import { Field } from "../components/ui/field.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { Field, FieldMessage } from "../components/ui/field.tsx";
+import { toast, toastCaught } from "../components/ui/toast.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -109,7 +111,7 @@ export function LinksPage() {
   const [links, setLinks] = useState<LinkSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const requestId = useRef(0);
@@ -125,13 +127,12 @@ export function LinksPage() {
           if (current !== requestId.current) return;
           setLinks(result.links);
           setTotal(result.total);
-          setError("");
+          setFailed(false);
         })
         .catch((caught: unknown) => {
           if (current !== requestId.current) return;
-          setError(
-            caught instanceof Error ? caught.message : "Could not load links",
-          );
+          setFailed(true);
+          toastCaught(caught, "Could not load links");
         })
         .finally(() => {
           if (current === requestId.current) setLoading(false);
@@ -144,7 +145,6 @@ export function LinksPage() {
     const current = requestId.current;
     const offset = links.length;
     setLoadingMore(true);
-    setError("");
     try {
       const result = await api<{ links: LinkSummary[]; total: number }>(
         `/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=${offset}`,
@@ -152,11 +152,12 @@ export function LinksPage() {
       if (current !== requestId.current) return;
       setLinks((existing) => [...existing, ...result.links]);
       setTotal(result.total);
+      setFailed(false);
     } catch (caught) {
-      if (current === requestId.current)
-        setError(
-          caught instanceof Error ? caught.message : "Could not load links",
-        );
+      if (current === requestId.current) {
+        setFailed(true);
+        toastCaught(caught, "Could not load links");
+      }
     } finally {
       setLoadingMore(false);
     }
@@ -184,7 +185,6 @@ export function LinksPage() {
           placeholder="Slug, title, or destination"
         />
       </Field>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="mt-4 min-w-0">
         <CardContent className="min-w-0">
           <Table className="min-w-full w-max">
@@ -210,7 +210,7 @@ export function LinksPage() {
               ) : links.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-muted-foreground">
-                    {error ? "Could not load links." : "No links match."}
+                    {failed ? "Could not load links." : "No links match."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -351,7 +351,6 @@ export function LinkFormPage() {
   >("302");
   const [utm, setUtm] = useState<UtmParams>(emptyUtm);
   const [redirectDomainId, setRedirectDomainId] = useState(defaultRedirectDomain);
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -363,7 +362,6 @@ export function LinkFormPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       const created = await api<ShortLink>("/api/links", {
@@ -379,9 +377,7 @@ export function LinkFormPage() {
       });
       await navigate(`/links/${created.id}`);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not create the link",
-      );
+      toastCaught(caught, "Could not create the link");
     } finally {
       setPending(false);
     }
@@ -396,7 +392,14 @@ export function LinkFormPage() {
       <Card className="form-column">
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-            <Field label="Destination">
+            <Field
+              label="Destination"
+              info={
+                conflicts.length > 0
+                  ? `Saving will replace ${conflicts.join(", ")} already present on the destination.`
+                  : undefined
+              }
+            >
               <Input
                 value={destinationUrl}
                 onChange={(event) => setDestinationUrl(event.target.value)}
@@ -426,18 +429,11 @@ export function LinkFormPage() {
               {/* <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p> */}
             </Field>
             <UtmFields utm={utm} onChange={setUtm} />
-            {conflicts.length > 0 ? (
-              <Notice tone="error">
-                Saving will replace {conflicts.join(", ")} already present on
-                the destination.
-              </Notice>
-            ) : null}
             {settings ? (
               <p className="text-sm text-muted-foreground">
                 Preview: {previewDestination(destinationUrl, utm)}
               </p>
             ) : null}
-            {error ? <Notice tone="error">{error}</Notice> : null}
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create link"}
             </Button>
@@ -472,8 +468,6 @@ export function LinkDetailPage() {
   const [variants, setVariants] = useState<LinkVariant[]>([]);
   const [trackingVariantId, setTrackingVariantId] = useState(noVariant);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingQr, setSavingQr] = useState(false);
@@ -501,8 +495,6 @@ export function LinkDetailPage() {
     setTrackingVariantId(noVariant);
     setLogoUrl(null);
     setLogoFile(null);
-    setMessage("");
-    setError("");
     void (async () => {
       try {
         const [next, codes, stats, variantData] = await Promise.all([
@@ -528,12 +520,7 @@ export function LinkDetailPage() {
         if (saved) await showQr(saved, () => cancelled);
         else setTrackingVariantId(noVariant);
       } catch (caught) {
-        if (!cancelled)
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Could not load this link",
-          );
+        if (!cancelled) toastCaught(caught, "Could not load this link");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -558,8 +545,6 @@ export function LinkDetailPage() {
 
   async function save(event: FormEvent) {
     event.preventDefault();
-    setError("");
-    setMessage("");
     setSaving(true);
     try {
       const updated = await api<ShortLink>(`/api/links/${id}`, {
@@ -580,21 +565,19 @@ export function LinkDetailPage() {
       setSlug(updated.slug);
       setRedirectDomainId(updated.redirectDomainId ?? defaultRedirectDomain);
       setPassword("");
-      setMessage(
+      toast.success(
         slug.trim()
           ? "Saved. The short URL keeps this slug."
           : "Saved. A random slug replaced the empty one.",
       );
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save");
+      toastCaught(caught, "Could not save");
     } finally {
       setSaving(false);
     }
   }
 
   async function clearPassword() {
-    setError("");
-    setMessage("");
     try {
       const updated = await api<ShortLink>(`/api/links/${id}`, {
         method: "PATCH",
@@ -602,19 +585,14 @@ export function LinkDetailPage() {
       });
       setLink(updated);
       setPassword("");
-      setMessage("Password removed. The short link redirects directly.");
+      toast.success("Password removed. The short link redirects directly.");
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not remove the password",
-      );
+      toastCaught(caught, "Could not remove the password");
     }
   }
 
   async function copyShortUrl() {
     if (!link?.shortUrl) return;
-    setError("");
     try {
       await copyText(link.shortUrl);
       setCopied(true);
@@ -623,24 +601,17 @@ export function LinkDetailPage() {
       copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
     } catch (caught) {
       setCopied(false);
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not copy the short URL",
-      );
+      toastCaught(caught, "Could not copy the short URL");
     }
   }
 
   async function remove() {
-    setError("");
     try {
       await api(`/api/links/${id}`, { method: "DELETE" });
       setConfirmDelete(false);
       await navigate("/links");
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not delete this link",
-      );
+      toastCaught(caught, "Could not delete this link");
     }
   }
 
@@ -673,7 +644,6 @@ export function LinkDetailPage() {
 
   async function createQr(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setSavingQr(true);
     try {
       const variantId =
@@ -709,19 +679,15 @@ export function LinkDetailPage() {
         created,
         ...current.filter((code) => code.id !== created.id),
       ]);
-      setMessage("QR code saved. Downloads use this code’s short URL.");
+      toast.success("QR code saved. Downloads use this code’s short URL.");
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not save the QR code",
-      );
+      toastCaught(caught, "Could not save the QR code");
     } finally {
       setSavingQr(false);
     }
   }
 
   async function removeCenterImage() {
-    setError("");
-    setMessage("");
     if (activeQr?.hasLogo) {
       try {
         await api(`/api/qr/${activeQr.id}/logo`, { method: "DELETE" });
@@ -731,21 +697,21 @@ export function LinkDetailPage() {
           current.map((code) => (code.id === next.id ? next : code)),
         );
       } catch (caught) {
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : "Could not remove the center image",
-        );
+        toastCaught(caught, "Could not remove the center image");
         return;
       }
     }
     setLogoFile(null);
     setLogoUrl(null);
     setLogoInputKey((key) => key + 1);
-    setMessage("Center image removed.");
+    toast.success("Center image removed.");
   }
 
   const conflicts = utmConflicts(destinationUrl, utm);
+  const scanWarnings = qrWarnings(style, Boolean(logoUrl));
+  const scanWarning = (key: QrWarning["key"]) =>
+    scanWarnings.find((warning) => warning.key === key)?.message;
+  const transparentWarning = scanWarning("transparent");
   const previewUrl = link
     ? qrPreviewUrl(link.shortUrl, activeQr?.id ?? null, trackingVariantId)
     : "";
@@ -800,8 +766,6 @@ export function LinkDetailPage() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading link…</p>
       ) : null}
-      {message ? <Notice tone="success">{message}</Notice> : null}
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="form-column">
         <CardContent>
           <form
@@ -809,7 +773,14 @@ export function LinkDetailPage() {
             className="grid gap-3"
             onSubmit={(event) => void save(event)}
           >
-            <Field label="Destination">
+            <Field
+              label="Destination"
+              info={
+                conflicts.length > 0
+                  ? `This will replace ${conflicts.join(", ")} on the destination.`
+                  : undefined
+              }
+            >
               <Input
                 value={destinationUrl}
                 onChange={(event) => setDestinationUrl(event.target.value)}
@@ -885,11 +856,6 @@ export function LinkDetailPage() {
               </Button>
             ) : null}
             <UtmFields utm={utm} onChange={setUtm} />
-            {conflicts.length > 0 ? (
-              <Notice tone="error">
-                This will replace {conflicts.join(", ")} on the destination.
-              </Notice>
-            ) : null}
             <p className="text-sm text-muted-foreground truncate">
               Tracked URL: {previewDestination(destinationUrl, utm)}
             </p>
@@ -956,7 +922,7 @@ export function LinkDetailPage() {
                 />
               </Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Foreground">
+                <Field label="Foreground" info={scanWarning("contrast")}>
                   <Input
                     type="color"
                     value={style.dotsColor}
@@ -994,8 +960,11 @@ export function LinkDetailPage() {
                   }
                 />{" "}
                 Transparent background
+                {transparentWarning ? (
+                  <FieldMessage tone="info" message={transparentWarning} />
+                ) : null}
               </label>
-              <Field label="Center image scale">
+              <Field label="Center image scale" info={scanWarning("imageSize")}>
                 <Input
                   type="number"
                   min="0"
@@ -1010,7 +979,7 @@ export function LinkDetailPage() {
                   }
                 />
               </Field>
-              <Field label="Error correction">
+              <Field label="Error correction" info={scanWarning("errorCorrection")}>
                 <Select
                   value={style.errorCorrectionLevel}
                   options={[...correctionOptions]}
@@ -1022,7 +991,7 @@ export function LinkDetailPage() {
                   {choiceNote(correctionOptions, style.errorCorrectionLevel)}
                 </p>
               </Field>
-              <Field label="Quiet zone">
+              <Field label="Quiet zone" info={scanWarning("margin")}>
                 <Input
                   type="number"
                   min="0"

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import QRCodeStyling from "qr-code-styling";
-import { qrWarnings, type QrStyle } from "@sharry/shared";
-import { Notice } from "./ui/notice.tsx";
+import type { QrStyle } from "@sharry/shared";
 
 export function QrPreview({
   url,
@@ -30,20 +29,12 @@ export function QrPreview({
     }
   }, [url, style, logoUrl]);
 
-  const warnings = qrWarnings(style, Boolean(logoUrl));
   return (
     <div className="space-y-3 gap-3">
       <div
         className="grid min-h-72 place-items-center rounded-2xl bg-white p-3"
         ref={ref}
       />
-      {showNotes
-        ? warnings.map((warning) => (
-            <Notice key={warning} tone="error">
-              {warning}
-            </Notice>
-          ))
-        : null}
       {showNotes ? (
         <p className="text-sm text-muted-foreground">
           JPEG downloads use a solid background because JPEG cannot store

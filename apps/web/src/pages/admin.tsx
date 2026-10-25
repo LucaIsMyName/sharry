@@ -21,7 +21,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog.tsx";
 import { Field } from "../components/ui/field.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toast, toastCaught } from "../components/ui/toast.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -80,7 +80,6 @@ export function AdminUsersPage() {
     role: "user" as "admin" | "user",
   });
   const [showCreatePassword, setShowCreatePassword] = useState(false);
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [passwordFor, setPasswordFor] = useState<AdminUser | null>(null);
   const [nextPassword, setNextPassword] = useState("");
@@ -92,15 +91,12 @@ export function AdminUsersPage() {
   }
   useEffect(() => {
     void load().catch((caught: unknown) =>
-      setError(
-        caught instanceof Error ? caught.message : "Could not load users",
-      ),
+      toastCaught(caught, "Could not load users"),
     );
   }, []);
 
   async function create(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       await api("/api/admin/users", {
@@ -111,9 +107,7 @@ export function AdminUsersPage() {
       setShowCreatePassword(false);
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not create the user",
-      );
+      toastCaught(caught, "Could not create the user");
     } finally {
       setPending(false);
     }
@@ -123,7 +117,6 @@ export function AdminUsersPage() {
     id: string,
     patch: Record<string, unknown>,
   ): Promise<boolean> {
-    setError("");
     try {
       await api(`/api/admin/users/${id}`, {
         method: "PATCH",
@@ -132,9 +125,7 @@ export function AdminUsersPage() {
       await load();
       return true;
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not update the user",
-      );
+      toastCaught(caught, "Could not update the user");
       return false;
     }
   }
@@ -149,17 +140,12 @@ export function AdminUsersPage() {
 
   async function remove() {
     if (!deleteFor) return;
-    setError("");
     try {
       await api(`/api/admin/users/${deleteFor.id}`, { method: "DELETE" });
       setDeleteFor(null);
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not delete the account",
-      );
+      toastCaught(caught, "Could not delete the account");
     }
   }
 
@@ -219,7 +205,7 @@ export function AdminUsersPage() {
                   variant="outline"
                   onClick={() =>
                     void copyText(form.password).catch(() =>
-                      setError("Could not copy the password"),
+                      toast.error("Could not copy the password"),
                     )
                   }
                 >
@@ -237,7 +223,6 @@ export function AdminUsersPage() {
                 onValueChange={(role) => setForm({ ...form, role })}
               />
             </Field>
-            {error ? <Notice tone="error">{error}</Notice> : null}
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create account"}
             </Button>
@@ -359,7 +344,7 @@ export function AdminUsersPage() {
               onClick={() =>
                 void copyText(nextPassword)
                   .then(() => setCopied(true))
-                  .catch(() => setError("Could not copy the password"))
+                  .catch(() => toast.error("Could not copy the password"))
               }
             >
               {copied ? "Copied" : "Copy password"}
@@ -397,27 +382,25 @@ export function AdminSettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [smtpPassword, setSmtpPassword] = useState("");
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState("");
+  const [prefixError, setPrefixError] = useState("");
+  const [loaded, setLoaded] = useState(false);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
     void api<Settings>("/api/admin/settings")
       .then(setSettings)
       .catch((caught: unknown) =>
-        setError(
-          caught instanceof Error ? caught.message : "Could not load settings",
-        ),
-      );
+        toastCaught(caught, "Could not load settings"),
+      )
+      .finally(() => setLoaded(true));
   }, []);
 
   async function save(extra: { confirmPrefixChange?: boolean } = {}) {
     if (!settings) return;
-    setError("");
-    setSaved("");
-    const prefixError = validatePrefix(settings.shortUrlPrefix);
-    if (prefixError) {
-      setError(prefixError);
+    setPrefixError("");
+    const invalidPrefix = validatePrefix(settings.shortUrlPrefix);
+    if (invalidPrefix) {
+      setPrefixError(invalidPrefix);
       return;
     }
     setPending(true);
@@ -445,24 +428,26 @@ export function AdminSettingsPage() {
       setSettings(next);
       setSmtpPassword("");
       setConfirm(false);
-      setSaved("Settings saved.");
+      toast.success("Settings saved.");
     } catch (caught) {
       const apiError = caught as { code?: string; message?: string };
       if (apiError.code === "confirm_prefix") setConfirm(true);
-      else
-        setError(
-          caught instanceof Error ? caught.message : "Could not save settings",
-        );
+      else toastCaught(caught, "Could not save settings");
     } finally {
       setPending(false);
     }
   }
 
   if (!settings)
-    return error ? (
-      <Notice tone="error">{error}</Notice>
-    ) : (
-      <p className="text-sm text-muted-foreground">Loading settings…</p>
+    return (
+      <section className="grid gap-4">
+        <h1 className="font-heading text-4xl font-medium tracking-tight">
+          Settings
+        </h1>
+        {loaded ? null : (
+          <p className="text-sm text-muted-foreground">Loading settings…</p>
+        )}
+      </section>
     );
   return (
     <section className="grid gap-4">
@@ -486,15 +471,16 @@ export function AdminSettingsPage() {
         <Card>
           <CardContent className="grid gap-3">
             <h2 className="text-lg font-medium">Links</h2>
-            <Field label="Public prefix">
+            <Field label="Public prefix" error={prefixError}>
               <Input
                 value={settings.shortUrlPrefix}
-                onChange={(event) =>
+                onChange={(event) => {
+                  setPrefixError("");
                   setSettings({
                     ...settings,
                     shortUrlPrefix: event.target.value,
-                  })
-                }
+                  });
+                }}
               />
             </Field>
             <Toggle
@@ -650,8 +636,6 @@ export function AdminSettingsPage() {
             </p>
           </CardContent>
         </Card>
-        {saved ? <Notice tone="success">{saved}</Notice> : null}
-        {error ? <Notice tone="error">{error}</Notice> : null}
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save settings"}
         </Button>
@@ -700,17 +684,12 @@ function smtpStatus(settings: Settings): string {
 
 export function AdminAuditPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     void api<{ entries: AuditEntry[] }>("/api/admin/audit")
       .then((result) => setEntries(result.entries))
       .catch((caught: unknown) =>
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : "Could not load the audit log",
-        ),
+        toastCaught(caught, "Could not load the audit log"),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -719,7 +698,6 @@ export function AdminAuditPage() {
       <h1 className="font-heading text-4xl font-medium tracking-tight">
         Audit
       </h1>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="min-w-0">
         <CardContent className="min-w-0">
           {loading ? (

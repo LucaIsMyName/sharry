@@ -20,6 +20,9 @@ describe('qr svg', () => {
 
   it('warns when a large logo is paired with low error correction', () => {
     const warnings = qrWarnings({ ...defaultQrStyle, imageSize: 0.4, errorCorrectionLevel: 'L' }, true)
-    expect(warnings.length).toBeGreaterThan(0)
+    expect(warnings.map((warning) => warning.key)).toEqual(
+      expect.arrayContaining(['imageSize', 'errorCorrection']),
+    )
+    expect(warnings.find((warning) => warning.key === 'imageSize')?.message).toContain('center image')
   })
 })

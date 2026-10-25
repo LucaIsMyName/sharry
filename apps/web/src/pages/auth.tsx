@@ -14,18 +14,16 @@ import { Card, CardContent } from "../components/ui/card.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toast, toastCaught } from "../components/ui/toast.tsx";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       const result = await api<{ scope: string }>("/api/auth/login", {
@@ -38,7 +36,7 @@ export function LoginPage() {
       else if (result.scope === "mfa_challenge") await navigate("/login/mfa");
       else await navigate("/");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not sign in");
+      toastCaught(caught, "Could not sign in");
     } finally {
       setPending(false);
     }
@@ -67,7 +65,6 @@ export function LoginPage() {
             required
           />
         </Field>
-        {error ? <Notice tone="error">{error}</Notice> : null}
         <Button type="submit" disabled={pending}>
           {pending ? "Signing in…" : "Continue"}
         </Button>
@@ -87,7 +84,6 @@ export function LoginPage() {
 export function MfaPage() {
   const navigate = useNavigate();
   const [code, setCode] = useState("");
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -100,9 +96,7 @@ export function MfaPage() {
       });
       await navigate("/");
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "That code is not valid",
-      );
+      toastCaught(caught, "That code is not valid");
     } finally {
       setPending(false);
     }
@@ -123,7 +117,6 @@ export function MfaPage() {
             required
           />
         </Field>
-        {error ? <Notice tone="error">{error}</Notice> : null}
         <Button type="submit" disabled={pending}>
           {pending ? "Checking…" : "Verify"}
         </Button>
@@ -137,7 +130,6 @@ export function PasswordPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -152,11 +144,7 @@ export function PasswordPage() {
       else if (result.scope === "mfa_challenge") await navigate("/login/mfa");
       else await navigate("/");
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not change the password",
-      );
+      toastCaught(caught, "Could not change the password");
     } finally {
       setPending(false);
     }
@@ -196,7 +184,6 @@ export function PasswordPage() {
         >
           Generate password
         </Button>
-        {error ? <Notice tone="error">{error}</Notice> : null}
         <Button type="submit" disabled={pending}>
           {pending ? "Updating…" : "Update password"}
         </Button>
@@ -210,9 +197,6 @@ export function AccountPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [avatarError, setAvatarError] = useState("");
   const [avatarKey, setAvatarKey] = useState(0);
   const [setup, setSetup] = useState<{
     secret: string;
@@ -224,7 +208,6 @@ export function AccountPage() {
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [turningOff, setTurningOff] = useState(false);
-  const [mfaError, setMfaError] = useState("");
 
   useEffect(() => {
     void api<Me>("/api/auth/me").then(setMe);
@@ -232,8 +215,6 @@ export function AccountPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
-    setMessage("");
     setPending(true);
     try {
       await api("/api/auth/change-password", {
@@ -242,13 +223,9 @@ export function AccountPage() {
       });
       setCurrentPassword("");
       setNewPassword("");
-      setMessage("Password updated.");
+      toast.success("Password updated.");
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not change the password",
-      );
+      toastCaught(caught, "Could not change the password");
     } finally {
       setPending(false);
     }
@@ -260,7 +237,6 @@ export function AccountPage() {
   }
 
   async function uploadAvatar(file: File) {
-    setAvatarError("");
     const body = new FormData();
     body.set("file", file);
     try {
@@ -268,21 +244,16 @@ export function AccountPage() {
       setAvatarKey((key) => key + 1);
       await refreshAccount();
     } catch (caught) {
-      setAvatarError(
-        caught instanceof Error ? caught.message : "Could not save the photo",
-      );
+      toastCaught(caught, "Could not save the photo");
     }
   }
 
   async function removeAvatar() {
-    setAvatarError("");
     try {
       await api("/api/auth/avatar", { method: "DELETE" });
       await refreshAccount();
     } catch (caught) {
-      setAvatarError(
-        caught instanceof Error ? caught.message : "Could not remove the photo",
-      );
+      toastCaught(caught, "Could not remove the photo");
     }
   }
 
@@ -330,7 +301,6 @@ export function AccountPage() {
                 Remove photo
               </Button>
             ) : null}
-            {avatarError ? <Notice tone="error">{avatarError}</Notice> : null}
           </div>
         </CardContent>
       </Card>
@@ -357,8 +327,6 @@ export function AccountPage() {
                 required
               />
             </Field>
-            {message ? <Notice tone="success">{message}</Notice> : null}
-            {error ? <Notice tone="error">{error}</Notice> : null}
             <Button type="submit" disabled={pending}>
               {pending ? "Updating…" : "Update password"}
             </Button>
@@ -389,8 +357,6 @@ export function AccountPage() {
               className="grid gap-3"
               onSubmit={(event) => {
                 event.preventDefault();
-                setMfaError("");
-                setMessage("");
                 setTurningOff(true);
                 void api("/api/auth/mfa/disable", {
                   method: "POST",
@@ -398,14 +364,13 @@ export function AccountPage() {
                 })
                   .then(async () => {
                     setDisablePassword("");
-                    setMessage("Two-factor authentication is off.");
+                    toast.success("Two-factor authentication is off.");
                     setMe(await api<Me>("/api/auth/me"));
                   })
                   .catch((caught: unknown) =>
-                    setMfaError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Could not turn off two-factor authentication",
+                    toastCaught(
+                      caught,
+                      "Could not turn off two-factor authentication",
                     ),
                   )
                   .finally(() => setTurningOff(false));
@@ -420,7 +385,6 @@ export function AccountPage() {
                   required
                 />
               </Field>
-              {mfaError ? <Notice tone="error">{mfaError}</Notice> : null}
               <Button type="submit" disabled={turningOff}>
                 {turningOff ? "Turning off…" : "Turn off"}
               </Button>
@@ -439,11 +403,7 @@ export function AccountPage() {
                     )
                       .then(setSetup)
                       .catch((caught: unknown) =>
-                        setMfaError(
-                          caught instanceof Error
-                            ? caught.message
-                            : "Could not start setup",
-                        ),
+                        toastCaught(caught, "Could not start setup"),
                       )
                   }
                 >
@@ -459,7 +419,6 @@ export function AccountPage() {
                   onCode={setCode}
                   onConfirm={(event) => {
                     event.preventDefault();
-                    setMfaError("");
                     setConfirming(true);
                     void api<{ recoveryCodes: string[] }>(
                       "/api/auth/mfa/confirm",
@@ -470,17 +429,12 @@ export function AccountPage() {
                         setMe(await api<Me>("/api/auth/me"));
                       })
                       .catch((caught: unknown) =>
-                        setMfaError(
-                          caught instanceof Error
-                            ? caught.message
-                            : "That code is not valid",
-                        ),
+                        toastCaught(caught, "That code is not valid"),
                       )
                       .finally(() => setConfirming(false));
                   }}
                 />
               ) : null}
-              {mfaError ? <Notice tone="error">{mfaError}</Notice> : null}
             </>
           )}
         </CardContent>
@@ -497,7 +451,6 @@ export function EnrollPage() {
   } | null>(null);
   const [code, setCode] = useState("");
   const [recovery, setRecovery] = useState<string[] | null>(null);
-  const [error, setError] = useState("");
   const [mailConfigured, setMailConfigured] = useState<boolean | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -508,13 +461,10 @@ export function EnrollPage() {
   }, []);
 
   async function begin() {
-    setError("");
     try {
       setSetup(await api("/api/auth/mfa/setup", { method: "POST" }));
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not start setup",
-      );
+      toastCaught(caught, "Could not start setup");
     }
   }
 
@@ -531,9 +481,7 @@ export function EnrollPage() {
       );
       setRecovery(result.recoveryCodes);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "That code is not valid",
-      );
+      toastCaught(caught, "That code is not valid");
     } finally {
       setConfirming(false);
     }
@@ -574,7 +522,6 @@ export function EnrollPage() {
               onConfirm={(event) => void confirm(event)}
             />
           ) : null}
-          {error ? <Notice tone="error">{error}</Notice> : null}
         </>
       )}
     </AuthShell>
@@ -586,28 +533,21 @@ export function ResetPage() {
   const token = params.get("token") ?? "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   async function requestReset(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       await api("/api/auth/forgot-password", {
         method: "POST",
         body: JSON.stringify({ email }),
       });
-      setMessage(
+      toast.success(
         "If that account can receive mail, a reset link is on its way.",
       );
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not send the reset link",
-      );
+      toastCaught(caught, "Could not send the reset link");
     } finally {
       setPending(false);
     }
@@ -615,20 +555,15 @@ export function ResetPage() {
 
   async function reset(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       await api("/api/auth/reset-password", {
         method: "POST",
         body: JSON.stringify({ token, newPassword: password }),
       });
-      setMessage("Password updated. Sign in with the new password.");
+      toast.success("Password updated. Sign in with the new password.");
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not reset the password",
-      );
+      toastCaught(caught, "Could not reset the password");
     } finally {
       setPending(false);
     }
@@ -672,8 +607,6 @@ export function ResetPage() {
           </Button>
         </form>
       )}
-      {message ? <Notice tone="success">{message}</Notice> : null}
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <p>
         <Link to="/login">Back to sign in</Link>
       </p>
@@ -683,7 +616,6 @@ export function ResetPage() {
 
 function RecoveryCodes({ codes }: { codes: string[] }) {
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState("");
   return (
     <div className="grid gap-3">
       <p>Save these recovery codes somewhere private. Each code works once.</p>
@@ -697,17 +629,13 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
           </code>
         ))}
       </div>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <Button
         type="button"
         variant="outline"
         onClick={() =>
           void copyText(codes.join("\n"))
-            .then(() => {
-              setCopied(true);
-              setError("");
-            })
-            .catch(() => setError("Could not copy the recovery codes"))
+            .then(() => setCopied(true))
+            .catch(() => toast.error("Could not copy the recovery codes"))
         }
       >
         {copied ? "Copied" : "Copy codes"}
@@ -732,7 +660,6 @@ function AuthenticatorSetup({
   pending: boolean;
 }) {
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState("");
   return (
     <form className="grid gap-3" onSubmit={onConfirm}>
       <p>Add this secret to your authenticator app.</p>
@@ -740,17 +667,13 @@ function AuthenticatorSetup({
       <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">
         {secret}
       </p>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <Button
         type="button"
         variant="outline"
         onClick={() =>
           void copyText(secret)
-            .then(() => {
-              setCopied(true);
-              setError("");
-            })
-            .catch(() => setError("Could not copy the secret"))
+            .then(() => setCopied(true))
+            .catch(() => toast.error("Could not copy the secret"))
         }
       >
         {copied ? "Copied" : "Copy secret"}

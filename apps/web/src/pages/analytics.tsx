@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { api, type Analytics, type LinkStat } from "../api.ts";
 import { Button } from "../components/ui/button.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toastCaught } from "../components/ui/toast.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import {
   Table,
@@ -28,13 +28,11 @@ export function AnalyticsPage() {
   const linkId = params.get("link");
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [links, setLinks] = useState<LinkStat[]>([]);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const selected = links.find((link) => link.id === linkId) ?? null;
 
   useEffect(() => {
     let cancelled = false;
-    setError("");
     setAnalytics(null);
     setLoading(true);
     const overview = api<Analytics & { links: LinkStat[] }>("/api/analytics")
@@ -44,12 +42,7 @@ export function AnalyticsPage() {
         if (!linkId) setAnalytics(combined);
       })
       .catch((caught: unknown) => {
-        if (!cancelled)
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Could not load analytics",
-          );
+        if (!cancelled) toastCaught(caught, "Could not load analytics");
       });
     if (linkId) {
       void api<Analytics>(`/api/links/${linkId}/analytics`)
@@ -57,12 +50,7 @@ export function AnalyticsPage() {
           if (!cancelled) setAnalytics(result);
         })
         .catch((caught: unknown) => {
-          if (!cancelled)
-            setError(
-              caught instanceof Error
-                ? caught.message
-                : "Could not load this link",
-            );
+          if (!cancelled) toastCaught(caught, "Could not load this link");
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -101,7 +89,6 @@ export function AnalyticsPage() {
           </Button>
         ) : null}
       </div>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       {loading && !analytics ? (
         <p className="text-sm text-muted-foreground">Loading analytics…</p>
       ) : null}

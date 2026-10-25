@@ -61,25 +61,48 @@ export function parseQrStyle(value: unknown): QrStyle {
 
 export const defaultQrStyle: QrStyle = parseQrStyle({})
 
-export function qrWarnings(style: QrStyle, hasLogo: boolean): string[] {
-  const warnings: string[] = []
+export type QrWarningKey = 'contrast' | 'imageSize' | 'errorCorrection' | 'margin' | 'transparent'
+
+export type QrWarning = { key: QrWarningKey; message: string }
+
+export function qrWarnings(style: QrStyle, hasLogo: boolean): QrWarning[] {
+  const warnings: QrWarning[] = []
   const background = style.backgroundTransparent ? '#ffffff' : style.backgroundColor
   if (contrastRatio(style.dotsColor, background) < 3) {
-    warnings.push('The foreground and background are too similar to scan reliably.')
+    warnings.push({
+      key: 'contrast',
+      message: 'The foreground and background are too similar to scan reliably.',
+    })
   }
   if (hasLogo && style.imageSize > 0.3) {
-    warnings.push('The center image is large and may make the code hard to scan.')
+    warnings.push({
+      key: 'imageSize',
+      message: 'The center image is large and may make the code hard to scan.',
+    })
   }
   if (hasLogo && style.errorCorrectionLevel !== 'H') {
-    warnings.push('Use high error correction when a center image is shown.')
+    warnings.push({
+      key: 'errorCorrection',
+      message: 'Use high error correction when a center image is shown.',
+    })
   }
   if (style.margin < 2) {
-    warnings.push('Increase the quiet zone so scanners can find the code.')
+    warnings.push({
+      key: 'margin',
+      message: 'Increase the quiet zone so scanners can find the code.',
+    })
   }
   if (style.backgroundTransparent) {
-    warnings.push('Transparent backgrounds fail on dark surfaces. Test before printing.')
+    warnings.push({
+      key: 'transparent',
+      message: 'Transparent backgrounds fail on dark surfaces. Test before printing.',
+    })
   }
   return warnings
+}
+
+export function qrWarningMessages(style: QrStyle, hasLogo: boolean): string[] {
+  return qrWarnings(style, hasLogo).map((warning) => warning.message)
 }
 
 export function renderQrSvg(value: string, style: QrStyle, imageHref?: string | null): string {

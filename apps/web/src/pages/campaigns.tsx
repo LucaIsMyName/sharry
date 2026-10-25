@@ -13,7 +13,7 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toastCaught } from "../components/ui/toast.tsx";
 import { Textarea } from "../components/ui/textarea.tsx";
 
 type Campaign = {
@@ -30,7 +30,6 @@ export function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
 
@@ -42,16 +41,13 @@ export function CampaignsPage() {
   useEffect(() => {
     void load()
       .catch((caught: unknown) =>
-        setError(
-          caught instanceof Error ? caught.message : "Could not load campaigns",
-        ),
+        toastCaught(caught, "Could not load campaigns"),
       )
       .finally(() => setLoading(false));
   }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       await api("/api/campaigns", {
@@ -62,11 +58,7 @@ export function CampaignsPage() {
       setDescription("");
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not create the campaign",
-      );
+      toastCaught(caught, "Could not create the campaign");
     } finally {
       setPending(false);
     }
@@ -100,7 +92,6 @@ export function CampaignsPage() {
                 onChange={(event) => setDescription(event.target.value)}
               />
             </Field>
-            {error ? <Notice tone="error">{error}</Notice> : null}
             <Button type="submit" disabled={pending}>
               {pending ? "Creating…" : "Create campaign"}
             </Button>
@@ -162,7 +153,6 @@ export function CampaignDetailPage() {
   const [copiedId, setCopiedId] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [variantToDelete, setVariantToDelete] = useState<Variant | null>(null);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [linkQuery, setLinkQuery] = useState("");
   const [linkTotal, setLinkTotal] = useState(0);
@@ -224,25 +214,20 @@ export function CampaignDetailPage() {
     setCampaignName("");
     setCampaignDescription("");
     setLinkQuery("");
-    setError("");
     setLoading(true);
     void loadCampaign().catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : "Could not load");
+      toastCaught(caught, "Could not load");
       setLoading(false);
     });
     void loadPicker("").catch((caught: unknown) =>
-      setError(
-        caught instanceof Error ? caught.message : "Could not load links",
-      ),
+      toastCaught(caught, "Could not load links"),
     );
   }, [id]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
       void loadPicker(linkQuery).catch((caught: unknown) =>
-        setError(
-          caught instanceof Error ? caught.message : "Could not load links",
-        ),
+        toastCaught(caught, "Could not load links"),
       );
     }, 200);
     return () => clearTimeout(handle);
@@ -256,7 +241,6 @@ export function CampaignDetailPage() {
 
   async function saveCampaign(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setSavingCampaign(true);
     try {
       await api(`/api/campaigns/${id}`, {
@@ -268,34 +252,24 @@ export function CampaignDetailPage() {
       });
       await loadCampaign();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not save the campaign",
-      );
+      toastCaught(caught, "Could not save the campaign");
     } finally {
       setSavingCampaign(false);
     }
   }
 
   async function removeCampaign() {
-    setError("");
     try {
       await api(`/api/campaigns/${id}`, { method: "DELETE" });
       setConfirmDelete(false);
       await navigate("/campaigns");
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not delete the campaign",
-      );
+      toastCaught(caught, "Could not delete the campaign");
     }
   }
 
   async function submitVariant(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setSavingVariant(true);
     try {
       if (editingId) {
@@ -312,9 +286,7 @@ export function CampaignDetailPage() {
       resetVariantForm();
       await loadCampaign();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not save the variant",
-      );
+      toastCaught(caught, "Could not save the variant");
     } finally {
       setSavingVariant(false);
     }
@@ -325,30 +297,23 @@ export function CampaignDetailPage() {
     setName(variant.name);
     setLinkId(variant.linkId);
     setUtm(variant.utm);
-    setError("");
   }
 
   async function removeVariant() {
     if (!variantToDelete) return;
-    setError("");
     try {
       await api(`/api/variants/${variantToDelete.id}`, { method: "DELETE" });
       if (editingId === variantToDelete.id) resetVariantForm();
       setVariantToDelete(null);
       await loadCampaign();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not delete the variant",
-      );
+      toastCaught(caught, "Could not delete the variant");
     }
   }
 
   async function copyVariant(variant: Variant) {
     const link = knownLinks.find((item) => item.id === variant.linkId);
     if (!link) return;
-    setError("");
     try {
       await copyText(variantUrl(link.shortUrl, variant.id));
       setCopiedId(variant.id);
@@ -357,11 +322,7 @@ export function CampaignDetailPage() {
         2000,
       );
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not copy the variant URL",
-      );
+      toastCaught(caught, "Could not copy the variant URL");
     }
   }
 
@@ -386,7 +347,6 @@ export function CampaignDetailPage() {
           <Trash2 size={16} /> Delete
         </Button>
       </div>
-      {error ? <Notice tone="error">{error}</Notice> : null}
       <Card className="form-column">
         <CardContent>
           <form

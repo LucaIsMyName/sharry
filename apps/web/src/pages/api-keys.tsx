@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "../components/ui/dialog.tsx";
 import { Field } from "../components/ui/field.tsx";
-import { Notice } from "../components/ui/notice.tsx";
+import { toast, toastCaught } from "../components/ui/toast.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -51,7 +51,6 @@ export function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [name, setName] = useState("");
   const [userId, setUserId] = useState("");
-  const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [created, setCreated] = useState<CreatedKey | null>(null);
   const [copied, setCopied] = useState(false);
@@ -77,15 +76,12 @@ export function ApiKeysPage() {
 
   useEffect(() => {
     void load().catch((caught: unknown) =>
-      setError(
-        caught instanceof Error ? caught.message : "Could not load API keys",
-      ),
+      toastCaught(caught, "Could not load API keys"),
     );
   }, []);
 
   async function create(event: FormEvent) {
     event.preventDefault();
-    setError("");
     setPending(true);
     try {
       const key = await api<CreatedKey>("/api/admin/api-keys", {
@@ -97,11 +93,7 @@ export function ApiKeysPage() {
       setCreated(key);
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not create the API key",
-      );
+      toastCaught(caught, "Could not create the API key");
     } finally {
       setPending(false);
     }
@@ -109,17 +101,12 @@ export function ApiKeysPage() {
 
   async function revoke() {
     if (!revokeId) return;
-    setError("");
     try {
       await api(`/api/admin/api-keys/${revokeId}/revoke`, { method: "POST" });
       setRevokeId(null);
       await load();
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not revoke the API key",
-      );
+      toastCaught(caught, "Could not revoke the API key");
     }
   }
 
@@ -129,7 +116,7 @@ export function ApiKeysPage() {
       await copyText(created.secret);
       setCopied(true);
     } catch {
-      setError("Could not copy the key");
+      toast.error("Could not copy the key");
     }
   }
 
@@ -166,7 +153,6 @@ export function ApiKeysPage() {
                 placeholder="Choose a user"
               />
             </Field>
-            {error ? <Notice tone="error">{error}</Notice> : null}
             <Button type="submit" disabled={!userId || pending}>
               {pending ? "Creating…" : "Create key"}
             </Button>

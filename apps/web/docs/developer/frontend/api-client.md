@@ -4,7 +4,7 @@
 
 Pages call `api('/api/links')` and similar paths. They do not send API keys. External programs use the bearer token documented under User, API keys, and the API reference.
 
-A non-OK response reads the JSON `error` field when the body is JSON, and throws `ApiError`. Callers catch that error and show it in a `Notice`. Network failures throw the underlying `fetch` error. An empty 204 response returns `undefined`.
+A non-OK response reads the JSON `error` field when the body is JSON, and throws `ApiError`. Callers catch that error and show the message in a toast. A message that belongs to one field is a tooltip beside that field. Network failures throw the underlying `fetch` error. An empty 204 response returns `undefined`.
 
 The client does not attach `Authorization`. A dashboard request that needs a user is authenticated only by `sharry_session`. That is why account routes can ignore bearer tokens without the UI having a second credential.
 
