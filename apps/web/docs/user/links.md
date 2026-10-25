@@ -28,7 +28,7 @@ Pause sets the status to disabled. A paused link does not redirect. Switch it ba
 
 A link can require a password before it redirects. Visitors must enter this password before the short link redirects. The password is stored as a hash. Leave the field blank on a later edit to keep the saved password. Clearing it removes the requirement.
 
-Save link is the only save on the editor. It stores the destination, slug, title, description, redirect domain, redirect type, expiry, password, and UTM fields together.
+Save link is in the page header and again at the end of the form. Both buttons store the destination, slug, title, description, redirect domain, redirect type, expiry, password, and UTM fields together. The QR code has its own save.
 
 ## Redirects
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import { Link } from "react-router";
 import { api, type Analytics, type LinkSummary } from "../api.ts";
 import { buttonVariants } from "../components/ui/button.tsx";
@@ -47,8 +48,8 @@ export function DashboardPage() {
             Clicks stay attached to the short link when the destination changes.
           </p>
         </div>
-        <Link className={buttonVariants()} to="/links/new">
-          New link
+        <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+          <Plus /> New link
         </Link>
       </div>
       <div className="grid gap-3.5 sm:grid-cols-3">

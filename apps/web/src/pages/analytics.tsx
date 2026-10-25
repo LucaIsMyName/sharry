@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import {
   CartesianGrid,
@@ -84,8 +85,13 @@ export function AnalyticsPage() {
           </p>
         </div>
         {linkId ? (
-          <Button variant="outline" type="button" onClick={() => setParams({})}>
-            All links
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            onClick={() => setParams({})}
+          >
+            <ArrowLeft /> All links
           </Button>
         ) : null}
       </div>

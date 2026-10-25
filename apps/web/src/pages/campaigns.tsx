@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Check, Copy, Trash2 } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { UtmParams } from "@sharry/shared";
 import { api, type ShortLink } from "../api.ts";
@@ -70,13 +70,13 @@ export function CampaignsPage() {
         <h1 className="font-heading text-4xl font-medium tracking-tight">
           Campaigns
         </h1>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+        <p className="mt-1.5 text-sm text-muted-foreground">
           A campaign groups tracked copies of your short links. Each variant
           keeps the same slug and adds its own UTM values. Share it with{" "}
           <span className="font-mono">?v=</span> or attach it to a QR code.
         </p>
       </div>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
             <Field label="Name">
@@ -93,7 +93,7 @@ export function CampaignsPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              {pending ? "Creating…" : "Create campaign"}
+              <Plus /> {pending ? "Creating…" : "Create campaign"}
             </Button>
           </form>
         </CardContent>
@@ -334,22 +334,34 @@ export function CampaignDetailPage() {
           <h1 className="font-heading text-4xl font-medium tracking-tight">
             {loading ? "Loading campaign…" : (campaign?.name ?? "Campaign")}
           </h1>
-          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             A variant is the same short link with extra UTM values. Blank fields
             keep the UTM values saved on the link.
           </p>
         </div>
-        <Button
-          variant="destructive"
-          type="button"
-          onClick={() => setConfirmDelete(true)}
-        >
-          <Trash2 size={16} /> Delete
-        </Button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            type="submit"
+            size="sm"
+            form="campaign-editor"
+            disabled={savingCampaign || !campaign}
+          >
+            <Save /> {savingCampaign ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 /> Delete
+          </Button>
+        </div>
       </div>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form
+            id="campaign-editor"
             className="grid gap-3"
             onSubmit={(event) => void saveCampaign(event)}
           >
@@ -367,12 +379,12 @@ export function CampaignDetailPage() {
               />
             </Field>
             <Button type="submit" disabled={savingCampaign}>
-              {savingCampaign ? "Saving…" : "Save campaign"}
+              <Save /> {savingCampaign ? "Saving…" : "Save campaign"}
             </Button>
           </form>
         </CardContent>
       </Card>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form
             className="grid gap-3"
@@ -424,6 +436,7 @@ export function CampaignDetailPage() {
             <UtmFields utm={utm} onChange={setUtm} />
             <div className="flex flex-wrap items-center gap-2.5">
               <Button type="submit" disabled={savingVariant}>
+                {editingId ? <Save /> : <Plus />}{" "}
                 {savingVariant
                   ? "Saving…"
                   : editingId
@@ -436,7 +449,7 @@ export function CampaignDetailPage() {
                   type="button"
                   onClick={resetVariantForm}
                 >
-                  Cancel
+                  <X /> Cancel
                 </Button>
               ) : null}
             </div>
@@ -460,33 +473,36 @@ export function CampaignDetailPage() {
                       <span className="font-medium">{variant.name}</span>
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => editVariant(variant)}
                       >
-                        Edit
+                        <Pencil /> Edit
                       </Button>
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         disabled={!url}
                         onClick={() => void copyVariant(variant)}
                       >
                         {copiedId === variant.id ? (
                           <>
-                            <Check size={16} /> Copied
+                            <Check /> Copied
                           </>
                         ) : (
                           <>
-                            <Copy size={16} /> Copy
+                            <Copy /> Copy
                           </>
                         )}
                       </Button>
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => setVariantToDelete(variant)}
                       >
-                        Delete
+                        <Trash2 /> Delete
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">

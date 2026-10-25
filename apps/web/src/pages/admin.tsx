@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import {
+  Check,
+  Copy,
+  Download,
+  KeyRound,
+  Plus,
+  Save,
+  Shuffle,
+  Trash2,
+  UserCheck,
+  UserX,
+} from "lucide-react";
+import {
   defaultQrStyle,
   generatePassword,
   validatePrefix,
@@ -154,7 +166,7 @@ export function AdminUsersPage() {
       <h1 className="font-heading text-4xl font-medium tracking-tight">
         Users
       </h1>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Username">
@@ -197,7 +209,7 @@ export function AdminUsersPage() {
                   setShowCreatePassword(true);
                 }}
               >
-                Generate password
+                <Shuffle /> Generate password
               </Button>
               {showCreatePassword && form.password ? (
                 <Button
@@ -209,7 +221,7 @@ export function AdminUsersPage() {
                     )
                   }
                 >
-                  Copy password
+                  <Copy /> Copy password
                 </Button>
               ) : null}
             </div>
@@ -224,7 +236,7 @@ export function AdminUsersPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              {pending ? "Creating…" : "Create account"}
+              <Plus /> {pending ? "Creating…" : "Create account"}
             </Button>
           </form>
         </CardContent>
@@ -267,6 +279,7 @@ export function AdminUsersPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => {
                           setPasswordFor(user);
@@ -274,23 +287,26 @@ export function AdminUsersPage() {
                           setCopied(false);
                         }}
                       >
-                        Set password
+                        <KeyRound /> Set password
                       </Button>
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() =>
                           void update(user.id, { isActive: !user.isActive })
                         }
                       >
+                        {user.isActive ? <UserX /> : <UserCheck />}{" "}
                         {user.isActive ? "Deactivate" : "Activate"}
                       </Button>
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => setDeleteFor(user)}
                       >
-                        Delete
+                        <Trash2 /> Delete
                       </Button>
                     </div>
                   </TableCell>
@@ -335,7 +351,7 @@ export function AdminUsersPage() {
                 setCopied(false);
               }}
             >
-              Generate password
+              <Shuffle /> Generate password
             </Button>
             <Button
               type="button"
@@ -347,7 +363,15 @@ export function AdminUsersPage() {
                   .catch(() => toast.error("Could not copy the password"))
               }
             >
-              {copied ? "Copied" : "Copy password"}
+              {copied ? (
+                <>
+                  <Check /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy /> Copy password
+                </>
+              )}
             </Button>
           </div>
           <DialogFooter className="border-0 bg-transparent sm:justify-start">
@@ -356,7 +380,7 @@ export function AdminUsersPage() {
               disabled={nextPassword.length < 12}
               onClick={() => void savePassword()}
             >
-              Save password
+              <Save /> Save password
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -462,7 +486,7 @@ export function AdminSettingsPage() {
         </p>
       </div>
       <form
-        className="form-column grid gap-4"
+        className="grid gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           void save();
@@ -637,7 +661,7 @@ export function AdminSettingsPage() {
           </CardContent>
         </Card>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save settings"}
+          <Save /> {pending ? "Saving…" : "Save settings"}
         </Button>
       </form>
       <div className="flex flex-wrap items-center gap-2.5">
@@ -645,13 +669,13 @@ export function AdminSettingsPage() {
           className={buttonVariants({ variant: "outline" })}
           href="/api/admin/export/links.csv"
         >
-          Export links
+          <Download /> Export links
         </a>
         <a
           className={buttonVariants({ variant: "outline" })}
           href="/api/admin/export/clicks.csv"
         >
-          Export clicks
+          <Download /> Export clicks
         </a>
       </div>
       <ConfirmDialog

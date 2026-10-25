@@ -86,9 +86,10 @@
 }
 
 @layer components {
-  .form-column {
+  .page {
     width: 100%;
-    max-width: 45rem;
+    min-width: 0;
+    max-width: 66rem;
   }
 }
 

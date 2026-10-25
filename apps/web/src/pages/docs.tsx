@@ -92,7 +92,7 @@ export function DocsPage() {
           <DocLink to="/docs/api">Reference</DocLink>
         </div>
       </nav>
-      <article className="min-w-0 max-w-3xl">
+      <article className="min-w-0">
         {slug === "api" ? (
           <ApiReference />
         ) : page ? (

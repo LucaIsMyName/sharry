@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { Check, Copy, ExternalLink, Trash2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  ExternalLink,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   applyUtm,
@@ -32,6 +40,7 @@ import { Select } from "../components/ui/choice-select.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Field, FieldMessage } from "../components/ui/field.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
+import { ImageUpload } from "../components/ui/image-upload.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -174,8 +183,8 @@ export function LinksPage() {
             The slug stays put when you edit where it goes.
           </p>
         </div>
-        <Link className={buttonVariants()} to="/links/new">
-          New link
+        <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+          <Plus /> New link
         </Link>
       </div>
       <Field label="Search">
@@ -252,7 +261,7 @@ export function LinksPage() {
                       <a
                         className={buttonVariants({
                           variant: "outline",
-                          size: "icon",
+                          size: "icon-sm",
                         })}
                         href={link.shortUrl}
                         target="_blank"
@@ -389,7 +398,7 @@ export function LinkFormPage() {
       <h1 className="mb-5 font-heading text-4xl font-medium tracking-tight">
         New link
       </h1>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
             <Field
@@ -435,7 +444,7 @@ export function LinkFormPage() {
               </p>
             ) : null}
             <Button type="submit" disabled={pending}>
-              {pending ? "Creating…" : "Create link"}
+              <Plus /> {pending ? "Creating…" : "Create link"}
             </Button>
           </form>
         </CardContent>
@@ -736,37 +745,45 @@ export function LinkDetailPage() {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          
-
+          <Button
+            type="submit"
+            size="sm"
+            form="link-editor"
+            disabled={saving || loading || !link}
+          >
+            <Save /> {saving ? "Saving…" : "Save"}
+          </Button>
           <Button
             variant="outline"
+            size="sm"
             type="button"
             disabled={!link?.shortUrl}
             onClick={() => void copyShortUrl()}
           >
             {copied ? (
               <>
-                <Check size={16} /> Copied
+                <Check /> Copied
               </>
             ) : (
               <>
-                <Copy size={16} /> Copy
+                <Copy /> Copy
               </>
             )}
           </Button>
           <Button
             variant="destructive"
+            size="sm"
             type="button"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 size={16} /> Delete
+            <Trash2 /> Delete
           </Button>
         </div>
       </div>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading link…</p>
       ) : null}
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form
             id="link-editor"
@@ -852,7 +869,7 @@ export function LinkDetailPage() {
                 type="button"
                 onClick={() => void clearPassword()}
               >
-                Remove password
+                <Trash2 /> Remove password
               </Button>
             ) : null}
             <UtmFields utm={utm} onChange={setUtm} />
@@ -860,12 +877,12 @@ export function LinkDetailPage() {
               Tracked URL: {previewDestination(destinationUrl, utm)}
             </p>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save link"}
+              <Save /> {saving ? "Saving…" : "Save link"}
             </Button>
           </form>
         </CardContent>
       </Card>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,45rem)_20rem]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="lg:col-start-2 lg:row-start-1">
           <QrPreview
             url={previewUrl || "https://example.com"}
@@ -1003,14 +1020,13 @@ export function LinkDetailPage() {
                 />
               </Field>
               <Field label="Center image">
-                <Input
+                <ImageUpload
                   key={logoInputKey}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
+                  previewUrl={logoUrl}
+                  fileName={logoFile?.name}
+                  onFile={(file) => {
                     setLogoFile(file);
-                    if (file) setLogoUrl(URL.createObjectURL(file));
+                    setLogoUrl(URL.createObjectURL(file));
                   }}
                 />
                 {logoUrl ? (
@@ -1019,12 +1035,12 @@ export function LinkDetailPage() {
                     type="button"
                     onClick={() => void removeCenterImage()}
                   >
-                    Remove center image
+                    <Trash2 /> Remove center image
                   </Button>
                 ) : null}
               </Field>
               <Button type="submit" disabled={savingQr}>
-                {savingQr ? "Saving…" : "Save QR style"}
+                <Save /> {savingQr ? "Saving…" : "Save QR style"}
               </Button>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button
@@ -1039,8 +1055,8 @@ export function LinkDetailPage() {
                       slug || "sharry",
                     )
                   }
-                >
-                  SVG
+                  >
+                  <Download /> SVG
                 </Button>
                 <Button
                   variant="outline"
@@ -1054,8 +1070,8 @@ export function LinkDetailPage() {
                       slug || "sharry",
                     )
                   }
-                >
-                  PNG
+                  >
+                  <Download /> PNG
                 </Button>
                 <Button
                   variant="outline"
@@ -1069,8 +1085,8 @@ export function LinkDetailPage() {
                       slug || "sharry",
                     )
                   }
-                >
-                  JPEG
+                  >
+                  <Download /> JPEG
                 </Button>
               </div>
             </form>
@@ -1078,7 +1094,7 @@ export function LinkDetailPage() {
         </Card>
       </div>
       {qrCodes.length > 0 ? (
-        <Card className="form-column">
+        <Card>
           <CardContent>
             <h2 className="mb-2 text-lg font-medium">Saved codes</h2>
             <ul className="grid gap-2">

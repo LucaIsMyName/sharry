@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { Ban, Check, Copy, Plus } from "lucide-react";
 import { api } from "../api.ts";
 import { copyText } from "../components/ui/copy.ts";
 import { Button } from "../components/ui/button.tsx";
@@ -131,7 +132,7 @@ export function ApiKeysPage() {
           Account sign-in stays on the session cookie.
         </p>
       </div>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Name">
@@ -154,7 +155,7 @@ export function ApiKeysPage() {
               />
             </Field>
             <Button type="submit" disabled={!userId || pending}>
-              {pending ? "Creating…" : "Create key"}
+              <Plus /> {pending ? "Creating…" : "Create key"}
             </Button>
           </form>
         </CardContent>
@@ -192,10 +193,11 @@ export function ApiKeysPage() {
                     {key.revokedAt ? null : (
                       <Button
                         variant="outline"
+                        size="sm"
                         type="button"
                         onClick={() => setRevokeId(key.id)}
                       >
-                        Revoke
+                        <Ban /> Revoke
                       </Button>
                     )}
                   </TableCell>
@@ -226,7 +228,15 @@ export function ApiKeysPage() {
           </p>
           <DialogFooter className="border-0 bg-transparent sm:justify-start">
             <Button type="button" onClick={() => void copySecret()}>
-              {copied ? "Copied" : "Copy key"}
+              {copied ? (
+                <>
+                  <Check /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy /> Copy key
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

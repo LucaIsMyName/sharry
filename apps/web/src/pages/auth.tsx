@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
+  BadgeCheck,
+  Check,
+  Copy,
+  KeyRound,
+  Save,
+  Shield,
+  ShieldOff,
+  Shuffle,
+  Trash2,
+} from "lucide-react";
+import {
   Link,
   useNavigate,
   useRevalidator,
@@ -13,6 +24,7 @@ import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Field } from "../components/ui/field.tsx";
+import { ImageUpload } from "../components/ui/image-upload.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
 
@@ -118,7 +130,7 @@ export function MfaPage() {
           />
         </Field>
         <Button type="submit" disabled={pending}>
-          {pending ? "Checking…" : "Verify"}
+          <BadgeCheck /> {pending ? "Checking…" : "Verify"}
         </Button>
       </form>
     </AuthShell>
@@ -182,10 +194,10 @@ export function PasswordPage() {
             setShowNewPassword(true);
           }}
         >
-          Generate password
+          <Shuffle /> Generate password
         </Button>
         <Button type="submit" disabled={pending}>
-          {pending ? "Updating…" : "Update password"}
+          <KeyRound /> {pending ? "Updating…" : "Update password"}
         </Button>
       </form>
     </AuthShell>
@@ -260,7 +272,7 @@ export function AccountPage() {
   const initial = me?.user.username.trim().charAt(0).toUpperCase() || "?";
 
   return (
-    <section className="form-column grid gap-4">
+    <section className="grid gap-4">
       <div className="mb-1">
         <h1 className="font-heading text-4xl font-medium tracking-tight">
           Account
@@ -282,14 +294,14 @@ export function AccountPage() {
           )}
           <div className="grid gap-2">
             <Field label="Photo">
-              <Input
+              <ImageUpload
                 key={avatarKey}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void uploadAvatar(file);
-                }}
+                previewUrl={
+                  me?.user.hasAvatar
+                    ? `/api/auth/avatar?v=${encodeURIComponent(me.user.updatedAt)}`
+                    : null
+                }
+                onFile={(file) => void uploadAvatar(file)}
               />
             </Field>
             {me?.user.hasAvatar ? (
@@ -298,7 +310,7 @@ export function AccountPage() {
                 type="button"
                 onClick={() => void removeAvatar()}
               >
-                Remove photo
+                <Trash2 /> Remove photo
               </Button>
             ) : null}
           </div>
@@ -328,7 +340,7 @@ export function AccountPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              {pending ? "Updating…" : "Update password"}
+              <KeyRound /> {pending ? "Updating…" : "Update password"}
             </Button>
           </form>
         </CardContent>
@@ -386,7 +398,7 @@ export function AccountPage() {
                 />
               </Field>
               <Button type="submit" disabled={turningOff}>
-                {turningOff ? "Turning off…" : "Turn off"}
+                <ShieldOff /> {turningOff ? "Turning off…" : "Turn off"}
               </Button>
             </form>
           ) : recovery ? (
@@ -407,7 +419,7 @@ export function AccountPage() {
                       )
                   }
                 >
-                  Turn on
+                  <Shield /> Turn on
                 </Button>
               ) : null}
               {setup ? (
@@ -586,7 +598,7 @@ export function ResetPage() {
             />
           </Field>
           <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save password"}
+            <Save /> {pending ? "Saving…" : "Save password"}
           </Button>
         </form>
       ) : (
@@ -638,7 +650,15 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
             .catch(() => toast.error("Could not copy the recovery codes"))
         }
       >
-        {copied ? "Copied" : "Copy codes"}
+        {copied ? (
+          <>
+            <Check /> Copied
+          </>
+        ) : (
+          <>
+            <Copy /> Copy codes
+          </>
+        )}
       </Button>
     </div>
   );
@@ -676,7 +696,15 @@ function AuthenticatorSetup({
             .catch(() => toast.error("Could not copy the secret"))
         }
       >
-        {copied ? "Copied" : "Copy secret"}
+        {copied ? (
+          <>
+            <Check /> Copied
+          </>
+        ) : (
+          <>
+            <Copy /> Copy secret
+          </>
+        )}
       </Button>
       <Field label="Confirmation code">
         <Input

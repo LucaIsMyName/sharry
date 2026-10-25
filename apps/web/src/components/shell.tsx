@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Link,
+  LogOut,
   Megaphone,
   Menu,
   ScrollText,
@@ -70,7 +71,9 @@ export function Shell() {
             </SheetContent>
           </Sheet>
         </div>
-        <Outlet />
+        <div className="page">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
@@ -203,7 +206,7 @@ function AccountFoot({
         type="button"
         onClick={onLogout}
       >
-        Sign out
+        <LogOut /> Sign out
       </Button>
     </div>
   );

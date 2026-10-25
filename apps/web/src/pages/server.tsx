@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { api } from "../api.ts";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
@@ -62,9 +63,11 @@ export function ServerPage() {
         <Button
           type="button"
           variant="outline"
+          size="sm"
           disabled={pending}
           onClick={() => void load()}
         >
+          <RefreshCw />{" "}
           {pending && !snapshot
             ? "Loading…"
             : pending

@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import {
+  BadgeCheck,
+  Check,
+  Copy,
+  ListChecks,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { api } from "../api.ts";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
@@ -124,7 +132,7 @@ export function AdminDomainsPage() {
           domain stays the default.
         </p>
       </div>
-      <Card className="form-column">
+      <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Domain">
@@ -136,7 +144,7 @@ export function AdminDomainsPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              {pending ? "Adding…" : "Add domain"}
+              <Plus /> {pending ? "Adding…" : "Add domain"}
             </Button>
           </form>
         </CardContent>
@@ -184,27 +192,31 @@ export function AdminDomainsPage() {
                           <Button
                             type="button"
                             variant="outline"
+                            size="sm"
                             onClick={() => setSetup(domain)}
                           >
-                            Setup
+                            <ListChecks /> Setup
                           </Button>
                         ) : null}
                         {domain.status === "pending" ? (
                           <Button
                             type="button"
                             variant="outline"
+                            size="sm"
                             disabled={verifyingId === domain.id}
                             onClick={() => void verify(domain)}
                           >
+                            <BadgeCheck />{" "}
                             {verifyingId === domain.id ? "Checking…" : "Verify"}
                           </Button>
                         ) : null}
                         <Button
                           type="button"
                           variant="outline"
+                          size="sm"
                           onClick={() => setDeleteFor(domain)}
                         >
-                          Delete
+                          <Trash2 /> Delete
                         </Button>
                       </div>
                     </TableCell>
@@ -298,7 +310,15 @@ function CopyRow({ label, value }: { label: string; value: string }) {
             })
           }
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? (
+            <>
+              <Check /> Copied
+            </>
+          ) : (
+            <>
+              <Copy /> Copy
+            </>
+          )}
         </Button>
       </div>
     </div>
