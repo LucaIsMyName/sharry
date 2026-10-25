@@ -1,6 +1,13 @@
-import type { ReactNode } from 'react'
-import { Button } from './button.tsx'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog.tsx'
+import type { ReactNode } from "react";
+import { Button } from "./button.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./dialog.tsx";
 
 export function ConfirmDialog({
   open,
@@ -13,15 +20,15 @@ export function ConfirmDialog({
   onOpenChange,
   children,
 }: {
-  open: boolean
-  title: string
-  description: string
-  confirmLabel: string
-  confirmDisabled?: boolean
-  destructive?: boolean
-  onConfirm: () => void
-  onOpenChange: (open: boolean) => void
-  children?: ReactNode
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  confirmDisabled?: boolean;
+  destructive?: boolean;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+  children?: ReactNode;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -32,10 +39,23 @@ export function ConfirmDialog({
         </DialogHeader>
         {children}
         <DialogFooter className="border-0 bg-transparent sm:justify-start">
-          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button variant={destructive ? 'destructive' : 'default'} type="button" disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel}</Button>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant={destructive ? "destructive" : "default"}
+            type="button"
+            disabled={confirmDisabled}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

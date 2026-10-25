@@ -1,5 +1,5 @@
-import { Label } from './label.tsx'
-import { Switch } from './switch.tsx'
+import { Label } from "./label.tsx";
+import { Switch } from "./switch.tsx";
 
 export function Toggle({
   checked,
@@ -7,15 +7,19 @@ export function Toggle({
   label,
   disabled = false,
 }: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  label: string
-  disabled?: boolean
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  disabled?: boolean;
 }) {
   return (
     <Label className="w-fit">
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onChange}
+      />
       <span>{label}</span>
     </Label>
-  )
+  );
 }
