@@ -33,7 +33,7 @@ export function Shell() {
             <SheetTrigger render={<Button variant="outline" type="button" />}>
               <Menu /> Menu
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs">
+            <SheetContent side="left" className="p-4 w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs">
               <p className="font-heading px-1 pt-2 text-3xl font-medium tracking-tight">sharry</p>
               {navigation}
               <AccountFoot user={me.user} onLogout={() => void logout()} onNavigate={() => setOpen(false)} />
