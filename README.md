@@ -139,7 +139,7 @@ The script then does the following, in order:
 2. Installs the latest Node.js 22 release when `/usr/bin/node` is missing or older than 22.23.4.
 3. Installs PostgreSQL when `psql` or `pg_dump` is missing, and starts it.
 4. Creates the `sharry` system user, database role, and database when they are missing.
-5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000` and reloads Caddy.
+5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000`. A Caddyfile that still has the retired `interval` or `burst` on-demand options is rewritten so Caddy 2.11 can start. Caddy is then reloaded.
 6. When `ufw` is already enabled, allows ports 80 and 443. It does not enable `ufw` when it is off.
 7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
 8. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.

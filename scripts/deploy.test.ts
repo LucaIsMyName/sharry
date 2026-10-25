@@ -137,7 +137,15 @@ describe('server bootstrap', () => {
     expect(partial.file.match(/share\.example\.com \{/g)).toHaveLength(1)
     expect(partial.file).toContain('on_demand_tls')
     expect(partial.file).toContain('ask http://127.0.0.1:3000/internal/caddy/ask')
+    expect(partial.file).not.toContain('interval')
+    expect(partial.file).not.toContain('burst')
     expect(partial.file).toContain('https:// {')
+    const stale = ensureCaddyOnDemand('{\n\ton_demand_tls {\n\t\task http://127.0.0.1:3000/internal/caddy/ask\n\t\tinterval 2m\n\t\tburst 5\n\t}\n}\n\nshare.example.com {\n\treverse_proxy 127.0.0.1:3000\n}\n\nhttps:// {\n\ttls {\n\t\ton_demand\n\t}\n}\n', 'share.example.com')
+    expect(stale.changed).toBe(true)
+    expect(stale.file).not.toContain('interval')
+    expect(stale.file).not.toContain('burst')
+    expect(stale.file.match(/on_demand_tls/g)).toHaveLength(1)
+    expect(stale.file.match(/share\.example\.com \{/g)).toHaveLength(1)
     const withGlobal = ensureCaddyOnDemand('{\n\temail admin@example.com\n}\n\nshare.example.com {\n\treverse_proxy 127.0.0.1:3000\n}\n', 'share.example.com')
     expect(withGlobal.file.match(/^\{$/gm)).toHaveLength(1)
     expect(withGlobal.file).toContain('email admin@example.com')
@@ -180,7 +188,7 @@ describe('server bootstrap', () => {
         return remoteResult(command, {
           os: 'ID=ubuntu\n',
           role: '1\n',
-          caddy: '{\n\ton_demand_tls {\n\t\task http://127.0.0.1:3000/internal/caddy/ask\n\t\tinterval 2m\n\t\tburst 5\n\t}\n}\n\nshare.example.com {\n}\n\nhttps:// {\n\ttls {\n\t\ton_demand\n\t}\n\treverse_proxy 127.0.0.1:3000\n}\n',
+          caddy: '{\n\ton_demand_tls {\n\t\task http://127.0.0.1:3000/internal/caddy/ask\n\t}\n}\n\nshare.example.com {\n}\n\nhttps:// {\n\ttls {\n\t\ton_demand\n\t}\n\treverse_proxy 127.0.0.1:3000\n}\n',
         })
       },
       {

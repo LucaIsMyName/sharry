@@ -39,9 +39,14 @@ export function caddyHasSite(contents: string, domain: string): boolean {
 }
 
 const caddyAskUrl = 'http://127.0.0.1:3000/internal/caddy/ask'
+const onDemandSnippet = `\ton_demand_tls {\n\t\task ${caddyAskUrl}\n\t}`
 
 export function caddyHasOnDemandTls(contents: string): boolean {
   return contents.includes('on_demand_tls')
+}
+
+export function caddyOnDemandTlsNeedsRepair(contents: string): boolean {
+  return /on_demand_tls\s*\{[^}]*\b(?:interval|burst)\b/.test(contents)
 }
 
 export function caddyHasOnDemandSite(contents: string): boolean {
@@ -50,7 +55,7 @@ export function caddyHasOnDemandSite(contents: string): boolean {
 
 export function ensureCaddyOnDemand(contents: string, domain: string): { file: string; changed: boolean } {
   const needsSite = !caddyHasSite(contents, domain)
-  const needsTls = !caddyHasOnDemandTls(contents)
+  const needsTls = !caddyHasOnDemandTls(contents) || caddyOnDemandTlsNeedsRepair(contents)
   const needsCatchAll = !caddyHasOnDemandSite(contents)
   if (!needsSite && !needsTls && !needsCatchAll) return { file: contents, changed: false }
 
@@ -60,12 +65,18 @@ export function ensureCaddyOnDemand(contents: string, domain: string): { file: s
     text = text ? `${text}\n\n${site}` : site
   }
   if (needsTls) {
-    const snippet = `\ton_demand_tls {\n\t\task ${caddyAskUrl}\n\t\tinterval 2m\n\t\tburst 5\n\t}`
-    const lines = text.split('\n')
-    const globalStart = lines.findIndex((line) => line.trim() === '{')
-    if (globalStart >= 0) lines.splice(globalStart + 1, 0, snippet)
-    else text = `{\n${snippet}\n}\n\n${text}`
-    if (globalStart >= 0) text = lines.join('\n')
+    if (/on_demand_tls\s*\{/.test(text)) {
+      text = text.replace(/[ \t]*on_demand_tls\s*\{[^}]*\}/, onDemandSnippet)
+    } else {
+      const lines = text.split('\n')
+      const globalStart = lines.findIndex((line) => line.trim() === '{')
+      if (globalStart >= 0) {
+        lines.splice(globalStart + 1, 0, onDemandSnippet)
+        text = lines.join('\n')
+      } else {
+        text = `{\n${onDemandSnippet}\n}\n\n${text}`
+      }
+    }
   }
   if (needsCatchAll) {
     const site = `https:// {\n\ttls {\n\t\ton_demand\n\t}\n\treverse_proxy 127.0.0.1:3000\n}`
@@ -215,7 +226,7 @@ if ! command -v caddy >/dev/null 2>&1; then
   apt-get update
   apt-get install -y caddy
 fi
-systemctl enable --now caddy`),
+systemctl enable caddy`),
   )
 
   let caddyfile = ''
@@ -232,6 +243,8 @@ systemctl enable --now caddy`),
 echo ${encoded} | base64 -d > /etc/caddy/Caddyfile
 systemctl reload caddy || systemctl restart caddy`),
     )
+  } else {
+    await run(privileged('systemctl start caddy'))
   }
 
   await run(

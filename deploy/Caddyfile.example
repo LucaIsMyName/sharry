@@ -4,8 +4,6 @@
 {
 	on_demand_tls {
 		ask http://127.0.0.1:3000/internal/caddy/ask
-		interval 2m
-		burst 5
 	}
 }
 
