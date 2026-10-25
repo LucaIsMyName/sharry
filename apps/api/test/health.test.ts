@@ -13,6 +13,9 @@ describe('health', () => {
     const response = await app.inject({ method: 'GET', url: '/health' })
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ ok: true })
+    const brand = await app.inject({ method: 'GET', url: '/api/brand' })
+    expect(brand.statusCode).toBe(200)
+    expect(brand.json()).toEqual({ appName: 'Sharry' })
   })
 
   it('allows blob connections in the production content security policy', async () => {

@@ -40,7 +40,7 @@ These are copied to the server. Empty strings are treated as unset where a defau
 | Variable | Default | Role |
 | --- | --- | --- |
 | `NODE_ENV` | `development` | Set `production` on the server |
-| `APP_NAME` | `Sharry` | Product name |
+| `APP_NAME` | `Sharry` | Product name in the sidebar, browser title, and sign-in page. Blank or omitted stays `Sharry`. Its slug prefixes API keys, the session cookie, the link-unlock cookie, CSV exports, backup files, and the domain TXT name |
 | `APP_URL` | `https://DOMAIN` when empty | Origin of password-reset links |
 | `APP_HOST` | `0.0.0.0` | Address the process binds |
 | `APP_PORT` | `3000` | Port the process binds. Caddy proxies to `127.0.0.1:3000` |

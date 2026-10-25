@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { qrCodes, trackingConfigs, trackingVariants, type LinkRecord } from '@sharry/database'
-import { applyUtm, cleanUtm, mergeUtm, validatePrefix, type UtmParams } from '@sharry/shared'
+import { applyUtm, cleanUtm, mergeUtm, unlockCookieName, validatePrefix, type UtmParams } from '@sharry/shared'
 import { recordClick, type ClickDraft } from './analytics.ts'
 import { lookupGeo } from './geo.ts'
 import { findBySlug } from './links.ts'
@@ -13,7 +13,9 @@ import { getSettings } from './settings-store.ts'
 import { anonymousVisitorId, escapeHtml, parseUserAgent, referrerHost } from './support.ts'
 import { variantUtm } from './tracking.ts'
 
-const UNLOCK_COOKIE = 'sharry_unlock'
+function unlockCookie(app: FastifyInstance): string {
+  return unlockCookieName(app.env.APP_NAME)
+}
 
 export function isShortLinkPath(
   pathname: string,
@@ -52,10 +54,10 @@ export async function tryShortLink(
     return true
   }
   let justUnlocked = false
-  if (link.passwordHash && !unlockValid(request.cookies[UNLOCK_COOKIE], link.id, app.env.SESSION_SECRET)) {
+  if (link.passwordHash && !unlockValid(request.cookies[unlockCookie(app)], link.id, app.env.SESSION_SECRET)) {
     if (request.method === 'POST') {
       if (!allowLinkPasswordAttempt(request.ip)) {
-        reply.code(429).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'limited'))
+        reply.code(429).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'limited', app.env.APP_NAME))
         return true
       }
       const password = typeof request.body === 'object' && request.body && 'password' in request.body
@@ -63,10 +65,10 @@ export async function tryShortLink(
         : ''
       const ok = password ? await verifyPassword(link.passwordHash, password) : false
       if (!ok) {
-        reply.code(401).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'failed'))
+        reply.code(401).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'failed', app.env.APP_NAME))
         return true
       }
-      reply.setCookie(UNLOCK_COOKIE, signUnlock(link.id, app.env.SESSION_SECRET), {
+      reply.setCookie(unlockCookie(app), signUnlock(link.id, app.env.SESSION_SECRET), {
         httpOnly: true,
         secure: app.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -75,7 +77,7 @@ export async function tryShortLink(
       })
       justUnlocked = true
     } else {
-      reply.code(200).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'prompt'))
+      reply.code(200).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'prompt', app.env.APP_NAME))
       return true
     }
   }
@@ -184,7 +186,7 @@ export function sendSpa(reply: FastifyReply, nodeEnv: string): void {
   reply.type('text/html').send(fs.readFileSync(indexPath, 'utf8'))
 }
 
-function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' | 'limited'): string {
+function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' | 'limited', appName: string): string {
   const action = `${prefix}/${encodeURIComponent(slug)}`
   const error =
     state === 'failed'
@@ -197,7 +199,7 @@ function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' |
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Password required · Sharry</title>
+  <title>Password required · ${escapeHtml(appName)}</title>
   <style>
     body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top left, rgba(19, 17, 155, 0.14), transparent 32%), #f8f8f8; color: #131313; font-family: ui-sans-serif, system-ui, sans-serif; }
     form { width: min(28rem, 100%); display: grid; gap: 12px; background: #fff; border: 1px solid #e4e4e4; border-radius: 12px; padding: 16px; }
@@ -212,7 +214,7 @@ function passwordPage(slug: string, prefix: string, state: 'prompt' | 'failed' |
 </head>
 <body>
   <form method="post" action="${escapeHtml(action)}">
-    <p class="wordmark">sharry</p>
+    <p class="wordmark">${escapeHtml(appName)}</p>
     <h1>Password</h1>
     <p>This short link is password protected.</p>
     ${error ? `<p class="error">${error}</p>` : ''}

@@ -26,8 +26,8 @@ export function redirectHostnameError(value: string, deploymentHostnames: string
   return null
 }
 
-export function redirectChallengeName(hostname: string): string {
-  return `_sharry-challenge.${hostname}`
+export function redirectChallengeName(hostname: string, slug: string): string {
+  return `_${slug}-challenge.${hostname}`
 }
 
 export function txtRecordMatches(records: string[][], token: string): boolean {

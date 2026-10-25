@@ -40,7 +40,7 @@ Diese werden auf den Server kopiert. Leere Zeichenketten gelten als nicht gesetz
 | Variable | Vorgabe | Rolle |
 | --- | --- | --- |
 | `NODE_ENV` | `development` | Auf dem Server `production` setzen |
-| `APP_NAME` | `Sharry` | Produktname |
+| `APP_NAME` | `Sharry` | Produktname in der Seitenleiste, im Browsertitel und auf der Anmeldeseite. Leer oder weggelassen bleibt `Sharry`. Der Slug ist das Präfix für API-Schlüssel, das Sitzungscookie, das Link-Freischalt-Cookie, CSV-Exporte, Backups und den Domain-TXT-Namen |
 | `APP_URL` | `https://DOMAIN` wenn leer | Ursprung der Links zum Zurücksetzen des Passworts |
 | `APP_HOST` | `0.0.0.0` | Adresse, an die der Prozess bindet |
 | `APP_PORT` | `3000` | Port, an den der Prozess bindet. Caddy leitet an `127.0.0.1:3000` weiter |

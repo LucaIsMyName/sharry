@@ -12,7 +12,7 @@ The prefix is not stored on the link. Displayed short URLs are built from the li
 
 ## Redirect domains
 
-Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_sharry-challenge.<hostname>` and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. `GET /api/redirect-domains` returns verified hostnames to every signed-in user. Creating or editing a link can store `redirectDomainId`. A missing, pending, or deleted domain falls back to `SHORT_URL_BASE` for the displayed URL, CSV export, and new QR codes.
+Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_<slug>-challenge.<hostname>`, where the slug comes from `APP_NAME` and defaults to `sharry`, and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. `GET /api/redirect-domains` returns verified hostnames to every signed-in user. Creating or editing a link can store `redirectDomainId`. A missing, pending, or deleted domain falls back to `SHORT_URL_BASE` for the displayed URL, CSV export, and new QR codes.
 
 The same slug still resolves on every host that reaches this process. The selected domain is the canonical address. It does not make the slug exclusive to that host.
 

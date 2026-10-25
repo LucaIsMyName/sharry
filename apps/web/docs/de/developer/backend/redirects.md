@@ -12,7 +12,7 @@ Das Präfix wird nicht am Link gespeichert. Angezeigte Kurz-URLs werden aus der 
 
 ## Weiterleitungsdomains
 
-Administratorinnen und Administratoren fügen Hostnamen unter Domains hinzu. Sharry speichert eine ausstehende Zeile und einen TXT-Token. Die Verifizierung schlägt `_sharry-challenge.<hostname>` nach und akzeptiert die Domain nur, wenn dieser TXT-Wert passt. Der Deployment-Hostname aus `SHORT_URL_BASE` oder `APP_URL` kann nicht hinzugefügt werden. `GET /api/redirect-domains` gibt verifizierte Hostnamen an jede angemeldete Person zurück. Das Anlegen oder Bearbeiten eines Links kann `redirectDomainId` speichern. Eine fehlende, ausstehende oder gelöschte Domain fällt für die angezeigte URL, den CSV-Export und neue QR-Codes auf `SHORT_URL_BASE` zurück.
+Administratorinnen und Administratoren fügen Hostnamen unter Domains hinzu. Sharry speichert eine ausstehende Zeile und einen TXT-Token. Die Verifizierung schlägt `_<slug>-challenge.<hostname>` nach. Der Slug kommt aus `APP_NAME` und ist in der Vorgabe `sharry`. Die Domain wird nur akzeptiert, wenn dieser TXT-Wert passt. Der Deployment-Hostname aus `SHORT_URL_BASE` oder `APP_URL` kann nicht hinzugefügt werden. `GET /api/redirect-domains` gibt verifizierte Hostnamen an jede angemeldete Person zurück. Das Anlegen oder Bearbeiten eines Links kann `redirectDomainId` speichern. Eine fehlende, ausstehende oder gelöschte Domain fällt für die angezeigte URL, den CSV-Export und neue QR-Codes auf `SHORT_URL_BASE` zurück.
 
 Derselbe Slug löst weiter auf jedem Host auf, der diesen Prozess erreicht. Die gewählte Domain ist die kanonische Adresse. Sie macht den Slug nicht exklusiv für diesen Host.
 

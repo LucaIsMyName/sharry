@@ -48,6 +48,13 @@ describe('environment', () => {
     expect(chooseEnvFile('development', { override: '  shared/.env  ' })).toBe('shared/.env')
   })
 
+  it('uses Sharry when APP_NAME is missing or blank', () => {
+    expect(parseRuntimeEnv(valid).APP_NAME).toBe('Sharry')
+    expect(parseRuntimeEnv({ ...valid, APP_NAME: '' }).APP_NAME).toBe('Sharry')
+    expect(parseRuntimeEnv({ ...valid, APP_NAME: '   ' }).APP_NAME).toBe('Sharry')
+    expect(parseRuntimeEnv({ ...valid, APP_NAME: '  My Brand  ' }).APP_NAME).toBe('My Brand')
+  })
+
   it('derives the public origins from DOMAIN and keeps an explicit origin', () => {
     const derived = parseRuntimeEnv({
       ...valid,

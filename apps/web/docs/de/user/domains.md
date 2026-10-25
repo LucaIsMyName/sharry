@@ -6,7 +6,7 @@ Domains steht Administratorinnen und Administratoren zur Verfügung. Eine Weiter
 
 Gib einen Hostnamen wie `go.brand.com` ein. Der Name hat kein Schema, keinen Port und keinen Pfad. Das Speichern öffnet einen Dialog mit den zwei DNS-Einträgen.
 
-1. Füge einen TXT-Eintrag hinzu. Der Dialog zeigt den Namen `_sharry-challenge.go.brand.com` und den Token. Kopieren steht neben jedem Wert.
+1. Füge einen TXT-Eintrag hinzu. Der Dialog zeigt den Namen und den Token. Der Name ist `_<slug>-challenge.go.brand.com`, und der Slug kommt aus `APP_NAME`. Die Vorgabe `Sharry` nutzt `_sharry-challenge.go.brand.com`. Kopieren steht neben jedem Wert.
 2. Füge einen A-Eintrag für diesen Hostnamen hinzu, der auf die IPv4-Adresse im Dialog zeigt. Diese Adresse ist die öffentliche IPv4-Adresse dieses Servers. Kopieren steht neben der Adresse.
 
 Wenn dieser Server keine öffentliche IPv4-Adresse hat, sagt der Dialog, dass die Adresse nicht nachgeschlagen werden konnte.

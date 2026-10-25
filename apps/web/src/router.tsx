@@ -20,6 +20,16 @@ async function loadMe(): Promise<Me> {
   return api<Me>('/api/auth/me')
 }
 
+async function loadBrand(): Promise<{ appName: string }> {
+  try {
+    const brand = await api<{ appName?: string }>('/api/brand')
+    const appName = brand.appName?.trim()
+    return { appName: appName || 'Sharry' }
+  } catch {
+    return { appName: 'Sharry' }
+  }
+}
+
 function redirectForScope(scope: Me['scope']): string | null {
   if (scope === 'password_change') return '/account/password'
   if (scope === 'mfa_enroll') return '/account/mfa'
@@ -75,6 +85,9 @@ function RootLayout() {
 
 export const router = createBrowserRouter([
   {
+    id: 'root',
+    loader: loadBrand,
+    shouldRevalidate: () => false,
     element: <RootLayout />,
     children: [
       { path: '/login', handle: { title: 'Sign in' }, element: <LoginPage /> },

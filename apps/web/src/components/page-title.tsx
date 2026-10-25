@@ -1,13 +1,15 @@
 import { Helmet } from "react-helmet-async";
 import { useMatches } from "react-router";
+import { useAppName } from "../brand.ts";
 import { useI18n } from "../i18n/index.tsx";
 
 export function DocumentHead() {
   const { t } = useI18n();
+  const appName = useAppName();
   const matches = useMatches();
   const title = routeTitle(matches);
   return (
-    <Helmet titleTemplate="%s · Sharry" defaultTitle="Sharry">
+    <Helmet titleTemplate={`%s · ${appName}`} defaultTitle={appName}>
       {title ? <title>{t(title)}</title> : null}
       <meta name="robots" content="noindex, nofollow" />
     </Helmet>
@@ -22,10 +24,11 @@ export function PageTitle({
   literal?: boolean;
 }) {
   const { t } = useI18n();
+  const appName = useAppName();
   const text = literal ? title : t(title);
   return (
     <Helmet>
-      <title>{`${text} · Sharry`}</title>
+      <title>{`${text} · ${appName}`}</title>
     </Helmet>
   );
 }

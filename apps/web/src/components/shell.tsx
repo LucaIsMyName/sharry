@@ -18,12 +18,14 @@ import {
 import { NavLink, Outlet, useLoaderData, useNavigate } from "react-router";
 import { cn } from "cn";
 import { api, type Me } from "../api.ts";
+import { useAppName } from "../brand.ts";
 import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { Button } from "./ui/button.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
 export function Shell() {
   const me = useLoaderData() as Me;
+  const appName = useAppName();
   useAccountLocale(me.user.locale);
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -43,7 +45,7 @@ export function Shell() {
     <div className="min-h-svh">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
         <p className="font-heading text-3xl font-medium tracking-tight">
-          sharry
+          {appName}
         </p>
         {navigation}
         <AccountFoot
@@ -63,7 +65,7 @@ export function Shell() {
               className="p-4 w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs"
             >
               <p className="font-heading px-1 pt-2 text-3xl font-medium tracking-tight">
-                sharry
+                {appName}
               </p>
               {navigation}
               <AccountFoot

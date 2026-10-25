@@ -4,6 +4,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { redirectDomains, type Database, type RedirectDomainRecord } from '@sharry/database'
 import {
+  appSlug,
   createRedirectDomainSchema,
   deploymentHostname,
   normalizeHostname,
@@ -88,7 +89,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
   app.get('/api/admin/redirect-domains', async (request) => {
     await requireAdmin(app, request)
     const rows = await app.db.select().from(redirectDomains).orderBy(desc(redirectDomains.createdAt))
-    return { domains: rows.map(publicDomain), serverAddresses: lookupServerAddresses() }
+    return { domains: rows.map((domain) => publicDomain(domain, app.env.APP_NAME)), serverAddresses: lookupServerAddresses() }
   })
 
   /**
@@ -119,7 +120,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
         entityId: created.id,
         metadata: { hostname: created.hostname },
       })
-      return { domain: publicDomain(created), serverAddresses: lookupServerAddresses() }
+      return { domain: publicDomain(created, app.env.APP_NAME), serverAddresses: lookupServerAddresses() }
     } catch (caught) {
       if (isUniqueViolation(caught)) throw new AppError(409, 'That domain is already added')
       throw caught
@@ -141,7 +142,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
     const current = await findDomain(app.db, id)
     const checkedAt = new Date()
     try {
-      const records = await dnsLookup.resolveTxt(redirectChallengeName(current.hostname))
+      const records = await dnsLookup.resolveTxt(redirectChallengeName(current.hostname, appSlug(app.env.APP_NAME)))
       if (!txtRecordMatches(records, current.txtToken)) {
         await markCheck(app.db, current.id, { status: 'pending', lastError: TXT_MISSING, verifiedAt: null, lastCheckedAt: checkedAt })
         invalidateRedirectHosts()
@@ -170,7 +171,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
         metadata: { hostname: current.hostname },
       })
     }
-    return publicDomain(updated ?? current)
+    return publicDomain(updated ?? current, app.env.APP_NAME)
   })
 
   /**
@@ -252,12 +253,12 @@ function deploymentHosts(app: FastifyInstance): string[] {
   return [deploymentHostname(app.env.SHORT_URL_BASE), deploymentHostname(app.env.APP_URL)].filter(Boolean)
 }
 
-function publicDomain(domain: RedirectDomainRecord) {
+function publicDomain(domain: RedirectDomainRecord, appName: string) {
   return {
     id: domain.id,
     hostname: domain.hostname,
     status: domain.status,
-    txtName: redirectChallengeName(domain.hostname),
+    txtName: redirectChallengeName(domain.hostname, appSlug(appName)),
     txtValue: domain.txtToken,
     lastError: domain.lastError,
     verifiedAt: domain.verifiedAt?.toISOString() ?? null,

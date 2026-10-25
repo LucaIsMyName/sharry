@@ -21,7 +21,7 @@ In production the same process serves `apps/web/dist`. Hashed files are under `/
 
 ## Request path
 
-A request under `/api` can authenticate with the `sharry_session` cookie or, outside `/api/auth`, with `Authorization: Bearer`. Account routes reject a bearer token before the handler runs. API-key calls are limited to about 120 per minute per key.
+A request under `/api` can authenticate with the session cookie (`sharry_session` when `APP_NAME` is `Sharry`) or, outside `/api/auth`, with `Authorization: Bearer`. Account routes reject a bearer token before the handler runs. API-key calls are limited to about 120 per minute per key.
 
 State-changing `/api` requests that include an `Origin` header must match `APP_URL` or `SHORT_URL_BASE`. `GET`, `HEAD`, and `OPTIONS` skip that check. Outside production, an origin on `localhost` or `127.0.0.1` is allowed as well.
 

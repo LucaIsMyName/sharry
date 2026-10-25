@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { appSlug } from "@sharry/shared";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { NavLink, useParams } from "react-router";
 import remarkGfm from "remark-gfm";
 import { cn } from "cn";
 import apiDocs, { type ApiDoc } from "virtual:api-docs";
+import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
 import { useI18n } from "../i18n/index.tsx";
 
@@ -185,6 +187,7 @@ function withValues(
 
 function ApiReference() {
   const { t } = useI18n();
+  const appName = useAppName();
   const groups: { tag: string; docs: ApiDoc[] }[] = [];
   for (const doc of apiDocs) {
     const group = groups.find((item) => item.tag === doc.tag);
@@ -210,7 +213,7 @@ function ApiReference() {
               ),
               header: (
                 <code className="rounded bg-muted px-1 font-mono text-[13px]">
-                  Authorization: Bearer sharry_...
+                  Authorization: Bearer {appSlug(appName)}_...
                 </code>
               ),
             },

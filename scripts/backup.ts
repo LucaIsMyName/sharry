@@ -1,14 +1,14 @@
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseRuntimeEnv } from '@sharry/shared'
+import { appSlug, parseRuntimeEnv } from '@sharry/shared'
 import { loadEnvFile } from './env-file.ts'
 
 loadEnvFile()
 const env = parseRuntimeEnv(process.env)
 const url = new URL(env.DATABASE_URL)
 const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-const output = process.argv[2] ?? path.resolve('backups', `sharry-${stamp}.dump`)
+const output = process.argv[2] ?? path.resolve('backups', `${appSlug(env.APP_NAME)}-${stamp}.dump`)
 fs.mkdirSync(path.dirname(output), { recursive: true })
 
 const child = spawn('pg_dump', ['-Fc', '-f', output], {

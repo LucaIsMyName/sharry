@@ -2,7 +2,7 @@
 
 `apps/web/src/router.tsx` nutzt React Router. Angemeldete Seiten sitzen unter der Shell. Loader rufen `/api/auth/me` auf und schicken Personen zur Anmeldung, zu einem Passwortwechsel, zur Zwei-Faktor-Einrichtung oder zur Authenticator-Abfrage, wenn die Sitzung für diese Seite noch nicht bereit ist. Eine Sitzung zum Passwortwechsel, die die Einrichtungsseite öffnet, geht zur Passwortseite, nicht zurück zur Anmeldung.
 
-Jede Route setzt einen Dokumenttitel, `Seite · Sharry`. Ein Link, eine Kampagne oder eine Doc-Seite nutzt den eigenen Namen, sobald dieser Datensatz geladen ist. Das anfängliche HTML und der React-Baum enthalten beide `<meta name="robots" content="noindex, nofollow">`, deshalb wird das Dashboard nicht indexiert.
+Jede Route setzt einen Dokumenttitel, `Seite · APP_NAME`. `APP_NAME` ist in der Vorgabe `Sharry`. Ein Link, eine Kampagne oder eine Doc-Seite nutzt den eigenen Namen, sobald dieser Datensatz geladen ist. Das anfängliche HTML und der React-Baum enthalten beide `<meta name="robots" content="noindex, nofollow">`, deshalb wird das Dashboard nicht indexiert.
 
 ## Öffentliche Routen
 

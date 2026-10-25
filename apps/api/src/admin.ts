@@ -3,7 +3,7 @@ import path from 'node:path'
 import { desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { apiKeys, auditLogs, links, qrCodes, sessions, trackingCampaigns, users, type Database, type UserRecord } from '@sharry/database'
-import { buildShortUrl, createApiKeySchema, createUserSchema, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
+import { apiKeySecretPrefix, apiKeyTokenPrefix, appSlug, buildShortUrl, createApiKeySchema, createUserSchema, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
 import { requireAdmin } from './auth.ts'
 import { writeAudit } from './audit.ts'
 import { loadVerifiedHosts, originForLink, removeLogo } from './links.ts'
@@ -338,7 +338,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
         link.createdAt.toISOString(),
       ]),
     ])
-    return reply.header('content-disposition', 'attachment; filename="sharry-links.csv"').type('text/csv').send(body)
+    return reply.header('content-disposition', `attachment; filename="${appSlug(app.env.APP_NAME)}-links.csv"`).type('text/csv').send(body)
   })
 
   /**
@@ -408,7 +408,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
         row.utm_content ?? '',
       ]),
     ])
-    return reply.header('content-disposition', 'attachment; filename="sharry-clicks.csv"').type('text/csv').send(body)
+    return reply.header('content-disposition', `attachment; filename="${appSlug(app.env.APP_NAME)}-clicks.csv"`).type('text/csv').send(body)
   })
 
   /**
@@ -463,14 +463,14 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     const found = await app.db.select().from(users).where(eq(users.id, body.userId)).limit(1)
     const user = found[0]
     if (!user) throw new AppError(404, 'User not found')
-    const secret = `sharry_${randomToken(32)}`
+    const secret = `${apiKeySecretPrefix(app.env.APP_NAME)}${randomToken(32)}`
     const [created] = await app.db
       .insert(apiKeys)
       .values({
         userId: user.id,
         name: body.name,
         tokenHash: hashToken(secret, app.env.SESSION_SECRET),
-        tokenPrefix: secret.slice(0, 12),
+        tokenPrefix: apiKeyTokenPrefix(secret, app.env.APP_NAME),
         createdBy: actor.id,
       })
       .returning()

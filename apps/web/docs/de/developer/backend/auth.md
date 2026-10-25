@@ -1,6 +1,6 @@
 # Auth
 
-Dashboard-Anfragen senden das Cookie `sharry_session`. Das Cookie ist `HttpOnly`, `SameSite=Lax` und in Produktion `Secure`. `requireUser` in `apps/api/src/auth.ts` lädt diese Sitzung und lehnt Konten ab, die noch einen Passwortwechsel oder einen Zwei-Faktor-Schritt brauchen.
+Dashboard-Anfragen senden ein Sitzungscookie, dessen Name aus `APP_NAME` kommt. Die Vorgabe `Sharry` nutzt `sharry_session`. Das Cookie ist `HttpOnly`, `SameSite=Lax` und in Produktion `Secure`. `requireUser` in `apps/api/src/auth.ts` lädt diese Sitzung und lehnt Konten ab, die noch einen Passwortwechsel oder einen Zwei-Faktor-Schritt brauchen.
 
 Die Sitzungszeile speichert einen Hash des Tokens, nicht den Token. Der Hash nutzt `SESSION_SECRET`.
 

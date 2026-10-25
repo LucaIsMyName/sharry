@@ -15,10 +15,12 @@ const port = (fallback: number) =>
 export const runtimeEnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    APP_NAME: z.preprocess(
-      (value) => (value === undefined || value === '' ? 'Sharry' : value),
-      z.string().min(1),
-    ),
+    APP_NAME: z.preprocess((value) => {
+      if (value === undefined || value === null) return 'Sharry'
+      if (typeof value !== 'string') return value
+      const trimmed = value.trim()
+      return trimmed === '' ? 'Sharry' : trimmed
+    }, z.string().min(1)),
     APP_URL: z.string().url(),
     APP_HOST: z.preprocess(
       (value) => (value === undefined || value === '' ? '0.0.0.0' : value),

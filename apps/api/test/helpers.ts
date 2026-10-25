@@ -7,7 +7,7 @@ declare module 'vitest' {
 }
 import { sql } from 'drizzle-orm'
 import { createDb, sessions, users, type Database } from '@sharry/database'
-import { parseRuntimeEnv, type RuntimeEnv } from '@sharry/shared'
+import { parseRuntimeEnv, sessionCookieName, type RuntimeEnv } from '@sharry/shared'
 import { hashPassword } from '../src/passwords.ts'
 import { buildApp } from '../src/server.ts'
 import { invalidateRedirectHosts } from '../src/redirect-domains.ts'
@@ -123,5 +123,5 @@ export async function createSessionUser(
     scope: 'full',
     expiresAt: new Date(Date.now() + 60 * 60 * 1000),
   })
-  return { id: user.id, cookie: `sharry_session=${token}` }
+  return { id: user.id, cookie: `${sessionCookieName(ctx.env.APP_NAME)}=${token}` }
 }

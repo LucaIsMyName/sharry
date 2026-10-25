@@ -2,7 +2,7 @@
 
 Administrators create named keys from API keys. Each key belongs to one user and can do what that user can: their links, campaigns, QR codes, and analytics. A key for an administrator can also call admin routes.
 
-The secret is shown once, prefixed with `sharry_`. Send it on every request:
+The secret is shown once. Its prefix is the slug of `APP_NAME`: lowercased, with spaces turned into hyphens. The default `Sharry` uses `sharry_`. Send it on every request:
 
 ```http
 Authorization: Bearer sharry_...

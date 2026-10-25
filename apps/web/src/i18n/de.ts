@@ -1,6 +1,7 @@
 export const de: Record<string, string> = {
   " · password change": " · Passwortwechsel",
   " A password is already saved.": " Ein Passwort ist bereits gespeichert.",
+  "{ appName }": "{ appName }",
   "{ available: boolean, error: string | null }": "{ available: boolean, error: string | null }",
   "{ campaigns: Campaign[] } Each campaign includes variantCount.": "{ campaigns: Campaign[] } Jede Kampagne enthält variantCount.",
   "{ collectedAt, memory, storage, os, cpu, uptime, runtime }": "{ collectedAt, memory, storage, os, cpu, uptime, runtime }",
@@ -390,6 +391,7 @@ export const de: Record<string, string> = {
   "Printed QR codes that use this variant keep the old address, and new clicks will no longer count toward it.": "Gedruckte QR-Codes, die diese Variante nutzen, behalten die alte Adresse, und neue Klicks zählen nicht mehr dafür.",
   "Process uptime": "Prozesslaufzeit",
   "Programs using this key stop working immediately. This cannot be undone.": "Programme, die diesen Schlüssel nutzen, funktionieren sofort nicht mehr. Das lässt sich nicht rückgängig machen.",
+  "public": "öffentlich",
   "Public prefix": "Öffentliches Präfix",
   "Q · Quartile": "Q · Quartil",
   "QR code": "QR-Code",
@@ -437,6 +439,7 @@ export const de: Record<string, string> = {
   "Request origin is not allowed": "Der Ursprung der Anfrage ist nicht erlaubt",
   "Require a two-factor code for every account": "Einen Zwei-Faktor-Code für jedes Konto verlangen",
   "Reset password": "Passwort zurücksetzen",
+  "Return the product name used in the dashboard and on password pages.": "Gibt den Produktnamen zurück, der im Dashboard und auf Passwortseiten steht.",
   "Return the signed-in account and session scope.": "Gibt das angemeldete Konto und den Sitzungs-Scope zurück.",
   "Revoke": "Widerrufen",
   "Revoke an API key. A second revoke leaves the key revoked.": "Widerruft einen API-Schlüssel. Ein zweiter Widerruf lässt den Schlüssel widerrufen.",

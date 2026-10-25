@@ -6,7 +6,7 @@ Domains is available to administrators. A redirect domain is a hostname people c
 
 Enter a hostname such as `go.brand.com`. The name has no scheme, port, or path. Saving opens a dialog with the two DNS records.
 
-1. Add a TXT record. The dialog shows the name, `_sharry-challenge.go.brand.com`, and the token. Copy sits next to each value.
+1. Add a TXT record. The dialog shows the name and the token. The name is `_<slug>-challenge.go.brand.com`, where the slug comes from `APP_NAME`. The default `Sharry` uses `_sharry-challenge.go.brand.com`. Copy sits next to each value.
 2. Add an A record for that hostname pointing at the IPv4 address in the dialog. That address is this server's public IPv4 address. Copy sits next to the address.
 
 If this server has no public IPv4 address, the dialog says the address could not be looked up.

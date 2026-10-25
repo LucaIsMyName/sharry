@@ -124,6 +124,17 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     return { ok: true }
   })
 
+  /**
+   * Return the product name used in the dashboard and on password pages.
+   * @route GET /api/brand
+   * @tag Settings
+   * @auth public
+   * @response 200 { appName }
+   */
+  app.get('/api/brand', async () => {
+    return { appName: options.env.APP_NAME }
+  })
+
   registerAuthRoutes(app, options.mailer ?? null)
   registerLinkRoutes(app)
   registerTrackingRoutes(app)

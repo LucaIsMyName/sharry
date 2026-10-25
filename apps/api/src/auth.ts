@@ -19,6 +19,7 @@ import {
   loginSchema,
   mfaSchema,
   resetPasswordSchema,
+  sessionCookieName,
   updateLocaleSchema,
   type Locale,
 } from '@sharry/shared'
@@ -30,8 +31,11 @@ import { mailerFor, smtpSource } from './mail.ts'
 import { getSettings } from './settings-store.ts'
 import { AppError, decryptString, encryptString, hashToken, parseBody, randomToken } from './support.ts'
 
-export const SESSION_COOKIE = 'sharry_session'
 export type SessionScope = 'full' | 'password_change' | 'mfa_enroll' | 'mfa_challenge'
+
+function sessionCookie(app: FastifyInstance): string {
+  return sessionCookieName(app.env.APP_NAME)
+}
 
 export type Actor = {
   id: string
@@ -119,7 +123,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
    * @response 200 { ok: true }
    */
   app.post('/api/auth/logout', async (request, reply) => {
-    const token = request.cookies[SESSION_COOKIE]
+    const token = request.cookies[sessionCookie(app)]
     if (token) {
       await app.db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token, app.env.SESSION_SECRET)))
     }
@@ -452,7 +456,7 @@ export async function requireUser(
   const pathname = request.url.split('?')[0] ?? ''
   const presented = bearerToken(request)
   if (presented !== null && !isAccountPath(pathname)) return actorFromApiKey(app, presented)
-  const token = request.cookies[SESSION_COOKIE]
+  const token = request.cookies[sessionCookie(app)]
   if (!token) throw new AppError(401, 'Sign in required')
   const tokenHash = hashToken(token, app.env.SESSION_SECRET)
   const found = await app.db
@@ -506,7 +510,7 @@ async function replaceSession(
   userId: string,
   scope: SessionScope,
 ): Promise<void> {
-  const token = request.cookies[SESSION_COOKIE]
+  const token = request.cookies[sessionCookie(app)]
   if (token) {
     await app.db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token, app.env.SESSION_SECRET)))
   }
@@ -514,7 +518,7 @@ async function replaceSession(
 }
 
 function setSessionCookie(reply: FastifyReply, app: FastifyInstance, token: string, maxAge: number): void {
-  reply.setCookie(SESSION_COOKIE, token, {
+  reply.setCookie(sessionCookie(app), token, {
     httpOnly: true,
     secure: app.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -524,7 +528,7 @@ function setSessionCookie(reply: FastifyReply, app: FastifyInstance, token: stri
 }
 
 function clearSessionCookie(reply: FastifyReply, app: FastifyInstance): void {
-  reply.clearCookie(SESSION_COOKIE, { path: '/', secure: app.env.NODE_ENV === 'production', sameSite: 'lax' })
+  reply.clearCookie(sessionCookie(app), { path: '/', secure: app.env.NODE_ENV === 'production', sameSite: 'lax' })
 }
 
 function publicUser(

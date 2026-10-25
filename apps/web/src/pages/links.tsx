@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
+  appSlug,
   applyUtm,
   defaultQrStyle,
   qrWarnings,
@@ -27,6 +28,7 @@ import {
   type QrCode,
   type ShortLink,
 } from "../api.ts";
+import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
 import { choiceNote, correctionOptions, redirectOptions } from "../choices.ts";
 import { downloadQr, QrPreview } from "../components/qr-preview.tsx";
@@ -474,6 +476,7 @@ export function LinkFormPage() {
 
 export function LinkDetailPage() {
   const { t } = useI18n();
+  const appName = useAppName();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [link, setLink] = useState<ShortLink | null>(null);
@@ -1083,7 +1086,7 @@ export function LinkDetailPage() {
                       style,
                       logoUrl,
                       "svg",
-                      slug || "sharry",
+                      slug || appSlug(appName),
                     )
                   }
                   >
@@ -1098,7 +1101,7 @@ export function LinkDetailPage() {
                       style,
                       logoUrl,
                       "png",
-                      slug || "sharry",
+                      slug || appSlug(appName),
                     )
                   }
                   >
@@ -1113,7 +1116,7 @@ export function LinkDetailPage() {
                       { ...style, backgroundTransparent: false },
                       logoUrl,
                       "jpeg",
-                      slug || "sharry",
+                      slug || appSlug(appName),
                     )
                   }
                   >

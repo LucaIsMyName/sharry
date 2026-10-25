@@ -2,7 +2,7 @@
 
 Administratorinnen und Administratoren legen benannte Schlüssel unter API-Schlüssel an. Jeder Schlüssel gehört zu einem Benutzer und kann das, was dieser Benutzer kann: dessen Links, Kampagnen, QR-Codes und Analysen. Ein Schlüssel für eine Administratorin oder einen Administrator kann auch Admin-Routen aufrufen.
 
-Das Geheimnis wird einmal gezeigt und beginnt mit `sharry_`. Sende es bei jeder Anfrage:
+Das Geheimnis wird einmal gezeigt. Sein Präfix ist der Slug von `APP_NAME`: kleingeschrieben, Leerzeichen werden Bindestriche. Die Vorgabe `Sharry` nutzt `sharry_`. Sende es bei jeder Anfrage:
 
 ```http
 Authorization: Bearer sharry_...

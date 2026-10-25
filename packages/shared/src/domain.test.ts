@@ -17,7 +17,8 @@ describe('redirect hostnames', () => {
   })
 
   it('matches a TXT token across split chunks', () => {
-    expect(redirectChallengeName('go.brand.com')).toBe('_sharry-challenge.go.brand.com')
+    expect(redirectChallengeName('go.brand.com', 'sharry')).toBe('_sharry-challenge.go.brand.com')
+    expect(redirectChallengeName('go.brand.com', 'my-brand')).toBe('_my-brand-challenge.go.brand.com')
     expect(txtRecordMatches([['sharry-'], ['token']], 'sharry-token')).toBe(false)
     expect(txtRecordMatches([['sharry-', 'token'], ['other']], 'sharry-token')).toBe(true)
     expect(txtRecordMatches([['other']], 'sharry-token')).toBe(false)

@@ -1,7 +1,7 @@
 import type os from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defaultQrStyle } from '@sharry/shared'
-import { redirectChallengeName } from '@sharry/shared'
+import { appSlug, redirectChallengeName } from '@sharry/shared'
 import { publicIpv4Addresses, resetDnsLookup, resetNetworkInterfaces, setDnsLookup, setNetworkInterfaces, type DnsLookup } from '../src/redirect-domains.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 
@@ -67,7 +67,7 @@ describe('redirect domains', () => {
     const domain = created.json().domain as { id: string; hostname: string; txtName: string; txtValue: string; status: string }
     expect(domain.hostname).toBe('go.brand.com')
     expect(domain.status).toBe('pending')
-    expect(domain.txtName).toBe(redirectChallengeName('go.brand.com'))
+    expect(domain.txtName).toBe(redirectChallengeName('go.brand.com', appSlug(ctx.env.APP_NAME)))
     expect(domain.txtValue.length).toBeGreaterThan(10)
     expect(created.json().serverAddresses).toEqual(['203.0.113.10'])
 

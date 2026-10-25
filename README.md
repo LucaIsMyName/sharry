@@ -51,7 +51,7 @@ Administrators manage every user, link, campaign, QR code, setting, audit event,
 
 ## API keys
 
-Administrators create a named key for a chosen user from API keys in the dashboard. The secret is shown once and is stored only as a hash. Send it as `Authorization: Bearer sharry_...` to `https://DOMAIN/api/...`.
+Administrators create a named key for a chosen user from API keys in the dashboard. The secret is shown once and is stored only as a hash. Send it as `Authorization: Bearer sharry_...` to `https://DOMAIN/api/...`. The prefix is the slug of `APP_NAME`. `Sharry`, and a blank `APP_NAME`, stay `sharry_`.
 
 The key can do what that user can. A standard user’s key sees only that user’s links, campaigns, QR codes, and analytics. An administrator’s key can also call admin routes. Sign-in, password changes, and two-factor routes under `/api/auth` accept only the session cookie.
 

@@ -19,6 +19,7 @@ import {
   useSearchParams,
 } from "react-router";
 import { defaultQrStyle, generatePassword, locales } from "@sharry/shared";
+import { useAppName } from "../brand.ts";
 import { api, type Me } from "../api.ts";
 import { localeLabels, useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { QrPreview } from "../components/qr-preview.tsx";
@@ -784,12 +785,13 @@ function AuthShell({
   children: ReactNode;
 }) {
   const { t } = useI18n();
+  const appName = useAppName();
   return (
     <div className="grid min-h-svh place-items-center bg-[radial-gradient(circle_at_top_left,rgba(19,17,155,0.14),transparent_32%),var(--background)] p-6">
       <Card className="w-full max-w-md">
         <CardContent className="grid gap-3">
           <p className="font-heading text-4xl font-medium tracking-tight">
-            sharry
+            {appName}
           </p>
           <h1 className="text-2xl font-medium">{t(title)}</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">

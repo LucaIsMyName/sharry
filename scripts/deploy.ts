@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { Client } from 'ssh2'
 import {
+  appSlug,
   applyPublicUrls,
   parseDeployEnv,
   parseEnvFile,
@@ -137,7 +138,7 @@ try {
     await writeRemoteFile(conn, envFile, serializeEnv(runtime), 0o600)
     log(syncEnv ? 'Updated the server runtime environment' : 'Wrote the server runtime environment')
   }
-  const backup = `${remote}/backups/sharry-${stamp}.dump`
+  const backup = `${remote}/backups/${appSlug(runtimeEnv.APP_NAME)}-${stamp}.dump`
   await exec(conn, `cd ${release} && SHARRY_ENV_FILE=${envFile} npm run backup -- ${backup}`, secrets)
   await exec(conn, `cd ${release} && SHARRY_ENV_FILE=${envFile} npm run db:migrate`, secrets)
   const previous = (await exec(conn, `readlink ${remote}/current || true`, secrets)).stdout.trim()
