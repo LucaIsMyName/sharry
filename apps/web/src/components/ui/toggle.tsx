@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n/index.tsx";
 import { Label } from "./label.tsx";
 import { Switch } from "./switch.tsx";
 
@@ -12,6 +13,7 @@ export function Toggle({
   label: string;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <Label className="w-fit">
       <Switch
@@ -19,7 +21,7 @@ export function Toggle({
         disabled={disabled}
         onCheckedChange={onChange}
       />
-      <span>{label}</span>
+      <span>{t(label)}</span>
     </Label>
   );
 }

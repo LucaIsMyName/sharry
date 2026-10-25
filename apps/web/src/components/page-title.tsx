@@ -1,21 +1,31 @@
 import { Helmet } from "react-helmet-async";
 import { useMatches } from "react-router";
+import { useI18n } from "../i18n/index.tsx";
 
 export function DocumentHead() {
+  const { t } = useI18n();
   const matches = useMatches();
   const title = routeTitle(matches);
   return (
     <Helmet titleTemplate="%s · Sharry" defaultTitle="Sharry">
-      {title ? <title>{title}</title> : null}
+      {title ? <title>{t(title)}</title> : null}
       <meta name="robots" content="noindex, nofollow" />
     </Helmet>
   );
 }
 
-export function PageTitle({ title }: { title: string }) {
+export function PageTitle({
+  title,
+  literal = false,
+}: {
+  title: string;
+  literal?: boolean;
+}) {
+  const { t } = useI18n();
+  const text = literal ? title : t(title);
   return (
     <Helmet>
-      <title>{`${title} · Sharry`}</title>
+      <title>{`${text} · Sharry`}</title>
     </Helmet>
   );
 }

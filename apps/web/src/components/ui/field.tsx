@@ -11,6 +11,7 @@ import {
 } from "react";
 import { CircleAlert, CircleCheck, Info } from "lucide-react";
 import { cn } from "cn";
+import { useI18n } from "../../i18n/index.tsx";
 import { Label } from "./label.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.tsx";
 
@@ -39,6 +40,7 @@ export function Field({
   info?: string;
   success?: string;
 }) {
+  const { t } = useI18n();
   const generatedId = useId();
   const message = error || info || success || "";
   const tone: Tone | null = error
@@ -54,7 +56,7 @@ export function Field({
     <div data-slot="field" className="grid w-full items-start gap-1.5">
       <Label className="grid w-full items-start gap-1.5">
         <span className="flex items-center gap-1.5">
-          <span>{label}</span>
+          <span>{t(label)}</span>
           {message && tone ? (
             <FieldMessage
               id={descriptionId}
@@ -80,6 +82,8 @@ export function FieldMessage({
   message: string;
   initialOpen?: boolean;
 }) {
+  const { t } = useI18n();
+  const text = t(message);
   const key = fieldMessageKey(tone, message);
   const [open, setOpen] = useState(
     () => initialOpen && !dismissedFieldMessages.has(key),
@@ -115,7 +119,7 @@ export function FieldMessage({
         tabIndex={0}
         delay={0}
         id={id}
-        aria-label={message}
+        aria-label={text}
         data-slot="field-message"
         data-tone={tone}
         onClick={(event) => event.preventDefault()}
@@ -126,7 +130,7 @@ export function FieldMessage({
       >
         <Icon className="size-3.5" aria-hidden />
       </TooltipTrigger>
-      <TooltipContent>{message}</TooltipContent>
+      <TooltipContent>{text}</TooltipContent>
     </Tooltip>
   );
 }

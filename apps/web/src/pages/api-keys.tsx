@@ -17,6 +17,7 @@ import {
 } from "../components/ui/dialog.tsx";
 import { Field } from "../components/ui/field.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
+import { useI18n } from "../i18n/index.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -48,6 +49,7 @@ type ApiKeyRow = {
 type CreatedKey = ApiKeyRow & { secret: string };
 
 export function ApiKeysPage() {
+  const { t, locale } = useI18n();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [name, setName] = useState("");
@@ -77,7 +79,7 @@ export function ApiKeysPage() {
 
   useEffect(() => {
     void load().catch((caught: unknown) =>
-      toastCaught(caught, "Could not load API keys"),
+      toastCaught(caught, t("Could not load API keys")),
     );
   }, []);
 
@@ -94,7 +96,7 @@ export function ApiKeysPage() {
       setCreated(key);
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not create the API key");
+      toastCaught(caught, t("Could not create the API key"));
     } finally {
       setPending(false);
     }
@@ -107,7 +109,7 @@ export function ApiKeysPage() {
       setRevokeId(null);
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not revoke the API key");
+      toastCaught(caught, t("Could not revoke the API key"));
     }
   }
 
@@ -117,7 +119,7 @@ export function ApiKeysPage() {
       await copyText(created.secret);
       setCopied(true);
     } catch {
-      toast.error("Could not copy the key");
+      toast.error(t("Could not copy the key"));
     }
   }
 
@@ -125,11 +127,12 @@ export function ApiKeysPage() {
     <section className="grid gap-4">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          API keys
+          {t("API keys")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          A key can do what its user can. Send it as Authorization: Bearer.
-          Account sign-in stays on the session cookie.
+          {t(
+            "A key can do what its user can. Send it as Authorization: Bearer. Account sign-in stays on the session cookie.",
+          )}
         </p>
       </div>
       <Card>
@@ -148,14 +151,17 @@ export function ApiKeysPage() {
                 value={userId}
                 options={accounts.map((account) => ({
                   value: account.id,
-                  label: `${account.username} (${account.role})`,
+                  label: t("{username} ({role})", {
+                    username: account.username,
+                    role: t(account.role === "admin" ? "admin" : "user"),
+                  }),
                 }))}
                 onValueChange={setUserId}
                 placeholder="Choose a user"
               />
             </Field>
             <Button type="submit" disabled={!userId || pending}>
-              <Plus /> {pending ? "Creating…" : "Create key"}
+              <Plus /> {pending ? t("Creating…") : t("Create key")}
             </Button>
           </form>
         </CardContent>
@@ -165,10 +171,10 @@ export function ApiKeysPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Prefix</TableHead>
-                <TableHead>Last used</TableHead>
+                <TableHead>{t("Name")}</TableHead>
+                <TableHead>{t("User")}</TableHead>
+                <TableHead>{t("Prefix")}</TableHead>
+                <TableHead>{t("Last used")}</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -184,10 +190,10 @@ export function ApiKeysPage() {
                   </TableCell>
                   <TableCell className="whitespace-normal">
                     {key.revokedAt
-                      ? "Revoked"
+                      ? t("Revoked")
                       : key.lastUsedAt
-                        ? new Date(key.lastUsedAt).toLocaleString()
-                        : "Never"}
+                        ? new Date(key.lastUsedAt).toLocaleString(locale)
+                        : t("Never")}
                   </TableCell>
                   <TableCell>
                     {key.revokedAt ? null : (
@@ -197,7 +203,7 @@ export function ApiKeysPage() {
                         type="button"
                         onClick={() => setRevokeId(key.id)}
                       >
-                        <Ban /> Revoke
+                        <Ban /> {t("Revoke")}
                       </Button>
                     )}
                   </TableCell>
@@ -216,11 +222,12 @@ export function ApiKeysPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">
-              Copy the API key
+              {t("Copy the API key")}
             </DialogTitle>
             <DialogDescription>
-              This is the only time the secret is shown. Store it somewhere safe
-              before closing.
+              {t(
+                "This is the only time the secret is shown. Store it somewhere safe before closing.",
+              )}
             </DialogDescription>
           </DialogHeader>
           <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">
@@ -230,11 +237,11 @@ export function ApiKeysPage() {
             <Button type="button" onClick={() => void copySecret()}>
               {copied ? (
                 <>
-                  <Check /> Copied
+                  <Check /> {t("Copied")}
                 </>
               ) : (
                 <>
-                  <Copy /> Copy key
+                  <Copy /> {t("Copy key")}
                 </>
               )}
             </Button>

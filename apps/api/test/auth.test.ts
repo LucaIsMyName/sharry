@@ -309,6 +309,39 @@ describe('authentication', () => {
     expect(again.json().scope).toBe('mfa_enroll')
   })
 
+  it('stores a language on the signed-in account and leaves other accounts in english', async () => {
+    const ctx = await getContext()
+    const ada = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const grace = await createSessionUser(ctx, { username: 'grace', email: 'grace@example.com' })
+    const before = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: ada.cookie } })
+    expect(before.json().user.locale).toBe('en')
+    const rejected = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/auth/locale',
+      headers: { cookie: ada.cookie },
+      payload: { locale: 'fr' },
+    })
+    expect(rejected.statusCode).toBe(400)
+    const updated = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/auth/locale',
+      headers: { cookie: ada.cookie },
+      payload: { locale: 'de' },
+    })
+    expect(updated.statusCode).toBe(200)
+    expect(updated.json().user.locale).toBe('de')
+    const me = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: ada.cookie } })
+    expect(me.json().user.locale).toBe('de')
+    const other = await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: grace.cookie } })
+    expect(other.json().user.locale).toBe('en')
+    const login = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { usernameOrEmail: 'ada', password: 'long-password-value' },
+    })
+    expect(login.json().user.locale).toBe('de')
+  })
+
   it('stores a square thumbnail and reports it on the current user', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })

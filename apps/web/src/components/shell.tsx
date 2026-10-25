@@ -18,11 +18,14 @@ import {
 import { NavLink, Outlet, useLoaderData, useNavigate } from "react-router";
 import { cn } from "cn";
 import { api, type Me } from "../api.ts";
+import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { Button } from "./ui/button.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
 export function Shell() {
   const me = useLoaderData() as Me;
+  useAccountLocale(me.user.locale);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const admin = me.user.role === "admin";
@@ -53,7 +56,7 @@ export function Shell() {
         <div className="mb-3 md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger render={<Button variant="outline" type="button" />}>
-              <Menu /> Menu
+              <Menu /> {t("Menu")}
             </SheetTrigger>
             <SheetContent
               side="left"
@@ -86,55 +89,56 @@ function Navigation({
   admin: boolean;
   onNavigate: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <nav
       className="grid content-start gap-1 overflow-auto"
       onClick={onNavigate}
     >
       <Item to="/" end icon={<LayoutDashboard size={18} />}>
-        Overview
+        {t("Overview")}
       </Item>
       <Item to="/links" icon={<Link size={18} />}>
-        Links
+        {t("Links")}
       </Item>
       <Item to="/campaigns" icon={<Megaphone size={18} />}>
-        Campaigns
+        {t("Campaigns")}
       </Item>
       <Item to="/analytics" icon={<ChartColumn size={18} />}>
-        Analytics
+        {t("Analytics")}
       </Item>
       <hr className="my-2 border-0 border-t border-sidebar-border" />
       <Item compact to="/docs" icon={<BookOpen size={14} />}>
-        Docs
+        {t("Docs")}
       </Item>
       {admin ? (
         <Item compact to="/admin/users" icon={<Users size={14} />}>
-          Users
+          {t("Users")}
         </Item>
       ) : null}
       {admin ? (
         <Item compact to="/admin/api-keys" icon={<KeyRound size={14} />}>
-          API keys
+          {t("API keys")}
         </Item>
       ) : null}
       {admin ? (
         <Item compact to="/admin/settings" icon={<Settings size={14} />}>
-          Settings
+          {t("Settings")}
         </Item>
       ) : null}
       {admin ? (
         <Item compact to="/admin/domains" icon={<Globe size={14} />}>
-          Domains
+          {t("Domains")}
         </Item>
       ) : null}
       {admin ? (
         <Item compact to="/admin/server" icon={<Server size={14} />}>
-          Server
+          {t("Server")}
         </Item>
       ) : null}
       {admin ? (
         <Item compact to="/admin/audit" icon={<ScrollText size={14} />}>
-          Audit
+          {t("Audit")}
         </Item>
       ) : null}
     </nav>
@@ -152,7 +156,7 @@ function Item({
   end?: boolean;
   icon: ReactNode;
   compact?: boolean;
-  children: string;
+  children: ReactNode;
 }) {
   return (
     <NavLink
@@ -183,6 +187,7 @@ function AccountFoot({
   onLogout: () => void;
   onNavigate: () => void;
 }) {
+  const { t } = useI18n();
   const initial = user.username.trim().charAt(0).toUpperCase() || "?";
   const icon = user.hasAvatar ? (
     <img
@@ -206,7 +211,7 @@ function AccountFoot({
         type="button"
         onClick={onLogout}
       >
-        <LogOut /> Sign out
+        <LogOut /> {t("Sign out")}
       </Button>
     </div>
   );

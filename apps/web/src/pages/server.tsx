@@ -4,6 +4,7 @@ import { api } from "../api.ts";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
+import { useI18n } from "../i18n/index.tsx";
 
 type Usage = { totalBytes: number; availableBytes: number; usedBytes: number };
 
@@ -29,6 +30,7 @@ type SystemSnapshot = {
 };
 
 export function ServerPage() {
+  const { t, locale } = useI18n();
   const [snapshot, setSnapshot] = useState<SystemSnapshot | null>(null);
   const [pending, setPending] = useState(true);
 
@@ -37,7 +39,7 @@ export function ServerPage() {
     try {
       setSnapshot(await api<SystemSnapshot>("/api/admin/system"));
     } catch (caught) {
-      toastCaught(caught, "Could not load the server");
+      toastCaught(caught, t("Could not load the server"));
     } finally {
       setPending(false);
     }
@@ -52,12 +54,14 @@ export function ServerPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-4xl font-medium tracking-tight">
-            Server
+            {t("Server")}
           </h1>
           <p className="text-sm text-muted-foreground">
             {snapshot
-              ? `Updated ${new Date(snapshot.collectedAt).toLocaleString()}.`
-              : "Memory, disk, and the installed runtime on this host."}
+              ? t("Updated {time}.", {
+                  time: new Date(snapshot.collectedAt).toLocaleString(locale),
+                })
+              : t("Memory, disk, and the installed runtime on this host.")}
           </p>
         </div>
         <Button
@@ -69,14 +73,14 @@ export function ServerPage() {
         >
           <RefreshCw />{" "}
           {pending && !snapshot
-            ? "Loading…"
+            ? t("Loading…")
             : pending
-              ? "Refreshing…"
-              : "Refresh"}
+              ? t("Refreshing…")
+              : t("Refresh")}
         </Button>
       </div>
       {!snapshot && pending ? (
-        <p className="text-sm text-muted-foreground">Loading server status…</p>
+        <p className="text-sm text-muted-foreground">{t("Loading server status…")}</p>
       ) : null}
       {snapshot ? <SnapshotView snapshot={snapshot} /> : null}
     </section>
@@ -84,6 +88,7 @@ export function ServerPage() {
 }
 
 function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
+  const { t } = useI18n();
   const load = snapshot.cpu.loadAverage
     .map((value) => value.toFixed(2))
     .join(" · ");
@@ -91,83 +96,83 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
     <>
       <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
         <Summary
-          label="RAM used"
+          label={t("RAM used")}
           bytes={snapshot.memory.usedBytes}
           total={snapshot.memory.totalBytes}
         />
         <Summary
-          label="RAM available"
+          label={t("RAM available")}
           bytes={snapshot.memory.availableBytes}
           total={snapshot.memory.totalBytes}
         />
         <Summary
-          label="Storage used"
+          label={t("Storage used")}
           bytes={snapshot.storage.usedBytes}
           total={snapshot.storage.totalBytes}
         />
         <Summary
-          label="Storage available"
+          label={t("Storage available")}
           bytes={snapshot.storage.availableBytes}
           total={snapshot.storage.totalBytes}
         />
       </div>
       <Card>
         <CardContent className="grid gap-3">
-          <h2 className="text-lg font-medium">Memory</h2>
+          <h2 className="text-lg font-medium">{t("Memory")}</h2>
           <Meter
             used={snapshot.memory.usedBytes}
             total={snapshot.memory.totalBytes}
           />
           <Facts
             rows={[
-              ["Total", formatBytes(snapshot.memory.totalBytes)],
-              ["Used", formatBytes(snapshot.memory.usedBytes)],
-              ["Available", formatBytes(snapshot.memory.availableBytes)],
-              ["This process", formatBytes(snapshot.memory.processRssBytes)],
+              [t("Total"), formatBytes(snapshot.memory.totalBytes)],
+              [t("Used"), formatBytes(snapshot.memory.usedBytes)],
+              [t("Available"), formatBytes(snapshot.memory.availableBytes)],
+              [t("This process"), formatBytes(snapshot.memory.processRssBytes)],
             ]}
           />
         </CardContent>
       </Card>
       <Card>
         <CardContent className="grid gap-3">
-          <h2 className="text-lg font-medium">Storage</h2>
+          <h2 className="text-lg font-medium">{t("Storage")}</h2>
           <Meter
             used={snapshot.storage.usedBytes}
             total={snapshot.storage.totalBytes}
           />
           <Facts
             rows={[
-              ["Total", formatBytes(snapshot.storage.totalBytes)],
-              ["Used", formatBytes(snapshot.storage.usedBytes)],
-              ["Available", formatBytes(snapshot.storage.availableBytes)],
-              ["Database", formatBytes(snapshot.storage.databaseBytes)],
+              [t("Total"), formatBytes(snapshot.storage.totalBytes)],
+              [t("Used"), formatBytes(snapshot.storage.usedBytes)],
+              [t("Available"), formatBytes(snapshot.storage.availableBytes)],
+              [t("Database"), formatBytes(snapshot.storage.databaseBytes)],
             ]}
           />
         </CardContent>
       </Card>
       <Card>
         <CardContent className="grid gap-3">
-          <h2 className="text-lg font-medium">Runtime</h2>
+          <h2 className="text-lg font-medium">{t("Runtime")}</h2>
           <Facts
             rows={[
               [
-                "Operating system",
+                t("Operating system"),
                 `${snapshot.os.type} ${snapshot.os.release}`,
               ],
-              ["Platform", snapshot.os.platform],
-              ["Architecture", snapshot.os.arch],
-              ["Hostname", snapshot.os.hostname],
+              [t("Platform"), snapshot.os.platform],
+              [t("Architecture"), snapshot.os.arch],
+              [t("Hostname"), snapshot.os.hostname],
               [
-                "Package",
+                t("Package"),
                 `${snapshot.runtime.packageName} ${snapshot.runtime.packageVersion}`,
               ],
-              ["Node", snapshot.runtime.nodeVersion],
-              ["PostgreSQL", snapshot.runtime.postgresVersion],
-              ["CPU", `${snapshot.cpu.cores} cores`],
-              ["Load average (1, 5, 15 min)", load],
-              ["System uptime", formatDuration(snapshot.uptime.systemSeconds)],
+              [t("Node"), snapshot.runtime.nodeVersion],
+              [t("PostgreSQL"), snapshot.runtime.postgresVersion],
+              [t("CPU"), t("{count} cores", { count: snapshot.cpu.cores })],
+              [t("Load average (1, 5, 15 min)"), load],
+              [t("System uptime"), formatDuration(snapshot.uptime.systemSeconds)],
               [
-                "Process uptime",
+                t("Process uptime"),
                 formatDuration(snapshot.uptime.processSeconds),
               ],
             ]}
@@ -187,13 +192,17 @@ function Summary({
   bytes: number;
   total: number;
 }) {
+  const { t } = useI18n();
   return (
     <Card>
       <CardContent>
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-sm text-muted-foreground">{t(label)}</span>
         <b className="mt-1 block text-3xl tabular-nums">{formatBytes(bytes)}</b>
         <span className="text-sm text-muted-foreground">
-          {percent(bytes, total)} of {formatBytes(total)}
+          {t("{percent} of {total}", {
+            percent: percent(bytes, total),
+            total: formatBytes(total),
+          })}
         </span>
       </CardContent>
     </Card>

@@ -14,6 +14,7 @@ import { copyText } from "../components/ui/copy.ts";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
+import { t, useI18n } from "../i18n/index.tsx";
 import { Textarea } from "../components/ui/textarea.tsx";
 
 type Campaign = {
@@ -27,6 +28,7 @@ type Variant = { id: string; name: string; linkId: string; utm: UtmParams };
 const emptyUtm: UtmParams = {};
 
 export function CampaignsPage() {
+  const { t } = useI18n();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -41,7 +43,7 @@ export function CampaignsPage() {
   useEffect(() => {
     void load()
       .catch((caught: unknown) =>
-        toastCaught(caught, "Could not load campaigns"),
+        toastCaught(caught, t("Could not load campaigns")),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -58,7 +60,7 @@ export function CampaignsPage() {
       setDescription("");
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not create the campaign");
+      toastCaught(caught, t("Could not create the campaign"));
     } finally {
       setPending(false);
     }
@@ -68,12 +70,12 @@ export function CampaignsPage() {
     <section className="grid gap-4">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          Campaigns
+          {t("Campaigns")}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          A campaign groups tracked copies of your short links. Each variant
-          keeps the same slug and adds its own UTM values. Share it with{" "}
-          <span className="font-mono">?v=</span> or attach it to a QR code.
+          {t(
+            "A campaign groups tracked copies of your short links. Each variant keeps the same slug and adds its own UTM values. Share it with ?v= or attach it to a QR code.",
+          )}
         </p>
       </div>
       <Card>
@@ -93,7 +95,7 @@ export function CampaignsPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? "Creating…" : "Create campaign"}
+              <Plus /> {pending ? t("Creating…") : t("Create campaign")}
             </Button>
           </form>
         </CardContent>
@@ -101,9 +103,9 @@ export function CampaignsPage() {
       <Card>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading campaigns…</p>
+            <p className="text-sm text-muted-foreground">{t("Loading campaigns…")}</p>
           ) : campaigns.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No campaigns yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No campaigns yet.")}</p>
           ) : (
             <ul>
               {campaigns.map((campaign) => (
@@ -138,6 +140,7 @@ export function CampaignsPage() {
 }
 
 export function CampaignDetailPage() {
+  const { t } = useI18n();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState<
@@ -216,18 +219,18 @@ export function CampaignDetailPage() {
     setLinkQuery("");
     setLoading(true);
     void loadCampaign().catch((caught: unknown) => {
-      toastCaught(caught, "Could not load");
+      toastCaught(caught, t("Could not load"));
       setLoading(false);
     });
     void loadPicker("").catch((caught: unknown) =>
-      toastCaught(caught, "Could not load links"),
+      toastCaught(caught, t("Could not load links")),
     );
   }, [id]);
 
   useEffect(() => {
     const handle = setTimeout(() => {
       void loadPicker(linkQuery).catch((caught: unknown) =>
-        toastCaught(caught, "Could not load links"),
+        toastCaught(caught, t("Could not load links")),
       );
     }, 200);
     return () => clearTimeout(handle);
@@ -252,7 +255,7 @@ export function CampaignDetailPage() {
       });
       await loadCampaign();
     } catch (caught) {
-      toastCaught(caught, "Could not save the campaign");
+      toastCaught(caught, t("Could not save the campaign"));
     } finally {
       setSavingCampaign(false);
     }
@@ -264,7 +267,7 @@ export function CampaignDetailPage() {
       setConfirmDelete(false);
       await navigate("/campaigns");
     } catch (caught) {
-      toastCaught(caught, "Could not delete the campaign");
+      toastCaught(caught, t("Could not delete the campaign"));
     }
   }
 
@@ -286,7 +289,7 @@ export function CampaignDetailPage() {
       resetVariantForm();
       await loadCampaign();
     } catch (caught) {
-      toastCaught(caught, "Could not save the variant");
+      toastCaught(caught, t("Could not save the variant"));
     } finally {
       setSavingVariant(false);
     }
@@ -307,7 +310,7 @@ export function CampaignDetailPage() {
       setVariantToDelete(null);
       await loadCampaign();
     } catch (caught) {
-      toastCaught(caught, "Could not delete the variant");
+      toastCaught(caught, t("Could not delete the variant"));
     }
   }
 
@@ -322,21 +325,27 @@ export function CampaignDetailPage() {
         2000,
       );
     } catch (caught) {
-      toastCaught(caught, "Could not copy the variant URL");
+      toastCaught(caught, t("Could not copy the variant URL"));
     }
   }
 
   return (
     <section className="grid gap-4">
-      <PageTitle title={campaign?.name ?? "Campaign"} />
+      <PageTitle
+        title={campaign?.name ?? "Campaign"}
+        literal={Boolean(campaign?.name)}
+      />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-4xl font-medium tracking-tight">
-            {loading ? "Loading campaign…" : (campaign?.name ?? "Campaign")}
+            {loading
+              ? t("Loading campaign…")
+              : (campaign?.name ?? t("Campaign"))}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            A variant is the same short link with extra UTM values. Blank fields
-            keep the UTM values saved on the link.
+            {t(
+              "A variant is the same short link with extra UTM values. Blank fields keep the UTM values saved on the link.",
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -346,7 +355,7 @@ export function CampaignDetailPage() {
             form="campaign-editor"
             disabled={savingCampaign || !campaign}
           >
-            <Save /> {savingCampaign ? "Saving…" : "Save"}
+            <Save /> {savingCampaign ? t("Saving…") : t("Save")}
           </Button>
           <Button
             variant="destructive"
@@ -354,7 +363,7 @@ export function CampaignDetailPage() {
             type="button"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 /> Delete
+            <Trash2 /> {t("Delete")}
           </Button>
         </div>
       </div>
@@ -379,7 +388,7 @@ export function CampaignDetailPage() {
               />
             </Field>
             <Button type="submit" disabled={savingCampaign}>
-              <Save /> {savingCampaign ? "Saving…" : "Save campaign"}
+              <Save /> {savingCampaign ? t("Saving…") : t("Save campaign")}
             </Button>
           </form>
         </CardContent>
@@ -391,7 +400,7 @@ export function CampaignDetailPage() {
             onSubmit={(event) => void submitVariant(event)}
           >
             <h2 className="text-lg font-medium">
-              {editingId ? "Edit variant" : "Add variant"}
+              {editingId ? t("Edit variant") : t("Add variant")}
             </h2>
             <Field label="Variant name">
               <Input
@@ -420,8 +429,10 @@ export function CampaignDetailPage() {
                   />
                   {linkTotal > links.length ? (
                     <p className="text-sm text-muted-foreground">
-                      Showing {links.length} of {linkTotal}. Search to find
-                      another link.
+                      {t(
+                        "Showing {shown} of {total}. Search to find another link.",
+                        { shown: links.length, total: linkTotal },
+                      )}
                     </p>
                   ) : null}
                 </div>
@@ -429,8 +440,9 @@ export function CampaignDetailPage() {
             </Field>
             {editingId ? (
               <p className="text-sm text-muted-foreground">
-                The link stays with this variant. Create another variant to
-                track a different link.
+                {t(
+                  "The link stays with this variant. Create another variant to track a different link.",
+                )}
               </p>
             ) : null}
             <UtmFields utm={utm} onChange={setUtm} />
@@ -438,10 +450,10 @@ export function CampaignDetailPage() {
               <Button type="submit" disabled={savingVariant}>
                 {editingId ? <Save /> : <Plus />}{" "}
                 {savingVariant
-                  ? "Saving…"
+                  ? t("Saving…")
                   : editingId
-                    ? "Save variant"
-                    : "Add variant"}
+                    ? t("Save variant")
+                    : t("Add variant")}
               </Button>
               {editingId ? (
                 <Button
@@ -449,7 +461,7 @@ export function CampaignDetailPage() {
                   type="button"
                   onClick={resetVariantForm}
                 >
-                  <X /> Cancel
+                  <X /> {t("Cancel")}
                 </Button>
               ) : null}
             </div>
@@ -459,7 +471,7 @@ export function CampaignDetailPage() {
       <Card>
         <CardContent>
           {(campaign?.variants.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">No variants yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No variants yet.")}</p>
           ) : (
             <ul className="grid gap-4">
               {campaign?.variants.map((variant) => {
@@ -477,7 +489,7 @@ export function CampaignDetailPage() {
                         type="button"
                         onClick={() => editVariant(variant)}
                       >
-                        <Pencil /> Edit
+                        <Pencil /> {t("Edit")}
                       </Button>
                       <Button
                         variant="outline"
@@ -488,11 +500,11 @@ export function CampaignDetailPage() {
                       >
                         {copiedId === variant.id ? (
                           <>
-                            <Check /> Copied
+                            <Check /> {t("Copied")}
                           </>
                         ) : (
                           <>
-                            <Copy /> Copy
+                            <Copy /> {t("Copy")}
                           </>
                         )}
                       </Button>
@@ -502,7 +514,7 @@ export function CampaignDetailPage() {
                         type="button"
                         onClick={() => setVariantToDelete(variant)}
                       >
-                        <Trash2 /> Delete
+                        <Trash2 /> {t("Delete")}
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">
@@ -545,7 +557,7 @@ export function CampaignDetailPage() {
 }
 
 function variantLabel(count: number): string {
-  return count === 1 ? "1 variant" : `${count} variants`;
+  return count === 1 ? t("1 variant") : t("{count} variants", { count });
 }
 
 function pickerOptions(

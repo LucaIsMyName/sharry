@@ -5,14 +5,16 @@ import remarkGfm from "remark-gfm";
 import { cn } from "cn";
 import apiDocs, { type ApiDoc } from "virtual:api-docs";
 import { PageTitle } from "../components/page-title.tsx";
+import { useI18n } from "../i18n/index.tsx";
 
-const rawPages = import.meta.glob("../../docs/**/*.md", {
+const rawPages = import.meta.glob("../../docs/*/**/*.md", {
   query: "?raw",
   import: "default",
   eager: true,
 });
 
 type DocPage = {
+  locale: string;
   slug: string;
   title: string;
   group: string;
@@ -43,9 +45,13 @@ const pageOrder = [
 
 const pages: DocPage[] = Object.entries(rawPages)
   .map(([file, markdown]) => {
-    const slug = file.replace(/^.*\/docs\//, "").replace(/\.md$/, "");
+    const relative = file.replace(/^.*\/docs\//, "").replace(/\.md$/, "");
+    const slash = relative.indexOf("/");
+    const locale = slash > 0 ? relative.slice(0, slash) : "";
+    const slug = slash > 0 ? relative.slice(slash + 1) : relative;
     const placement = place(slug);
     return {
+      locale,
       slug,
       title: titleOf(String(markdown), slug),
       group: placement.group,
@@ -56,40 +62,55 @@ const pages: DocPage[] = Object.entries(rawPages)
   .filter((page) => page.group)
   .sort((left, right) => rank(left.slug) - rank(right.slug));
 
+function pagesFor(locale: string): DocPage[] {
+  const chosen = new Map<string, DocPage>();
+  for (const page of pages) {
+    if (page.locale === "en") chosen.set(page.slug, page);
+  }
+  for (const page of pages) {
+    if (page.locale === locale) chosen.set(page.slug, page);
+  }
+  return [...chosen.values()].sort(
+    (left, right) => rank(left.slug) - rank(right.slug),
+  );
+}
+
 export function DocsPage() {
+  const { t, locale } = useI18n();
   const params = useParams();
   const slug = params["*"] ?? "";
-  const page = pages.find((item) => item.slug === slug);
+  const visible = pagesFor(locale);
+  const page = visible.find((item) => item.slug === slug);
   const documentTitle =
-    slug === "api" ? "API reference" : (page?.title ?? "Docs");
+    slug === "api" ? t("API reference") : (page?.title ?? t("Docs"));
   return (
     <div className="grid items-start gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
-      <PageTitle title={documentTitle} />
+      <PageTitle title={documentTitle} literal />
       <nav className="grid content-start gap-4">
         <DocGroup
-          label="User"
-          pages={pages.filter((item) => item.group === "User")}
+          label={t("User")}
+          pages={visible.filter((item) => item.group === "User")}
         />
         <div className="grid gap-2">
           <p className="px-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Developer
+            {t("Developer")}
           </p>
           <DocGroup
-            label="Backend"
-            pages={pages.filter((item) => item.section === "Backend")}
+            label={t("Backend")}
+            pages={visible.filter((item) => item.section === "Backend")}
             nested
           />
           <DocGroup
-            label="Frontend"
-            pages={pages.filter((item) => item.section === "Frontend")}
+            label={t("Frontend")}
+            pages={visible.filter((item) => item.section === "Frontend")}
             nested
           />
         </div>
         <div className="grid gap-1">
           <p className="px-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            API
+            {t("API")}
           </p>
-          <DocLink to="/docs/api">Reference</DocLink>
+          <DocLink to="/docs/api">{t("Reference")}</DocLink>
         </div>
       </nav>
       <article className="min-w-0">
@@ -99,7 +120,7 @@ export function DocsPage() {
           <Markdown source={page.markdown} />
         ) : (
           <p className="text-sm text-muted-foreground">
-            That page is not in the docs.
+            {t("That page is not in the docs.")}
           </p>
         )}
       </article>
@@ -152,7 +173,18 @@ function DocLink({ to, children }: { to: string; children: string }) {
   );
 }
 
+function withValues(
+  template: string,
+  values: Record<string, ReactNode>,
+): ReactNode[] {
+  return template.split(/(\{\w+\})/).map((part, index) => {
+    const name = /^\{\w+\}$/.exec(part)?.[0].slice(1, -1);
+    return name ? <span key={index}>{values[name]}</span> : part;
+  });
+}
+
 function ApiReference() {
+  const { t } = useI18n();
   const groups: { tag: string; docs: ApiDoc[] }[] = [];
   for (const doc of apiDocs) {
     const group = groups.find((item) => item.tag === doc.tag);
@@ -163,25 +195,32 @@ function ApiReference() {
     <div className="grid gap-8">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          API reference
+          {t("API reference")}
         </h1>
         <p className="mt-3 text-sm leading-6">
-          Call{" "}
-          <code className="rounded bg-muted px-1 font-mono text-[13px]">
-            https://your-domain/api/...
-          </code>{" "}
-          with{" "}
-          <code className="rounded bg-muted px-1 font-mono text-[13px]">
-            Authorization: Bearer sharry_...
-          </code>
-          . A key acts as the user it was created for. Routes marked session
-          accept only the dashboard cookie.
+          {withValues(
+            t(
+              "Call {url} with {header}. A key acts as the user it was created for. Routes marked session accept only the dashboard cookie.",
+            ),
+            {
+              url: (
+                <code className="rounded bg-muted px-1 font-mono text-[13px]">
+                  https://your-domain/api/...
+                </code>
+              ),
+              header: (
+                <code className="rounded bg-muted px-1 font-mono text-[13px]">
+                  Authorization: Bearer sharry_...
+                </code>
+              ),
+            },
+          )}
         </p>
       </div>
       {groups.map((group) => (
         <section key={group.tag} className="grid gap-3">
           <h2 className="font-heading text-2xl font-medium tracking-tight">
-            {group.tag}
+            {t(group.tag)}
           </h2>
           {group.docs.map((doc) => (
             <div
@@ -195,19 +234,19 @@ function ApiReference() {
                 <code className="font-mono text-sm">{doc.path}</code>
               </div>
               {doc.summary ? (
-                <p className="text-sm leading-6">{doc.summary}</p>
+                <p className="text-sm leading-6">{t(doc.summary)}</p>
               ) : null}
               {doc.auth ? (
                 <p className="text-sm text-muted-foreground">
-                  Auth: {doc.auth}
+                  {t("Auth: {auth}", { auth: t(doc.auth) })}
                 </p>
               ) : null}
-              <ParamList label="Path" items={doc.params} />
-              <ParamList label="Query" items={doc.query} />
+              <ParamList label={t("Path")} items={doc.params} />
+              <ParamList label={t("Query")} items={doc.query} />
               {doc.body ? (
                 <p className="text-sm">
-                  <span className="font-medium">Body. </span>
-                  {doc.body}
+                  <span className="font-medium">{t("Body. ")}</span>
+                  {t(doc.body)}
                 </p>
               ) : null}
               {doc.responses.length > 0 ? (
@@ -217,7 +256,7 @@ function ApiReference() {
                       <span className="font-mono text-xs">
                         {response.status}
                       </span>{" "}
-                      {response.description}
+                      {t(response.description)}
                     </li>
                   ))}
                 </ul>
@@ -237,10 +276,11 @@ function ParamList({
   label: string;
   items: ApiDoc["params"];
 }) {
+  const { t } = useI18n();
   if (items.length === 0) return null;
   return (
     <div className="grid gap-1">
-      <p className="text-sm font-medium">{label}</p>
+      <p className="text-sm font-medium">{t(label)}</p>
       <ul className="grid gap-1 text-sm">
         {items.map((item) => (
           <li key={item.name}>
@@ -248,7 +288,7 @@ function ParamList({
             {item.type ? (
               <span className="text-muted-foreground"> {item.type}</span>
             ) : null}
-            {item.description ? <span> — {item.description}</span> : null}
+            {item.description ? <span> — {t(item.description)}</span> : null}
           </li>
         ))}
       </ul>

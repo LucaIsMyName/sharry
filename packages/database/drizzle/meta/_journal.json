@@ -29,6 +29,13 @@
       "when": 1760900000003,
       "tag": "0003_redirect_domains",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1760900000004,
+      "tag": "0004_user_locale",
+      "breakpoints": true
     }
   ]
 }

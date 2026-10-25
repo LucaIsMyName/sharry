@@ -2,6 +2,7 @@ import { Outlet, createBrowserRouter, redirect } from 'react-router'
 import { api, type Me } from './api.ts'
 import { DocumentHead } from './components/page-title.tsx'
 import { Shell } from './components/shell.tsx'
+import { I18nProvider } from './i18n/index.tsx'
 import { ToastProvider } from './components/ui/toast.tsx'
 import { TooltipProvider } from './components/ui/tooltip.tsx'
 import { AdminAuditPage, AdminSettingsPage, AdminUsersPage } from './pages/admin.tsx'
@@ -61,12 +62,14 @@ async function scopeLoader(scope: Me['scope']) {
 
 function RootLayout() {
   return (
-    <TooltipProvider>
-      <ToastProvider>
-        <DocumentHead />
-        <Outlet />
-      </ToastProvider>
-    </TooltipProvider>
+    <I18nProvider>
+      <TooltipProvider>
+        <ToastProvider>
+          <DocumentHead />
+          <Outlet />
+        </ToastProvider>
+      </TooltipProvider>
+    </I18nProvider>
   )
 }
 

@@ -1,3 +1,4 @@
+import { useI18n } from "../../i18n/index.tsx";
 import {
   Select as SelectRoot,
   SelectContent,
@@ -23,12 +24,13 @@ export function Select<T extends string>({
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
 }) {
+  const { t } = useI18n();
   return (
     <SelectRoot
       value={value === "" ? null : value}
       items={options.map((option) => ({
         value: option.value,
-        label: option.label,
+        label: t(option.label),
       }))}
       onValueChange={(next) => {
         if (typeof next === "string") onValueChange(next as T);
@@ -40,7 +42,7 @@ export function Select<T extends string>({
         aria-describedby={describedBy}
         className="h-10 w-full"
       >
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={t(placeholder)} />
       </SelectTrigger>
       <SelectContent
         alignItemWithTrigger={false}
@@ -53,10 +55,10 @@ export function Select<T extends string>({
             value={option.value}
             className="items-start py-2"
           >
-            <span>{option.label}</span>
+            <span>{t(option.label)}</span>
             {option.description ? (
               <span className="text-xs font-normal whitespace-normal text-muted-foreground">
-                {option.description}
+                {t(option.description)}
               </span>
             ) : null}
           </SelectItem>

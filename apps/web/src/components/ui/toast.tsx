@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Toast } from "@base-ui/react/toast";
 import { XIcon } from "lucide-react";
 import { cn } from "cn";
+import { useI18n } from "../../i18n/index.tsx";
+import { t } from "../../i18n/translate.ts";
 
 const manager = Toast.createToastManager();
 
@@ -30,7 +32,7 @@ export const toast = {
 };
 
 export function toastCaught(caught: unknown, fallback: string) {
-  toast.error(caught instanceof Error ? caught.message : fallback);
+  toast.error(t(caught instanceof Error ? caught.message : fallback));
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -43,6 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 function Toaster() {
+  const { t } = useI18n();
   const { toasts } = Toast.useToastManager();
   return (
     <Toast.Portal>
@@ -60,7 +63,7 @@ function Toaster() {
               <Toast.Title className="text-sm leading-snug font-medium" />
             </Toast.Content>
             <Toast.Close
-              aria-label="Dismiss"
+              aria-label={t("Dismiss")}
               className="shrink-0 rounded-sm opacity-70 outline-none hover:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <XIcon className="size-4" />

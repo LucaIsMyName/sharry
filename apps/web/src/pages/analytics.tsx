@@ -23,8 +23,10 @@ import {
   TableRow,
 } from "../components/ui/table.tsx";
 import { cn } from "cn";
+import { useI18n } from "../i18n/index.tsx";
 
 export function AnalyticsPage() {
+  const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const linkId = params.get("link");
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
@@ -43,7 +45,7 @@ export function AnalyticsPage() {
         if (!linkId) setAnalytics(combined);
       })
       .catch((caught: unknown) => {
-        if (!cancelled) toastCaught(caught, "Could not load analytics");
+        if (!cancelled) toastCaught(caught, t("Could not load analytics"));
       });
     if (linkId) {
       void api<Analytics>(`/api/links/${linkId}/analytics`)
@@ -51,7 +53,7 @@ export function AnalyticsPage() {
           if (!cancelled) setAnalytics(result);
         })
         .catch((caught: unknown) => {
-          if (!cancelled) toastCaught(caught, "Could not load this link");
+          if (!cancelled) toastCaught(caught, t("Could not load this link"));
         })
         .finally(() => {
           if (!cancelled) setLoading(false);
@@ -76,12 +78,13 @@ export function AnalyticsPage() {
                 {selected.title?.trim() || selected.slug}
               </Link>
             ) : (
-              "Analytics"
+              t("Analytics")
             )}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Visitor addresses are not stored. Country appears only when a local
-            GeoIP database is configured.
+            {t(
+              "Visitor addresses are not stored. Country appears only when a local GeoIP database is configured.",
+            )}
           </p>
         </div>
         {linkId ? (
@@ -91,26 +94,26 @@ export function AnalyticsPage() {
             type="button"
             onClick={() => setParams({})}
           >
-            <ArrowLeft /> All links
+            <ArrowLeft /> {t("All links")}
           </Button>
         ) : null}
       </div>
       {loading && !analytics ? (
-        <p className="text-sm text-muted-foreground">Loading analytics…</p>
+        <p className="text-sm text-muted-foreground">{t("Loading analytics…")}</p>
       ) : null}
       {analytics ? (
         <div className="grid gap-4">
           <div className="grid gap-3.5 sm:grid-cols-3">
             <Card>
               <CardContent>
-                <span className="text-sm text-muted-foreground">Clicks</span>
+                <span className="text-sm text-muted-foreground">{t("Clicks")}</span>
                 <b className="mt-1 block text-3xl">{analytics.totalClicks}</b>
               </CardContent>
             </Card>
             <Card>
               <CardContent>
                 <span className="text-sm text-muted-foreground">
-                  Unique visitors
+                  {t("Unique visitors")}
                 </span>
                 <b className="mt-1 block text-3xl">
                   {analytics.uniqueVisitors}
@@ -120,7 +123,7 @@ export function AnalyticsPage() {
             <Card>
               <CardContent>
                 <span className="text-sm text-muted-foreground">
-                  Bot clicks
+                  {t("Bot clicks")}
                 </span>
                 <b className="mt-1 block text-3xl">{analytics.botClicks}</b>
               </CardContent>
@@ -132,28 +135,28 @@ export function AnalyticsPage() {
             </CardContent>
           </Card>
           <div className="grid gap-4 md:grid-cols-2">
-            <Breakdown title="Referrers" rows={analytics.referrers} />
-            <Breakdown title="Countries" rows={analytics.countries} />
-            <Breakdown title="Browsers" rows={analytics.browsers} />
-            <Breakdown title="Devices" rows={analytics.devices} />
+            <Breakdown title={t("Referrers")} rows={analytics.referrers} />
+            <Breakdown title={t("Countries")} rows={analytics.countries} />
+            <Breakdown title={t("Browsers")} rows={analytics.browsers} />
+            <Breakdown title={t("Devices")} rows={analytics.devices} />
             <UtmBreakdowns analytics={analytics} />
           </div>
         </div>
       ) : null}
       <Card className="mt-4 min-w-0">
         <CardContent className="min-w-0">
-          <h2 className="mb-3 text-lg font-medium">Links</h2>
+          <h2 className="mb-3 text-lg font-medium">{t("Links")}</h2>
           {loading && links.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Loading links…</p>
+            <p className="text-sm text-muted-foreground">{t("Loading links…")}</p>
           ) : links.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No links yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No links yet.")}</p>
           ) : (
             <Table className="min-w-full w-max">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Link</TableHead>
-                  <TableHead>Clicks</TableHead>
-                  <TableHead>Unique visitors</TableHead>
+                  <TableHead>{t("Link")}</TableHead>
+                  <TableHead>{t("Clicks")}</TableHead>
+                  <TableHead>{t("Unique visitors")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -185,6 +188,7 @@ export function AnalyticsPage() {
 }
 
 export function ClickChart({ series }: { series: Analytics["series"] }) {
+  const { t } = useI18n();
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -196,6 +200,7 @@ export function ClickChart({ series }: { series: Analytics["series"] }) {
           <Line
             type="monotone"
             dataKey="clicks"
+            name={t("Clicks")}
             stroke="var(--primary)"
             strokeWidth={2}
             dot={false}
@@ -227,13 +232,14 @@ export function Breakdown({
   title: string;
   rows: { name: string; clicks: number }[];
 }) {
+  const { t } = useI18n();
   const max = Math.max(1, ...rows.map((row) => row.clicks));
   return (
     <Card>
       <CardContent>
-        <h2 className="mb-3 text-lg font-medium">{title}</h2>
+        <h2 className="mb-3 text-lg font-medium">{t(title)}</h2>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No data yet.</p>
+          <p className="text-sm text-muted-foreground">{t("No data yet.")}</p>
         ) : (
           <div className="grid gap-2">
             {rows.map((row, index) => (

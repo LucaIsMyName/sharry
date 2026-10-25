@@ -23,6 +23,7 @@ import {
 import { Field, FieldMessage } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
+import { useI18n } from "../i18n/index.tsx";
 import {
   Table,
   TableBody,
@@ -48,6 +49,7 @@ type DomainList = {
 };
 
 export function AdminDomainsPage() {
+  const { t } = useI18n();
   const [domains, setDomains] = useState<RedirectDomain[]>([]);
   const [serverAddresses, setServerAddresses] = useState<string[]>([]);
   const [hostname, setHostname] = useState("");
@@ -65,7 +67,7 @@ export function AdminDomainsPage() {
 
   useEffect(() => {
     void load().catch((caught: unknown) =>
-      toastCaught(caught, "Could not load domains"),
+      toastCaught(caught, t("Could not load domains")),
     );
   }, []);
 
@@ -85,7 +87,7 @@ export function AdminDomainsPage() {
       setSetup(created.domain);
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not add the domain");
+      toastCaught(caught, t("Could not add the domain"));
     } finally {
       setPending(false);
     }
@@ -99,7 +101,7 @@ export function AdminDomainsPage() {
       });
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not verify the domain");
+      toastCaught(caught, t("Could not verify the domain"));
       await load().catch(() => undefined);
     } finally {
       setVerifyingId("");
@@ -116,7 +118,7 @@ export function AdminDomainsPage() {
       if (setup?.id === deleteFor.id) setSetup(null);
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not delete the domain");
+      toastCaught(caught, t("Could not delete the domain"));
     }
   }
 
@@ -124,12 +126,12 @@ export function AdminDomainsPage() {
     <section className="grid gap-4">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          Domains
+          {t("Domains")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Add a hostname, publish the DNS records, then verify it. People can
-          choose a verified domain when they create a link. The deployment
-          domain stays the default.
+          {t(
+            "Add a hostname, publish the DNS records, then verify it. People can choose a verified domain when they create a link. The deployment domain stays the default.",
+          )}
         </p>
       </div>
       <Card>
@@ -144,7 +146,7 @@ export function AdminDomainsPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? "Adding…" : "Add domain"}
+              <Plus /> {pending ? t("Adding…") : t("Add domain")}
             </Button>
           </form>
         </CardContent>
@@ -154,8 +156,8 @@ export function AdminDomainsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Domain</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("Domain")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -163,7 +165,7 @@ export function AdminDomainsPage() {
               {domains.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={3} className="text-muted-foreground">
-                    No redirect domains yet.
+                    {t("No redirect domains yet.")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -184,7 +186,7 @@ export function AdminDomainsPage() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      {domain.status === "verified" ? "Verified" : "Pending"}
+                      {domain.status === "verified" ? t("Verified") : t("Pending")}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap justify-end gap-2">
@@ -195,7 +197,7 @@ export function AdminDomainsPage() {
                             size="sm"
                             onClick={() => setSetup(domain)}
                           >
-                            <ListChecks /> Setup
+                            <ListChecks /> {t("Setup")}
                           </Button>
                         ) : null}
                         {domain.status === "pending" ? (
@@ -207,7 +209,7 @@ export function AdminDomainsPage() {
                             onClick={() => void verify(domain)}
                           >
                             <BadgeCheck />{" "}
-                            {verifyingId === domain.id ? "Checking…" : "Verify"}
+                            {verifyingId === domain.id ? t("Checking…") : t("Verify")}
                           </Button>
                         ) : null}
                         <Button
@@ -216,7 +218,7 @@ export function AdminDomainsPage() {
                           size="sm"
                           onClick={() => setDeleteFor(domain)}
                         >
-                          <Trash2 /> Delete
+                          <Trash2 /> {t("Delete")}
                         </Button>
                       </div>
                     </TableCell>
@@ -236,37 +238,44 @@ export function AdminDomainsPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">
-              {setup ? `Set up ${setup.hostname}` : "Set up domain"}
+              {setup
+                ? t("Set up {hostname}", { hostname: setup.hostname })
+                : t("Set up domain")}
             </DialogTitle>
             <DialogDescription>
               {setup
-                ? `Verify checks the TXT record. Publish both records, then click Verify. After that, open https://${setup.hostname} once so the certificate can be issued.`
+                ? t(
+                    "Verify checks the TXT record. Publish both records, then click Verify. After that, open https://{hostname} once so the certificate can be issued.",
+                    { hostname: setup.hostname },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>
           {setup ? (
             <div className="grid gap-3">
-              <CopyRow label="TXT name" value={setup.txtName} />
-              <CopyRow label="TXT value" value={setup.txtValue} />
+              <CopyRow label={t("TXT name")} value={setup.txtName} />
+              <CopyRow label={t("TXT value")} value={setup.txtValue} />
               <div className="grid gap-2">
-                <p className="text-sm font-medium">A record</p>
+                <p className="text-sm font-medium">{t("A record")}</p>
                 {serverAddresses.length > 0 ? (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Add an A record for {setup.hostname} pointing at this
-                      server.
+                      {t(
+                        "Add an A record for {hostname} pointing at this server.",
+                        { hostname: setup.hostname },
+                      )}
                     </p>
                     {serverAddresses.map((address) => (
                       <CopyRow
                         key={address}
-                        label="IPv4 address"
+                        label={t("IPv4 address")}
                         value={address}
                       />
                     ))}
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    The server address could not be looked up.
+                    {t("The server address could not be looked up.")}
                   </p>
                 )}
               </div>
@@ -277,7 +286,9 @@ export function AdminDomainsPage() {
       <ConfirmDialog
         open={Boolean(deleteFor)}
         title={
-          deleteFor ? `Delete ${deleteFor.hostname}?` : "Delete this domain?"
+          deleteFor
+            ? t("Delete {hostname}?", { hostname: deleteFor.hostname })
+            : t("Delete this domain?")
         }
         description="Links that used this domain switch back to the deployment domain. A certificate that was already issued keeps working until it expires."
         confirmLabel="Delete domain"
@@ -292,6 +303,7 @@ export function AdminDomainsPage() {
 }
 
 function CopyRow({ label, value }: { label: string; value: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <div className="grid gap-1">
@@ -312,11 +324,11 @@ function CopyRow({ label, value }: { label: string; value: string }) {
         >
           {copied ? (
             <>
-              <Check /> Copied
+              <Check /> {t("Copied")}
             </>
           ) : (
             <>
-              <Copy /> Copy
+              <Copy /> {t("Copy")}
             </>
           )}
         </Button>

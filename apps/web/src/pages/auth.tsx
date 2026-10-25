@@ -13,22 +13,26 @@ import {
 } from "lucide-react";
 import {
   Link,
+  useLoaderData,
   useNavigate,
   useRevalidator,
   useSearchParams,
 } from "react-router";
-import { defaultQrStyle, generatePassword } from "@sharry/shared";
+import { defaultQrStyle, generatePassword, locales } from "@sharry/shared";
 import { api, type Me } from "../api.ts";
+import { localeLabels, useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { QrPreview } from "../components/qr-preview.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { copyText } from "../components/ui/copy.ts";
+import { Select } from "../components/ui/choice-select.tsx";
 import { Field } from "../components/ui/field.tsx";
 import { ImageUpload } from "../components/ui/image-upload.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
 
 export function LoginPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +52,7 @@ export function LoginPage() {
       else if (result.scope === "mfa_challenge") await navigate("/login/mfa");
       else await navigate("/");
     } catch (caught) {
-      toastCaught(caught, "Could not sign in");
+      toastCaught(caught, t("Could not sign in"));
     } finally {
       setPending(false);
     }
@@ -78,14 +82,14 @@ export function LoginPage() {
           />
         </Field>
         <Button type="submit" disabled={pending}>
-          {pending ? "Signing in…" : "Continue"}
+          {pending ? t("Signing in…") : t("Continue")}
         </Button>
         <p className="mt-3 text-sm">
           <Link
             className="text-primary underline-offset-3 hover:underline"
             to="/login/reset"
           >
-            Forgot password
+            {t("Forgot password")}
           </Link>
         </p>
       </form>
@@ -94,6 +98,9 @@ export function LoginPage() {
 }
 
 export function MfaPage() {
+  const me = useLoaderData() as Me;
+  useAccountLocale(me.user.locale);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
@@ -108,7 +115,7 @@ export function MfaPage() {
       });
       await navigate("/");
     } catch (caught) {
-      toastCaught(caught, "That code is not valid");
+      toastCaught(caught, t("That code is not valid"));
     } finally {
       setPending(false);
     }
@@ -130,7 +137,7 @@ export function MfaPage() {
           />
         </Field>
         <Button type="submit" disabled={pending}>
-          <BadgeCheck /> {pending ? "Checking…" : "Verify"}
+          <BadgeCheck /> {pending ? t("Checking…") : t("Verify")}
         </Button>
       </form>
     </AuthShell>
@@ -138,6 +145,9 @@ export function MfaPage() {
 }
 
 export function PasswordPage() {
+  const me = useLoaderData() as Me;
+  useAccountLocale(me.user.locale);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -156,7 +166,7 @@ export function PasswordPage() {
       else if (result.scope === "mfa_challenge") await navigate("/login/mfa");
       else await navigate("/");
     } catch (caught) {
-      toastCaught(caught, "Could not change the password");
+      toastCaught(caught, t("Could not change the password"));
     } finally {
       setPending(false);
     }
@@ -194,10 +204,10 @@ export function PasswordPage() {
             setShowNewPassword(true);
           }}
         >
-          <Shuffle /> Generate password
+          <Shuffle /> {t("Generate password")}
         </Button>
         <Button type="submit" disabled={pending}>
-          <KeyRound /> {pending ? "Updating…" : "Update password"}
+          <KeyRound /> {pending ? t("Updating…") : t("Update password")}
         </Button>
       </form>
     </AuthShell>
@@ -205,6 +215,7 @@ export function PasswordPage() {
 }
 
 export function AccountPage() {
+  const { t, locale, setLocale } = useI18n();
   const revalidator = useRevalidator();
   const [me, setMe] = useState<Me | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -235,9 +246,9 @@ export function AccountPage() {
       });
       setCurrentPassword("");
       setNewPassword("");
-      toast.success("Password updated.");
+      toast.success(t("Password updated."));
     } catch (caught) {
-      toastCaught(caught, "Could not change the password");
+      toastCaught(caught, t("Could not change the password"));
     } finally {
       setPending(false);
     }
@@ -256,7 +267,7 @@ export function AccountPage() {
       setAvatarKey((key) => key + 1);
       await refreshAccount();
     } catch (caught) {
-      toastCaught(caught, "Could not save the photo");
+      toastCaught(caught, t("Could not save the photo"));
     }
   }
 
@@ -265,7 +276,23 @@ export function AccountPage() {
       await api("/api/auth/avatar", { method: "DELETE" });
       await refreshAccount();
     } catch (caught) {
-      toastCaught(caught, "Could not remove the photo");
+      toastCaught(caught, t("Could not remove the photo"));
+    }
+  }
+
+  useAccountLocale(me?.user.locale);
+
+  async function changeLocale(next: string) {
+    try {
+      await api("/api/auth/locale", {
+        method: "PATCH",
+        body: JSON.stringify({ locale: next }),
+      });
+      setLocale(next);
+      toast.success(t("Language updated."));
+      await refreshAccount();
+    } catch (caught) {
+      toastCaught(caught, t("Could not save the language"));
     }
   }
 
@@ -275,7 +302,7 @@ export function AccountPage() {
     <section className="grid gap-4">
       <div className="mb-1">
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          Account
+          {t("Account")}
         </h1>
         <p className="text-sm text-muted-foreground">{me?.user.email}</p>
       </div>
@@ -310,7 +337,7 @@ export function AccountPage() {
                 type="button"
                 onClick={() => void removeAvatar()}
               >
-                <Trash2 /> Remove photo
+                <Trash2 /> {t("Remove photo")}
               </Button>
             ) : null}
           </div>
@@ -318,8 +345,22 @@ export function AccountPage() {
       </Card>
       <Card>
         <CardContent>
+          <Field label="Language">
+            <Select
+              value={me?.user.locale ?? locale}
+              options={locales.map((code) => ({
+                value: code,
+                label: localeLabels[code],
+              }))}
+              onValueChange={(next) => void changeLocale(next)}
+            />
+          </Field>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-            <h2 className="text-lg font-medium">Password</h2>
+            <h2 className="text-lg font-medium">{t("Password")}</h2>
             <Field label="Current password">
               <Input
                 type="password"
@@ -340,28 +381,30 @@ export function AccountPage() {
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              <KeyRound /> {pending ? "Updating…" : "Update password"}
+              <KeyRound /> {pending ? t("Updating…") : t("Update password")}
             </Button>
           </form>
         </CardContent>
       </Card>
       <Card>
         <CardContent className="grid gap-3">
-          <h2 className="text-lg font-medium">Two-factor authentication</h2>
+          <h2 className="text-lg font-medium">{t("Two-factor authentication")}</h2>
           {me?.mfaRequired ? (
             <p className="text-sm text-muted-foreground">
-              An administrator requires a code at sign-in.
+              {t("An administrator requires a code at sign-in.")}
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Optional. Turn it on for this account when you want a code at
-              sign-in.
+              {t(
+                "Optional. Turn it on for this account when you want a code at sign-in.",
+              )}
             </p>
           )}
           {me && !me.mailConfigured && !me.user.totpEnabled ? (
             <p className="text-sm text-muted-foreground">
-              An administrator needs to save a mail server in Settings before
-              two-factor authentication can be turned on.
+              {t(
+                "An administrator needs to save a mail server in Settings before two-factor authentication can be turned on.",
+              )}
             </p>
           ) : null}
           {me?.user.totpEnabled ? (
@@ -376,19 +419,19 @@ export function AccountPage() {
                 })
                   .then(async () => {
                     setDisablePassword("");
-                    toast.success("Two-factor authentication is off.");
+                    toast.success(t("Two-factor authentication is off."));
                     setMe(await api<Me>("/api/auth/me"));
                   })
                   .catch((caught: unknown) =>
                     toastCaught(
                       caught,
-                      "Could not turn off two-factor authentication",
+                      t("Could not turn off two-factor authentication"),
                     ),
                   )
                   .finally(() => setTurningOff(false));
               }}
             >
-              <p>A code is required for this account.</p>
+              <p>{t("A code is required for this account.")}</p>
               <Field label="Current password">
                 <Input
                   type="password"
@@ -398,7 +441,7 @@ export function AccountPage() {
                 />
               </Field>
               <Button type="submit" disabled={turningOff}>
-                <ShieldOff /> {turningOff ? "Turning off…" : "Turn off"}
+                <ShieldOff /> {turningOff ? t("Turning off…") : t("Turn off")}
               </Button>
             </form>
           ) : recovery ? (
@@ -415,11 +458,11 @@ export function AccountPage() {
                     )
                       .then(setSetup)
                       .catch((caught: unknown) =>
-                        toastCaught(caught, "Could not start setup"),
+                        toastCaught(caught, t("Could not start setup")),
                       )
                   }
                 >
-                  <Shield /> Turn on
+                  <Shield /> {t("Turn on")}
                 </Button>
               ) : null}
               {setup ? (
@@ -441,7 +484,7 @@ export function AccountPage() {
                         setMe(await api<Me>("/api/auth/me"));
                       })
                       .catch((caught: unknown) =>
-                        toastCaught(caught, "That code is not valid"),
+                        toastCaught(caught, t("That code is not valid")),
                       )
                       .finally(() => setConfirming(false));
                   }}
@@ -456,6 +499,9 @@ export function AccountPage() {
 }
 
 export function EnrollPage() {
+  const me = useLoaderData() as Me;
+  useAccountLocale(me.user.locale);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [setup, setSetup] = useState<{
     secret: string;
@@ -476,7 +522,7 @@ export function EnrollPage() {
     try {
       setSetup(await api("/api/auth/mfa/setup", { method: "POST" }));
     } catch (caught) {
-      toastCaught(caught, "Could not start setup");
+      toastCaught(caught, t("Could not start setup"));
     }
   }
 
@@ -493,7 +539,7 @@ export function EnrollPage() {
       );
       setRecovery(result.recoveryCodes);
     } catch (caught) {
-      toastCaught(caught, "That code is not valid");
+      toastCaught(caught, t("That code is not valid"));
     } finally {
       setConfirming(false);
     }
@@ -508,20 +554,21 @@ export function EnrollPage() {
         <>
           <RecoveryCodes codes={recovery} />
           <Button type="button" onClick={() => void navigate("/")}>
-            Continue
+            {t("Continue")}
           </Button>
         </>
       ) : (
         <>
           {!setup && mailConfigured ? (
             <Button type="button" onClick={() => void begin()}>
-              Generate secret
+              {t("Generate secret")}
             </Button>
           ) : null}
           {!setup && mailConfigured === false ? (
             <p className="text-sm text-muted-foreground">
-              An administrator needs to save a mail server in Settings before
-              two-factor authentication can be turned on.
+              {t(
+                "An administrator needs to save a mail server in Settings before two-factor authentication can be turned on.",
+              )}
             </p>
           ) : null}
           {setup ? (
@@ -541,6 +588,7 @@ export function EnrollPage() {
 }
 
 export function ResetPage() {
+  const { t } = useI18n();
   const [params] = useSearchParams();
   const token = params.get("token") ?? "";
   const [email, setEmail] = useState("");
@@ -556,10 +604,10 @@ export function ResetPage() {
         body: JSON.stringify({ email }),
       });
       toast.success(
-        "If that account can receive mail, a reset link is on its way.",
+        t("If that account can receive mail, a reset link is on its way."),
       );
     } catch (caught) {
-      toastCaught(caught, "Could not send the reset link");
+      toastCaught(caught, t("Could not send the reset link"));
     } finally {
       setPending(false);
     }
@@ -573,9 +621,9 @@ export function ResetPage() {
         method: "POST",
         body: JSON.stringify({ token, newPassword: password }),
       });
-      toast.success("Password updated. Sign in with the new password.");
+      toast.success(t("Password updated. Sign in with the new password."));
     } catch (caught) {
-      toastCaught(caught, "Could not reset the password");
+      toastCaught(caught, t("Could not reset the password"));
     } finally {
       setPending(false);
     }
@@ -598,7 +646,7 @@ export function ResetPage() {
             />
           </Field>
           <Button type="submit" disabled={pending}>
-            <Save /> {pending ? "Saving…" : "Save password"}
+            <Save /> {pending ? t("Saving…") : t("Save password")}
           </Button>
         </form>
       ) : (
@@ -615,22 +663,25 @@ export function ResetPage() {
             />
           </Field>
           <Button type="submit" disabled={pending}>
-            {pending ? "Sending…" : "Send reset link"}
+            {pending ? t("Sending…") : t("Send reset link")}
           </Button>
         </form>
       )}
       <p>
-        <Link to="/login">Back to sign in</Link>
+        <Link to="/login">{t("Back to sign in")}</Link>
       </p>
     </AuthShell>
   );
 }
 
 function RecoveryCodes({ codes }: { codes: string[] }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <div className="grid gap-3">
-      <p>Save these recovery codes somewhere private. Each code works once.</p>
+      <p>
+        {t("Save these recovery codes somewhere private. Each code works once.")}
+      </p>
       <div className="grid grid-cols-2 gap-2">
         {codes.map((item) => (
           <code
@@ -647,16 +698,16 @@ function RecoveryCodes({ codes }: { codes: string[] }) {
         onClick={() =>
           void copyText(codes.join("\n"))
             .then(() => setCopied(true))
-            .catch(() => toast.error("Could not copy the recovery codes"))
+            .catch(() => toast.error(t("Could not copy the recovery codes")))
         }
       >
         {copied ? (
           <>
-            <Check /> Copied
+            <Check /> {t("Copied")}
           </>
         ) : (
           <>
-            <Copy /> Copy codes
+            <Copy /> {t("Copy codes")}
           </>
         )}
       </Button>
@@ -679,10 +730,11 @@ function AuthenticatorSetup({
   onConfirm: (event: FormEvent) => void;
   pending: boolean;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <form className="grid gap-3" onSubmit={onConfirm}>
-      <p>Add this secret to your authenticator app.</p>
+      <p>{t("Add this secret to your authenticator app.")}</p>
       <QrPreview url={otpauthUrl} style={defaultQrStyle} showNotes={false} />
       <p className="break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">
         {secret}
@@ -693,16 +745,16 @@ function AuthenticatorSetup({
         onClick={() =>
           void copyText(secret)
             .then(() => setCopied(true))
-            .catch(() => toast.error("Could not copy the secret"))
+            .catch(() => toast.error(t("Could not copy the secret")))
         }
       >
         {copied ? (
           <>
-            <Check /> Copied
+            <Check /> {t("Copied")}
           </>
         ) : (
           <>
-            <Copy /> Copy secret
+            <Copy /> {t("Copy secret")}
           </>
         )}
       </Button>
@@ -716,7 +768,7 @@ function AuthenticatorSetup({
         />
       </Field>
       <Button type="submit" disabled={pending}>
-        {pending ? "Checking…" : "Confirm"}
+        {pending ? t("Checking…") : t("Confirm")}
       </Button>
     </form>
   );
@@ -731,6 +783,7 @@ function AuthShell({
   lede: string;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="grid min-h-svh place-items-center bg-[radial-gradient(circle_at_top_left,rgba(19,17,155,0.14),transparent_32%),var(--background)] p-6">
       <Card className="w-full max-w-md">
@@ -738,9 +791,9 @@ function AuthShell({
           <p className="font-heading text-4xl font-medium tracking-tight">
             sharry
           </p>
-          <h1 className="text-2xl font-medium">{title}</h1>
+          <h1 className="text-2xl font-medium">{t(title)}</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {lede}
+            {t(lede)}
           </p>
           {children}
         </CardContent>

@@ -28,7 +28,7 @@ These sit under the shell. The parent loader requires a `full` session. A sessio
 | `/analytics` | Analytics |
 | `/docs` | Redirects to `/docs/user/signing-in` |
 | `/docs/*` | User guides, developer notes, and `/docs/api` |
-| `/account` | Password, photo, and two-factor authentication |
+| `/account` | Language, password, photo, and two-factor authentication |
 
 Admin pages add a loader that allows only the admin role. Anyone else is sent to `/`.
 
@@ -41,4 +41,4 @@ Admin pages add a loader that allows only the admin role. Anyone else is sent to
 | `/admin/server` | Host memory, disk, operating system, and installed runtime |
 | `/admin/audit` | Audit log |
 
-Docs are available to every signed-in user at `/docs`. The page list comes from markdown files under `apps/web/docs`. The order is the `pageOrder` array in `apps/web/src/pages/docs.tsx`. A file that is not in that array still appears, at the end. The API reference is generated from JSDoc while Vite builds.
+Docs are available to every signed-in user at `/docs`. The page list comes from markdown files under `apps/web/docs/<locale>`, with English in `en` and a matching tree for each other language. The order is the `pageOrder` array in `apps/web/src/pages/docs.tsx`. A file that is not in that array still appears, at the end. The API reference is generated from JSDoc while Vite builds.

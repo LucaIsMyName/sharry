@@ -2,6 +2,14 @@ import { z } from 'zod'
 import { qrStyleSchema } from './qr.ts'
 import { UTM_KEYS } from './utm.ts'
 
+export const locales = ['en', 'de'] as const
+export const localeSchema = z.enum(locales)
+export type Locale = z.infer<typeof localeSchema>
+
+export const updateLocaleSchema = z.object({
+  locale: localeSchema,
+})
+
 export const destinationSchema = z
   .string()
   .trim()

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useI18n } from "../../i18n/index.tsx";
 import { Button } from "./button.tsx";
 import {
   Dialog,
@@ -30,12 +31,13 @@ export function ConfirmDialog({
   onOpenChange: (open: boolean) => void;
   children?: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-heading text-2xl">{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle className="font-heading text-2xl">{t(title)}</DialogTitle>
+          <DialogDescription>{t(description)}</DialogDescription>
         </DialogHeader>
         {children}
         <DialogFooter className="border-0 bg-transparent sm:justify-start">
@@ -44,7 +46,7 @@ export function ConfirmDialog({
             type="button"
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
@@ -52,7 +54,7 @@ export function ConfirmDialog({
             disabled={confirmDisabled}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {t(confirmLabel)}
           </Button>
         </DialogFooter>
       </DialogContent>

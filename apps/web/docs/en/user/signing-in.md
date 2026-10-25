@@ -33,6 +33,10 @@ Password reset email uses the mail server saved in Settings. Until a host and fr
 
 Ask for a reset with the account email. The link is `{APP_URL}/login/reset?token=...` and expires after one hour. Asking for another reset email replaces the previous unused link. The token is marked used in the same database transaction as the password change, so a repeated or overlapping request cannot apply a second password.
 
+## Language
+
+Each account chooses its own language on Account. English is the default. German is available too. The choice is saved on the account, so the next sign-in on any browser opens in that language. The sign-in and reset pages use the language this browser last saved. Adding another language later is a code change: add its code to the locale list, add a message catalog, and add a docs folder. It does not need a new database migration.
+
 ## Account photo
 
 Account can store a photo. Use a PNG, JPEG, or WebP image, 512 KB or smaller. Removing the photo deletes the file. The photo is stored on disk, not in PostgreSQL.

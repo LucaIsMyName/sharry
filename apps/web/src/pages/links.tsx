@@ -50,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table.tsx";
+import { t, useI18n } from "../i18n/index.tsx";
 import { Breakdown, ClickChart, UtmBreakdowns } from "./analytics.tsx";
 
 const emptyUtm: UtmParams = {};
@@ -117,6 +118,7 @@ function previewDestination(destination: string, utm: UtmParams): string {
 const linkPageSize = 50;
 
 export function LinksPage() {
+  const { t } = useI18n();
   const [links, setLinks] = useState<LinkSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
@@ -141,7 +143,7 @@ export function LinksPage() {
         .catch((caught: unknown) => {
           if (current !== requestId.current) return;
           setFailed(true);
-          toastCaught(caught, "Could not load links");
+          toastCaught(caught, t("Could not load links"));
         })
         .finally(() => {
           if (current === requestId.current) setLoading(false);
@@ -165,7 +167,7 @@ export function LinksPage() {
     } catch (caught) {
       if (current === requestId.current) {
         setFailed(true);
-        toastCaught(caught, "Could not load links");
+        toastCaught(caught, t("Could not load links"));
       }
     } finally {
       setLoadingMore(false);
@@ -177,14 +179,14 @@ export function LinksPage() {
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-4xl font-medium tracking-tight">
-            Links
+            {t("Links")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            The slug stays put when you edit where it goes.
+            {t("The slug stays put when you edit where it goes.")}
           </p>
         </div>
         <Link className={buttonVariants({ size: "sm" })} to="/links/new">
-          <Plus /> New link
+          <Plus /> {t("New link")}
         </Link>
       </div>
       <Field label="Search">
@@ -199,13 +201,13 @@ export function LinksPage() {
           <Table className="min-w-full w-max">
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Short URL</TableHead>
-                <TableHead>Destination</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Clicks</TableHead>
+                <TableHead>{t("Title")}</TableHead>
+                <TableHead>{t("Short URL")}</TableHead>
+                <TableHead>{t("Destination")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
+                <TableHead>{t("Clicks")}</TableHead>
                 <TableHead>
-                  <span className="sr-only">Test</span>
+                  <span className="sr-only">{t("Test")}</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -213,13 +215,13 @@ export function LinksPage() {
               {loading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-muted-foreground">
-                    Loading links…
+                    {t("Loading links…")}
                   </TableCell>
                 </TableRow>
               ) : links.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-muted-foreground">
-                    {failed ? "Could not load links." : "No links match."}
+                    {failed ? t("Could not load links.") : t("No links match.")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -251,7 +253,7 @@ export function LinksPage() {
                           link.status === "active" ? "secondary" : "outline"
                         }
                       >
-                        {link.status === "active" ? "Active" : "Paused"}
+                        {link.status === "active" ? t("Active") : t("Paused")}
                       </Badge>
                     </TableCell>
                     <TableCell className="tabular-nums">
@@ -266,7 +268,9 @@ export function LinksPage() {
                         href={link.shortUrl}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label={`Test ${link.title?.trim() || link.slug}`}
+                        aria-label={t("Test {name}", {
+                          name: link.title?.trim() || link.slug,
+                        })}
                       >
                         <ExternalLink />
                       </a>
@@ -285,8 +289,11 @@ export function LinksPage() {
               onClick={() => void loadMore()}
             >
               {loadingMore
-                ? "Loading…"
-                : `Load more (${links.length} of ${total})`}
+                ? t("Loading…")
+                : t("Load more ({shown} of {total})", {
+                    shown: links.length,
+                    total,
+                  })}
             </Button>
           ) : null}
         </CardContent>
@@ -308,6 +315,7 @@ function RedirectDomainField({
   value: string;
   onValueChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
   const [domains, setDomains] = useState<{ id: string; hostname: string }[]>([]);
   const [defaultHost, setDefaultHost] = useState("Default");
 
@@ -337,19 +345,25 @@ function RedirectDomainField({
       <Select
         value={value}
         options={[
-          { value: defaultRedirectDomain, label: `${defaultHost} (default)` },
+          {
+            value: defaultRedirectDomain,
+            label: t("{host} (default)", { host: defaultHost }),
+          },
           ...domains.map((domain) => ({ value: domain.id, label: domain.hostname })),
         ]}
         onValueChange={onValueChange}
       />
       <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-        The short URL uses this domain. A QR code downloaded later uses the domain saved on the link.
+        {t(
+          "The short URL uses this domain. A QR code downloaded later uses the domain saved on the link.",
+        )}
       </p>
     </Field>
   );
 }
 
 export function LinkFormPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [settings, setSettings] = useState<PublicSettings | null>(null);
   const [destinationUrl, setDestinationUrl] = useState("https://");
@@ -386,7 +400,7 @@ export function LinkFormPage() {
       });
       await navigate(`/links/${created.id}`);
     } catch (caught) {
-      toastCaught(caught, "Could not create the link");
+      toastCaught(caught, t("Could not create the link"));
     } finally {
       setPending(false);
     }
@@ -396,7 +410,7 @@ export function LinkFormPage() {
   return (
     <section>
       <h1 className="mb-5 font-heading text-4xl font-medium tracking-tight">
-        New link
+        {t("New link")}
       </h1>
       <Card>
         <CardContent>
@@ -405,7 +419,10 @@ export function LinkFormPage() {
               label="Destination"
               info={
                 conflicts.length > 0
-                  ? `Saving will replace ${conflicts.join(", ")} already present on the destination.`
+                  ? t(
+                      "Saving will replace {fields} already present on the destination.",
+                      { fields: conflicts.join(", ") },
+                    )
                   : undefined
               }
             >
@@ -440,11 +457,13 @@ export function LinkFormPage() {
             <UtmFields utm={utm} onChange={setUtm} />
             {settings ? (
               <p className="text-sm text-muted-foreground">
-                Preview: {previewDestination(destinationUrl, utm)}
+                {t("Preview: {url}", {
+                  url: previewDestination(destinationUrl, utm),
+                })}
               </p>
             ) : null}
             <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? "Creating…" : "Create link"}
+              <Plus /> {pending ? t("Creating…") : t("Create link")}
             </Button>
           </form>
         </CardContent>
@@ -454,6 +473,7 @@ export function LinkFormPage() {
 }
 
 export function LinkDetailPage() {
+  const { t } = useI18n();
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [link, setLink] = useState<ShortLink | null>(null);
@@ -529,7 +549,7 @@ export function LinkDetailPage() {
         if (saved) await showQr(saved, () => cancelled);
         else setTrackingVariantId(noVariant);
       } catch (caught) {
-        if (!cancelled) toastCaught(caught, "Could not load this link");
+        if (!cancelled) toastCaught(caught, t("Could not load this link"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -576,11 +596,11 @@ export function LinkDetailPage() {
       setPassword("");
       toast.success(
         slug.trim()
-          ? "Saved. The short URL keeps this slug."
-          : "Saved. A random slug replaced the empty one.",
+          ? t("Saved. The short URL keeps this slug.")
+          : t("Saved. A random slug replaced the empty one."),
       );
     } catch (caught) {
-      toastCaught(caught, "Could not save");
+      toastCaught(caught, t("Could not save"));
     } finally {
       setSaving(false);
     }
@@ -594,9 +614,9 @@ export function LinkDetailPage() {
       });
       setLink(updated);
       setPassword("");
-      toast.success("Password removed. The short link redirects directly.");
+      toast.success(t("Password removed. The short link redirects directly."));
     } catch (caught) {
-      toastCaught(caught, "Could not remove the password");
+      toastCaught(caught, t("Could not remove the password"));
     }
   }
 
@@ -610,7 +630,7 @@ export function LinkDetailPage() {
       copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
     } catch (caught) {
       setCopied(false);
-      toastCaught(caught, "Could not copy the short URL");
+      toastCaught(caught, t("Could not copy the short URL"));
     }
   }
 
@@ -620,7 +640,7 @@ export function LinkDetailPage() {
       setConfirmDelete(false);
       await navigate("/links");
     } catch (caught) {
-      toastCaught(caught, "Could not delete this link");
+      toastCaught(caught, t("Could not delete this link"));
     }
   }
 
@@ -688,9 +708,9 @@ export function LinkDetailPage() {
         created,
         ...current.filter((code) => code.id !== created.id),
       ]);
-      toast.success("QR code saved. Downloads use this code’s short URL.");
+      toast.success(t("QR code saved. Downloads use this code’s short URL."));
     } catch (caught) {
-      toastCaught(caught, "Could not save the QR code");
+      toastCaught(caught, t("Could not save the QR code"));
     } finally {
       setSavingQr(false);
     }
@@ -706,14 +726,14 @@ export function LinkDetailPage() {
           current.map((code) => (code.id === next.id ? next : code)),
         );
       } catch (caught) {
-        toastCaught(caught, "Could not remove the center image");
+        toastCaught(caught, t("Could not remove the center image"));
         return;
       }
     }
     setLogoFile(null);
     setLogoUrl(null);
     setLogoInputKey((key) => key + 1);
-    toast.success("Center image removed.");
+    toast.success(t("Center image removed."));
   }
 
   const conflicts = utmConflicts(destinationUrl, utm);
@@ -727,11 +747,14 @@ export function LinkDetailPage() {
 
   return (
     <section className="grid gap-4">
-      <PageTitle title={link?.title?.trim() || link?.slug || "Link"} />
+      <PageTitle
+        title={link?.title?.trim() || link?.slug || "Link"}
+        literal={Boolean(link?.title?.trim() || link?.slug)}
+      />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-4xl font-medium tracking-tight">
-            {link?.title?.trim() || link?.slug || "Link"}
+            {link?.title?.trim() || link?.slug || t("Link")}
           </h1>
           {link ? (
             <a
@@ -751,7 +774,7 @@ export function LinkDetailPage() {
             form="link-editor"
             disabled={saving || loading || !link}
           >
-            <Save /> {saving ? "Saving…" : "Save"}
+            <Save /> {saving ? t("Saving…") : t("Save")}
           </Button>
           <Button
             variant="outline"
@@ -762,11 +785,11 @@ export function LinkDetailPage() {
           >
             {copied ? (
               <>
-                <Check /> Copied
+                <Check /> {t("Copied")}
               </>
             ) : (
               <>
-                <Copy /> Copy
+                <Copy /> {t("Copy")}
               </>
             )}
           </Button>
@@ -776,12 +799,12 @@ export function LinkDetailPage() {
             type="button"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 /> Delete
+            <Trash2 /> {t("Delete")}
           </Button>
         </div>
       </div>
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading link…</p>
+        <p className="text-sm text-muted-foreground">{t("Loading link…")}</p>
       ) : null}
       <Card>
         <CardContent>
@@ -794,7 +817,9 @@ export function LinkDetailPage() {
               label="Destination"
               info={
                 conflicts.length > 0
-                  ? `This will replace ${conflicts.join(", ")} on the destination.`
+                  ? t("This will replace {fields} on the destination.", {
+                      fields: conflicts.join(", "),
+                    })
                   : undefined
               }
             >
@@ -829,7 +854,7 @@ export function LinkDetailPage() {
                   onValueChange={setRedirectType}
                 />
                 <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">
-                  {choiceNote(redirectOptions, redirectType)}
+                  {t(choiceNote(redirectOptions, redirectType))}
                 </p>
               </Field>
               <Field label="Status">
@@ -858,9 +883,12 @@ export function LinkDetailPage() {
                 autoComplete="new-password"
               />
               <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                Visitors must enter this password before the short link
-                redirects.
-                {link?.hasPassword ? " A password is already saved." : ""}
+                {t(
+                  "Visitors must enter this password before the short link redirects.",
+                )}
+                {link?.hasPassword
+                  ? t(" A password is already saved.")
+                  : ""}
               </p>
             </Field>
             {link?.hasPassword ? (
@@ -869,15 +897,17 @@ export function LinkDetailPage() {
                 type="button"
                 onClick={() => void clearPassword()}
               >
-                <Trash2 /> Remove password
+                <Trash2 /> {t("Remove password")}
               </Button>
             ) : null}
             <UtmFields utm={utm} onChange={setUtm} />
             <p className="text-sm text-muted-foreground truncate">
-              Tracked URL: {previewDestination(destinationUrl, utm)}
+              {t("Tracked URL: {url}", {
+                url: previewDestination(destinationUrl, utm),
+              })}
             </p>
             <Button type="submit" disabled={saving}>
-              <Save /> {saving ? "Saving…" : "Save link"}
+              <Save /> {saving ? t("Saving…") : t("Save link")}
             </Button>
           </form>
         </CardContent>
@@ -896,7 +926,7 @@ export function LinkDetailPage() {
               className="grid gap-3"
               onSubmit={(event) => void createQr(event)}
             >
-              <h2 className="text-lg font-medium">QR code</h2>
+              <h2 className="text-lg font-medium">{t("QR code")}</h2>
               <Field label="Name">
                 <Input
                   value={qrName}
@@ -909,7 +939,7 @@ export function LinkDetailPage() {
                   value={trackingVariantId}
                   placeholder="No variant"
                   options={[
-                    { value: noVariant, label: "No variant" },
+                    { value: noVariant, label: t("No variant") },
                     ...variants.map((variant) => ({
                       value: variant.id,
                       label: variant.name,
@@ -918,8 +948,9 @@ export function LinkDetailPage() {
                   onValueChange={setTrackingVariantId}
                 />
                 <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                  The QR code uses this variant’s UTM values when someone scans
-                  it.
+                  {t(
+                    "The QR code uses this variant’s UTM values when someone scans it.",
+                  )}
                 </p>
               </Field>
               <Field label="Modules">
@@ -976,7 +1007,7 @@ export function LinkDetailPage() {
                     })
                   }
                 />{" "}
-                Transparent background
+                {t("Transparent background")}
                 {transparentWarning ? (
                   <FieldMessage tone="info" message={transparentWarning} />
                 ) : null}
@@ -1005,7 +1036,7 @@ export function LinkDetailPage() {
                   }
                 />
                 <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                  {choiceNote(correctionOptions, style.errorCorrectionLevel)}
+                  {t(choiceNote(correctionOptions, style.errorCorrectionLevel))}
                 </p>
               </Field>
               <Field label="Quiet zone" info={scanWarning("margin")}>
@@ -1035,12 +1066,12 @@ export function LinkDetailPage() {
                     type="button"
                     onClick={() => void removeCenterImage()}
                   >
-                    <Trash2 /> Remove center image
+                    <Trash2 /> {t("Remove center image")}
                   </Button>
                 ) : null}
               </Field>
               <Button type="submit" disabled={savingQr}>
-                <Save /> {savingQr ? "Saving…" : "Save QR style"}
+                <Save /> {savingQr ? t("Saving…") : t("Save QR style")}
               </Button>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button
@@ -1096,7 +1127,7 @@ export function LinkDetailPage() {
       {qrCodes.length > 0 ? (
         <Card>
           <CardContent>
-            <h2 className="mb-2 text-lg font-medium">Saved codes</h2>
+            <h2 className="mb-2 text-lg font-medium">{t("Saved codes")}</h2>
             <ul className="grid gap-2">
               {qrCodes.map((code) => (
                 <li key={code.id} className="flex flex-wrap items-center gap-2">
@@ -1126,7 +1157,7 @@ export function LinkDetailPage() {
           </Card>
           <div className="grid gap-4 md:grid-cols-2">
             <Breakdown
-              title="QR codes"
+              title={t("QR codes")}
               rows={analytics.qrCodes.map((row) => ({
                 name: row.name,
                 clicks: row.clicks,

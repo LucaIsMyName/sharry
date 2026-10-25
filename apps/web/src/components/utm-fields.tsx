@@ -1,4 +1,5 @@
 import { UTM_KEYS, type UtmParams } from "@sharry/shared";
+import { t } from "../i18n/translate.ts";
 import { Field } from "./ui/field.tsx";
 import { Input } from "./ui/input.tsx";
 
@@ -32,5 +33,7 @@ export function utmSummary(utm: UtmParams): string {
       ? [`${key}=${value.trim()}`]
       : [];
   });
-  return parts.length > 0 ? parts.join(", ") : "Inherits the link’s UTM values";
+  return parts.length > 0
+    ? parts.join(", ")
+    : t("Inherits the link’s UTM values");
 }

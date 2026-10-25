@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "../components/ui/table.tsx";
 import { choiceNote, redirectOptions } from "../choices.ts";
+import { t, useI18n } from "../i18n/index.tsx";
 import { Toggle } from "../components/ui/toggle.tsx";
 
 type AdminUser = {
@@ -84,6 +85,7 @@ type AuditEntry = {
 };
 
 export function AdminUsersPage() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [form, setForm] = useState({
     username: "",
@@ -103,7 +105,7 @@ export function AdminUsersPage() {
   }
   useEffect(() => {
     void load().catch((caught: unknown) =>
-      toastCaught(caught, "Could not load users"),
+      toastCaught(caught, t("Could not load users")),
     );
   }, []);
 
@@ -119,7 +121,7 @@ export function AdminUsersPage() {
       setShowCreatePassword(false);
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not create the user");
+      toastCaught(caught, t("Could not create the user"));
     } finally {
       setPending(false);
     }
@@ -137,7 +139,7 @@ export function AdminUsersPage() {
       await load();
       return true;
     } catch (caught) {
-      toastCaught(caught, "Could not update the user");
+      toastCaught(caught, t("Could not update the user"));
       return false;
     }
   }
@@ -157,14 +159,14 @@ export function AdminUsersPage() {
       setDeleteFor(null);
       await load();
     } catch (caught) {
-      toastCaught(caught, "Could not delete the account");
+      toastCaught(caught, t("Could not delete the account"));
     }
   }
 
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-4xl font-medium tracking-tight">
-        Users
+        {t("Users")}
       </h1>
       <Card>
         <CardContent>
@@ -209,7 +211,7 @@ export function AdminUsersPage() {
                   setShowCreatePassword(true);
                 }}
               >
-                <Shuffle /> Generate password
+                <Shuffle /> {t("Generate password")}
               </Button>
               {showCreatePassword && form.password ? (
                 <Button
@@ -217,11 +219,11 @@ export function AdminUsersPage() {
                   variant="outline"
                   onClick={() =>
                     void copyText(form.password).catch(() =>
-                      toast.error("Could not copy the password"),
+                      toast.error(t("Could not copy the password")),
                     )
                   }
                 >
-                  <Copy /> Copy password
+                  <Copy /> {t("Copy password")}
                 </Button>
               ) : null}
             </div>
@@ -229,14 +231,14 @@ export function AdminUsersPage() {
               <Select
                 value={form.role}
                 options={[
-                  { value: "user", label: "user" },
-                  { value: "admin", label: "admin" },
+                  { value: "user", label: t("user") },
+                  { value: "admin", label: t("admin") },
                 ]}
                 onValueChange={(role) => setForm({ ...form, role })}
               />
             </Field>
             <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? "Creating…" : "Create account"}
+              <Plus /> {pending ? t("Creating…") : t("Create account")}
             </Button>
           </form>
         </CardContent>
@@ -246,9 +248,9 @@ export function AdminUsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("User")}</TableHead>
+                <TableHead>{t("Role")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -265,15 +267,15 @@ export function AdminUsersPage() {
                     <Select
                       value={user.role}
                       options={[
-                        { value: "user", label: "user" },
-                        { value: "admin", label: "admin" },
+                        { value: "user", label: t("user") },
+                        { value: "admin", label: t("admin") },
                       ]}
                       onValueChange={(role) => void update(user.id, { role })}
                     />
                   </TableCell>
                   <TableCell className="whitespace-normal">
-                    {user.isActive ? "Active" : "Disabled"}
-                    {user.mustChangePassword ? " · password change" : ""}
+                    {user.isActive ? t("Active") : t("Disabled")}
+                    {user.mustChangePassword ? t(" · password change") : ""}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-2">
@@ -287,7 +289,7 @@ export function AdminUsersPage() {
                           setCopied(false);
                         }}
                       >
-                        <KeyRound /> Set password
+                        <KeyRound /> {t("Set password")}
                       </Button>
                       <Button
                         variant="outline"
@@ -298,7 +300,7 @@ export function AdminUsersPage() {
                         }
                       >
                         {user.isActive ? <UserX /> : <UserCheck />}{" "}
-                        {user.isActive ? "Deactivate" : "Activate"}
+                        {user.isActive ? t("Deactivate") : t("Activate")}
                       </Button>
                       <Button
                         variant="outline"
@@ -306,7 +308,7 @@ export function AdminUsersPage() {
                         type="button"
                         onClick={() => setDeleteFor(user)}
                       >
-                        <Trash2 /> Delete
+                        <Trash2 /> {t("Delete")}
                       </Button>
                     </div>
                   </TableCell>
@@ -325,11 +327,14 @@ export function AdminUsersPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl">
-              Set a temporary password
+              {t("Set a temporary password")}
             </DialogTitle>
             <DialogDescription>
               {passwordFor
-                ? `${passwordFor.username} must choose a new password at the next sign-in. Current sessions end now.`
+                ? t(
+                    "{username} must choose a new password at the next sign-in. Current sessions end now.",
+                    { username: passwordFor.username },
+                  )
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -351,7 +356,7 @@ export function AdminUsersPage() {
                 setCopied(false);
               }}
             >
-              <Shuffle /> Generate password
+              <Shuffle /> {t("Generate password")}
             </Button>
             <Button
               type="button"
@@ -360,16 +365,16 @@ export function AdminUsersPage() {
               onClick={() =>
                 void copyText(nextPassword)
                   .then(() => setCopied(true))
-                  .catch(() => toast.error("Could not copy the password"))
+                  .catch(() => toast.error(t("Could not copy the password")))
               }
             >
               {copied ? (
                 <>
-                  <Check /> Copied
+                  <Check /> {t("Copied")}
                 </>
               ) : (
                 <>
-                  <Copy /> Copy password
+                  <Copy /> {t("Copy password")}
                 </>
               )}
             </Button>
@@ -380,7 +385,7 @@ export function AdminUsersPage() {
               disabled={nextPassword.length < 12}
               onClick={() => void savePassword()}
             >
-              <Save /> Save password
+              <Save /> {t("Save password")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -388,7 +393,9 @@ export function AdminUsersPage() {
       <ConfirmDialog
         open={Boolean(deleteFor)}
         title={
-          deleteFor ? `Delete ${deleteFor.username}?` : "Delete this account?"
+          deleteFor
+            ? t("Delete {username}?", { username: deleteFor.username })
+            : t("Delete this account?")
         }
         description="Their links, campaigns, QR codes, and API keys are removed. This cannot be undone."
         confirmLabel="Delete account"
@@ -403,6 +410,7 @@ export function AdminUsersPage() {
 }
 
 export function AdminSettingsPage() {
+  const { t } = useI18n();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [smtpPassword, setSmtpPassword] = useState("");
@@ -414,7 +422,7 @@ export function AdminSettingsPage() {
     void api<Settings>("/api/admin/settings")
       .then(setSettings)
       .catch((caught: unknown) =>
-        toastCaught(caught, "Could not load settings"),
+        toastCaught(caught, t("Could not load settings")),
       )
       .finally(() => setLoaded(true));
   }, []);
@@ -452,11 +460,11 @@ export function AdminSettingsPage() {
       setSettings(next);
       setSmtpPassword("");
       setConfirm(false);
-      toast.success("Settings saved.");
+      toast.success(t("Settings saved."));
     } catch (caught) {
       const apiError = caught as { code?: string; message?: string };
       if (apiError.code === "confirm_prefix") setConfirm(true);
-      else toastCaught(caught, "Could not save settings");
+      else toastCaught(caught, t("Could not save settings"));
     } finally {
       setPending(false);
     }
@@ -466,10 +474,10 @@ export function AdminSettingsPage() {
     return (
       <section className="grid gap-4">
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          Settings
+          {t("Settings")}
         </h1>
         {loaded ? null : (
-          <p className="text-sm text-muted-foreground">Loading settings…</p>
+          <p className="text-sm text-muted-foreground">{t("Loading settings…")}</p>
         )}
       </section>
     );
@@ -477,12 +485,12 @@ export function AdminSettingsPage() {
     <section className="grid gap-4">
       <div>
         <h1 className="font-heading text-4xl font-medium tracking-tight">
-          Settings
+          {t("Settings")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Mail and two-factor rules are saved here. The public site address,
-          short-link origin, session secret, and encryption key stay in the
-          server environment.
+          {t(
+            "Mail and two-factor rules are saved here. The public site address, short-link origin, session secret, and encryption key stay in the server environment.",
+          )}
         </p>
       </div>
       <form
@@ -494,7 +502,7 @@ export function AdminSettingsPage() {
       >
         <Card>
           <CardContent className="grid gap-3">
-            <h2 className="text-lg font-medium">Links</h2>
+            <h2 className="text-lg font-medium">{t("Links")}</h2>
             <Field label="Public prefix" error={prefixError}>
               <Input
                 value={settings.shortUrlPrefix}
@@ -516,7 +524,9 @@ export function AdminSettingsPage() {
             />
             {settings.legacyPrefixes.length > 0 ? (
               <p className="text-sm text-muted-foreground">
-                Legacy prefixes: {settings.legacyPrefixes.join(", ")}
+                {t("Legacy prefixes: {prefixes}", {
+                  prefixes: settings.legacyPrefixes.join(", "),
+                })}
               </p>
             ) : null}
             <Field label="Default redirect">
@@ -528,7 +538,7 @@ export function AdminSettingsPage() {
                 }
               />
               <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                {choiceNote(redirectOptions, settings.defaultRedirectType)}
+                {t(choiceNote(redirectOptions, settings.defaultRedirectType))}
               </p>
             </Field>
             <Field label="Random slug length">
@@ -549,7 +559,7 @@ export function AdminSettingsPage() {
         </Card>
         <Card>
           <CardContent className="grid gap-3">
-            <h2 className="text-lg font-medium">Sessions</h2>
+            <h2 className="text-lg font-medium">{t("Sessions")}</h2>
             <Field label="Analytics retention, days">
               <Input
                 type="number"
@@ -577,9 +587,11 @@ export function AdminSettingsPage() {
               />
             </Field>
             <div className="grid gap-1">
-              <h3 className="text-sm font-medium">Registration</h3>
+              <h3 className="text-sm font-medium">{t("Registration")}</h3>
               <p className="text-sm text-muted-foreground">
-                Registration is closed. Administrators create every account.
+                {t(
+                  "Registration is closed. Administrators create every account.",
+                )}
               </p>
             </div>
             <Toggle
@@ -592,14 +604,18 @@ export function AdminSettingsPage() {
             />
             <p className="text-sm text-muted-foreground">
               {settings.smtpSource === "app"
-                ? "When this is off, each person can turn a code on from Account. When it is on, sign-in asks for an authenticator until they enroll."
-                : "Save a mail server below before requiring a code. Until then, people cannot turn two-factor authentication on."}
+                ? t(
+                    "When this is off, each person can turn a code on from Account. When it is on, sign-in asks for an authenticator until they enroll.",
+                  )
+                : t(
+                    "Save a mail server below before requiring a code. Until then, people cannot turn two-factor authentication on.",
+                  )}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="grid gap-3">
-            <h2 className="text-lg font-medium">Email</h2>
+            <h2 className="text-lg font-medium">{t("Email")}</h2>
             <Field label="SMTP host">
               <Input
                 value={settings.smtpHost}
@@ -640,8 +656,8 @@ export function AdminSettingsPage() {
                 autoComplete="new-password"
                 placeholder={
                   settings.smtpPasswordSet
-                    ? "Saved. Leave blank to keep it."
-                    : "Optional"
+                    ? t("Saved. Leave blank to keep it.")
+                    : t("Optional")
                 }
               />
             </Field>
@@ -661,7 +677,7 @@ export function AdminSettingsPage() {
           </CardContent>
         </Card>
         <Button type="submit" disabled={pending}>
-          <Save /> {pending ? "Saving…" : "Save settings"}
+          <Save /> {pending ? t("Saving…") : t("Save settings")}
         </Button>
       </form>
       <div className="flex flex-wrap items-center gap-2.5">
@@ -669,13 +685,13 @@ export function AdminSettingsPage() {
           className={buttonVariants({ variant: "outline" })}
           href="/api/admin/export/links.csv"
         >
-          <Download /> Export links
+          <Download /> {t("Export links")}
         </a>
         <a
           className={buttonVariants({ variant: "outline" })}
           href="/api/admin/export/clicks.csv"
         >
-          <Download /> Export clicks
+          <Download /> {t("Export clicks")}
         </a>
       </div>
       <ConfirmDialog
@@ -700,51 +716,56 @@ export function AdminSettingsPage() {
 
 function smtpStatus(settings: Settings): string {
   if (settings.smtpSource === "app")
-    return "Password reset email uses the mail server saved here.";
+    return t("Password reset email uses the mail server saved here.");
   if (settings.smtpSource === "environment")
-    return "No mail server is saved here yet. The server environment is still used until you save a host and from address.";
-  return "Password reset email stays off until a host and from address are saved.";
+    return t(
+      "No mail server is saved here yet. The server environment is still used until you save a host and from address.",
+    );
+  return t(
+    "Password reset email stays off until a host and from address are saved.",
+  );
 }
 
 export function AdminAuditPage() {
+  const { t, locale } = useI18n();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     void api<{ entries: AuditEntry[] }>("/api/admin/audit")
       .then((result) => setEntries(result.entries))
       .catch((caught: unknown) =>
-        toastCaught(caught, "Could not load the audit log"),
+        toastCaught(caught, t("Could not load the audit log")),
       )
       .finally(() => setLoading(false));
   }, []);
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-4xl font-medium tracking-tight">
-        Audit
+        {t("Audit")}
       </h1>
       <Card className="min-w-0">
         <CardContent className="min-w-0">
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading audit log…</p>
+            <p className="text-sm text-muted-foreground">{t("Loading audit log…")}</p>
           ) : entries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No audit events yet.
+              {t("No audit events yet.")}
             </p>
           ) : (
             <Table className="min-w-full w-max">
               <TableHeader>
                 <TableRow>
-                  <TableHead>When</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Entity</TableHead>
+                  <TableHead>{t("When")}</TableHead>
+                  <TableHead>{t("User")}</TableHead>
+                  <TableHead>{t("Action")}</TableHead>
+                  <TableHead>{t("Entity")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell>
-                      {new Date(entry.createdAt).toLocaleString()}
+                      {new Date(entry.createdAt).toLocaleString(locale)}
                     </TableCell>
                     <TableCell>{entry.actorUsername ?? "—"}</TableCell>
                     <TableCell>{entry.action}</TableCell>

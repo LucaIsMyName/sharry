@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import QRCodeStyling from "qr-code-styling";
 import type { QrStyle } from "@sharry/shared";
+import { useI18n } from "../i18n/index.tsx";
 
 export function QrPreview({
   url,
@@ -13,6 +14,7 @@ export function QrPreview({
   logoUrl?: string | null;
   showNotes?: boolean;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const qrRef = useRef<QRCodeStyling | null>(null);
 
@@ -37,8 +39,9 @@ export function QrPreview({
       />
       {showNotes ? (
         <p className="text-sm text-muted-foreground">
-          JPEG downloads use a solid background because JPEG cannot store
-          transparency.
+          {t(
+            "JPEG downloads use a solid background because JPEG cannot store transparency.",
+          )}
         </p>
       ) : null}
     </div>

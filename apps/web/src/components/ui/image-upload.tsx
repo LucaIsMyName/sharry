@@ -1,6 +1,7 @@
 import type { ChangeEvent } from "react";
 import { ImagePlus } from "lucide-react";
 import { cn } from "cn";
+import { useI18n } from "../../i18n/index.tsx";
 
 export function ImageUpload({
   id,
@@ -21,6 +22,8 @@ export function ImageUpload({
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
 }) {
+  const { t } = useI18n();
+
   function change(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) onFile(file);
@@ -47,10 +50,10 @@ export function ImageUpload({
       )}
       <span className="min-w-0">
         <span className="block truncate font-medium">
-          {fileName || "Choose an image"}
+          {fileName || t("Choose an image")}
         </span>
         <span className="block text-[13px] font-normal text-muted-foreground">
-          PNG, JPEG, or WebP
+          {t("PNG, JPEG, or WebP")}
         </span>
       </span>
       <input

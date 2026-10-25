@@ -15,9 +15,12 @@ import {
 import {
   changePasswordSchema,
   forgotPasswordSchema,
+  localeSchema,
   loginSchema,
   mfaSchema,
   resetPasswordSchema,
+  updateLocaleSchema,
+  type Locale,
 } from '@sharry/shared'
 import { actorFromApiKey, bearerToken, isAccountPath } from './api-keys.ts'
 import { writeAudit } from './audit.ts'
@@ -136,11 +139,37 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     const settings = await getSettings(app.db, app.env)
     const record = await requireRecord(app.db, actor.id)
     return {
-      user: { ...actor, hasAvatar: Boolean(record.avatarPath), updatedAt: record.updatedAt.toISOString() },
+      user: {
+        ...actor,
+        locale: localeOf(record.locale),
+        hasAvatar: Boolean(record.avatarPath),
+        updatedAt: record.updatedAt.toISOString(),
+      },
       scope: actor.scope,
       mfaRequired: settings.mfaRequired,
       mailConfigured: smtpSource(settings, app.env) === 'app',
     }
+  })
+
+  /**
+   * Save the language for the signed-in account.
+   * @route PATCH /api/auth/locale
+   * @tag Account
+   * @auth session
+   * @body JSON { locale }
+   * @response 200 { user }
+   */
+  app.patch('/api/auth/locale', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const body = parseBody(updateLocaleSchema, request.body)
+    const updatedAt = new Date()
+    const [updated] = await app.db
+      .update(users)
+      .set({ locale: body.locale, updatedAt })
+      .where(eq(users.id, actor.id))
+      .returning()
+    if (!updated) throw new AppError(404, 'User not found')
+    return { user: publicUser(updated) }
   })
 
   /**
@@ -498,7 +527,9 @@ function clearSessionCookie(reply: FastifyReply, app: FastifyInstance): void {
   reply.clearCookie(SESSION_COOKIE, { path: '/', secure: app.env.NODE_ENV === 'production', sameSite: 'lax' })
 }
 
-function publicUser(user: Pick<UserRecord, 'id' | 'username' | 'email' | 'role' | 'totpEnabled' | 'mustChangePassword'>) {
+function publicUser(
+  user: Pick<UserRecord, 'id' | 'username' | 'email' | 'role' | 'totpEnabled' | 'mustChangePassword' | 'locale'>,
+) {
   return {
     id: user.id,
     username: user.username,
@@ -506,7 +537,13 @@ function publicUser(user: Pick<UserRecord, 'id' | 'username' | 'email' | 'role' 
     role: user.role,
     totpEnabled: user.totpEnabled,
     mustChangePassword: user.mustChangePassword,
+    locale: localeOf(user.locale),
   }
+}
+
+function localeOf(value: string): Locale {
+  const parsed = localeSchema.safeParse(value)
+  return parsed.success ? parsed.data : 'en'
 }
 
 function toActor(user: UserRecord): Omit<Actor, 'scope'> {

@@ -1,4 +1,4 @@
-import type { QrStyle, UtmParams } from "@sharry/shared";
+import type { Locale, QrStyle, UtmParams } from "@sharry/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -48,6 +48,7 @@ export type Me = {
     role: "admin" | "user";
     totpEnabled: boolean;
     mustChangePassword: boolean;
+    locale: Locale;
     hasAvatar: boolean;
     updatedAt: string;
   };

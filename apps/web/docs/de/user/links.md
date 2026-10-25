@@ -1,0 +1,45 @@
+# Links
+
+Ein Kurzlink behält seinen Slug, wenn du das Ziel änderst. Gedruckte QR-Codes und gespeicherte Adressen funktionieren weiter. Slugs sind unabhängig von der Großschreibung eindeutig. Ein vergebener Slug antwortet: "This short URL is already in use. Please choose a different slug."
+
+## Die öffentliche Adresse
+
+Der öffentliche Pfad nutzt das Präfix aus den Einstellungen, zum Beispiel `https://share.example.com/s/summer-sale`. Eine Änderung des Präfixes aktualisiert jeden angezeigten Link. Schalte alte Präfixe ein, damit der bisherige Pfad weiter aufgelöst wird. Diese Änderung verlangt eine Bestätigung.
+
+Die Domain in dieser Adresse kommt vom Deployment-Ursprung, außer der Link speichert eine verifizierte Weiterleitungsdomain. Neuer Link und der Link-Editor bieten diese Wahl. Die Deployment-Domain bleibt die Vorgabe. Eine später entfernte Domain fällt aus der Kurz-URL, dem CSV-Export und neuen QR-Codes. Ein schon heruntergeladenes QR-Bild behält die Adresse, die damals kodiert wurde. Derselbe Slug öffnet weiter auf dem Deployment-Host.
+
+Das Präfix ist ein einzelnes Pfadsegment. Es muss mit `/` beginnen und darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten. Es darf kein Dashboard-Pfad wie `api`, `docs`, `login` oder `links` sein. Ein Slug hat 2 bis 64 Zeichen aus Buchstaben, Ziffern und Bindestrichen und darf kein reservierter Name wie `favicon.ico` oder `robots.txt` sein.
+
+Lass den Slug leer, um einen zu erzeugen. Die Länge kommt aus den Einstellungen und liegt zwischen 4 und 16 Zeichen. Die Vorgabe ist 5. Das Alphabet lässt Zeichen weg, die leicht zu verwechseln sind.
+
+## Die Linkliste
+
+Die Linkseite lädt 50 auf einmal. Mehr laden zeigt den Rest. Die Suche trifft Slug, Titel oder Ziel. Jede Zeile zeigt die Klickzahl. Auf einem schmalen Bildschirm scrollt die Tabelle seitlich, damit die Spalten lesbar bleiben. Der Status ist Aktiv oder Pausiert. Das Test-Symbol öffnet die Kurz-URL in einem neuen Tab.
+
+Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht jeden Link.
+
+## Anlegen und bearbeiten
+
+Ein neuer Link braucht ein `http`- oder `https`-Ziel, höchstens 4096 Zeichen. Titel und Beschreibung sind optional. Wähle einen Weiterleitungstyp oder lass die Kontovorgabe aus den Einstellungen. Eine neue Installation nutzt 302. Die anderen Möglichkeiten sind 301, 307 und 308.
+
+Das Ablaufdatum wird in deiner lokalen Zeit eingegeben und in UTC gespeichert. Ein leeres Ablaufdatum läuft nie ab. Ein abgelaufener Link leitet nicht mehr weiter.
+
+Pausieren setzt den Status auf deaktiviert. Ein pausierter Link leitet nicht weiter. Schalte ihn zurück auf Aktiv, um denselben Slug und die Klickhistorie wiederherzustellen.
+
+Ein Link kann ein Passwort verlangen, bevor er weiterleitet. Besucher müssen dieses Passwort eingeben, bevor der Kurzlink weiterleitet. Das Passwort wird als Hash gespeichert. Lass das Feld bei einer späteren Bearbeitung leer, um das gespeicherte Passwort zu behalten. Leeren entfernt die Pflicht.
+
+Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formulars. Beide Schaltflächen speichern Ziel, Slug, Titel, Beschreibung, Weiterleitungsdomain, Weiterleitungstyp, Ablauf, Passwort und UTM-Felder zusammen. Der QR-Code hat sein eigenes Speichern.
+
+## Weiterleitungen
+
+Sharry sendet bei jeder Weiterleitung `Cache-Control: no-store`, damit eine spätere Zieländerung beim nächsten Öffnen der Kurz-URL gilt. Das gilt auch für 301 und 308.
+
+Ein richtiges Passwort geht mit 303 weiter. Der Browser fordert das Ziel dann mit GET an. Dieses Freischalten zählt als Klick. Spätere Besuche nutzen den Weiterleitungstyp des Links und ein Freischalt-Cookie, deshalb erscheint das Passwortformular in diesem Browser nicht wieder, bis das Cookie weg ist.
+
+## UTM-Parameter
+
+Jeder Link kann `utm_source`, `utm_medium`, `utm_campaign`, `utm_id`, `utm_term` und `utm_content` speichern. Diese Werte werden beim Weiterleiten an das Ziel gehängt. Vorhandene, nicht betroffene Query-Parameter und das URL-Fragment bleiben.
+
+Ein leeres Feld fügt für diesen Schlüssel nichts hinzu. Wenn das Ziel denselben UTM-Schlüssel schon hat, warnt das Speichern, dass der gespeicherte Wert ihn ersetzt: "Saving will replace … already present on the destination." Die verfolgte URL unter dem Formular ist das Ziel mit den aktuellen UTM-Werten, damit du das Ergebnis vor dem Speichern prüfen kannst.
+
+Eine Kampagnenvariante oder ein QR-Code kann diese Werte für einen Besuch überschreiben. Siehe Kampagnen und QR-Codes.
