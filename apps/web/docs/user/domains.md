@@ -7,9 +7,9 @@ Domains is available to administrators. A redirect domain is a hostname people c
 Enter a hostname such as `go.brand.com`. The name has no scheme, port, or path. Saving opens a dialog with the two DNS records.
 
 1. Add a TXT record. The dialog shows the name, `_sharry-challenge.go.brand.com`, and the token. Copy sits next to each value.
-2. Add an A record for that hostname pointing at the IPv4 address in the dialog. That address is the A record of the deployment host. Copy sits next to the address.
+2. Add an A record for that hostname pointing at the IPv4 address in the dialog. That address is this server's public IPv4 address. Copy sits next to the address.
 
-If the deployment host has no IPv4 address, the dialog says the address could not be looked up.
+If this server has no public IPv4 address, the dialog says the address could not be looked up.
 
 Verify checks the TXT record. Publish both records, then click Verify on the row. After it is verified, open `https://go.brand.com` once so the certificate can be issued. The first visit can be slow while the certificate is requested.
 

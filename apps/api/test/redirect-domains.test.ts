@@ -1,22 +1,27 @@
+import type os from 'node:os'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defaultQrStyle } from '@sharry/shared'
 import { redirectChallengeName } from '@sharry/shared'
-import { resetDnsLookup, setDnsLookup, type DnsLookup } from '../src/redirect-domains.ts'
+import { publicIpv4Addresses, resetDnsLookup, resetNetworkInterfaces, setDnsLookup, setNetworkInterfaces, type DnsLookup } from '../src/redirect-domains.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
+
+function ipv4(address: string, internal = false): os.NetworkInterfaceInfo {
+  return { address, netmask: '255.255.255.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal, cidr: `${address}/24` }
+}
 
 describe('redirect domains', () => {
   useTestApp()
   const txt = new Map<string, string[][]>()
-  let addresses: string[] | Error = ['203.0.113.10']
 
   beforeEach(() => {
     txt.clear()
-    addresses = ['203.0.113.10']
     setDnsLookup(lookup())
+    setNetworkInterfaces({ eth0: [ipv4('203.0.113.10'), ipv4('10.0.0.5'), ipv4('127.0.0.1', true)] })
   })
 
   afterEach(() => {
     resetDnsLookup()
+    resetNetworkInterfaces()
   })
 
   function lookup(): DnsLookup {
@@ -28,10 +33,6 @@ describe('redirect domains', () => {
           throw error
         }
         return txt.get(hostname) ?? []
-      },
-      async resolve4() {
-        if (addresses instanceof Error) throw addresses
-        return addresses
       },
     }
   }
@@ -192,10 +193,25 @@ describe('redirect domains', () => {
     expect(fallback.json().redirectDomainId).toBeNull()
   })
 
-  it('returns an empty address list when the deployment host has no IPv4 address', async () => {
+  it('keeps only this server’s public IPv4 addresses', () => {
+    expect(publicIpv4Addresses({
+      eth0: [
+        ipv4('203.0.113.10'),
+        ipv4('10.0.0.1'),
+        ipv4('172.16.0.1'),
+        ipv4('192.168.0.1'),
+        ipv4('100.64.0.1'),
+        ipv4('169.254.1.1'),
+        ipv4('127.0.0.1', true),
+        { address: '2001:db8::1', netmask: 'ffff:ffff:ffff:ffff::', family: 'IPv6', mac: '00:00:00:00:00:00', internal: false, cidr: '2001:db8::1/64', scopeid: 0 },
+      ],
+    })).toEqual(['203.0.113.10'])
+  })
+
+  it('returns an empty address list when the server has only private addresses', async () => {
     const ctx = await getContext()
     const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
-    addresses = Object.assign(new Error('lookup failed'), { code: 'ENOTFOUND' })
+    setNetworkInterfaces({ eth0: [ipv4('10.1.2.3'), ipv4('192.168.1.20'), ipv4('172.16.0.4')] })
     const created = await ctx.app.inject({
       method: 'POST',
       url: '/api/admin/redirect-domains',

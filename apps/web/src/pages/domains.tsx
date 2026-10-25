@@ -162,7 +162,7 @@ export function AdminDomainsPage() {
                 <p className="text-sm font-medium">A record</p>
                 {serverAddresses.length > 0 ? (
                   <>
-                    <p className="text-sm text-muted-foreground">Add an A record for {setup.hostname} pointing at this address.</p>
+                    <p className="text-sm text-muted-foreground">Add an A record for {setup.hostname} pointing at this server.</p>
                     {serverAddresses.map((address) => <CopyRow key={address} label="IPv4 address" value={address} />)}
                   </>
                 ) : (

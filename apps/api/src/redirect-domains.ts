@@ -1,4 +1,5 @@
 import dns from 'node:dns/promises'
+import os from 'node:os'
 import { and, desc, eq } from 'drizzle-orm'
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { redirectDomains, type Database, type RedirectDomainRecord } from '@sharry/database'
@@ -19,10 +20,12 @@ const TXT_LOOKUP_FAILED = 'Could not look up the TXT record. Try again.'
 
 export type DnsLookup = {
   resolveTxt(hostname: string): Promise<string[][]>
-  resolve4(hostname: string): Promise<string[]>
 }
 
+export type NetworkInterfaces = NodeJS.Dict<os.NetworkInterfaceInfo[]>
+
 let dnsLookup: DnsLookup = dns
+let readInterfaces = (): NetworkInterfaces => os.networkInterfaces()
 
 export function setDnsLookup(next: DnsLookup): void {
   dnsLookup = next
@@ -30,6 +33,14 @@ export function setDnsLookup(next: DnsLookup): void {
 
 export function resetDnsLookup(): void {
   dnsLookup = dns
+}
+
+export function setNetworkInterfaces(next: NetworkInterfaces): void {
+  readInterfaces = () => next
+}
+
+export function resetNetworkInterfaces(): void {
+  readInterfaces = () => os.networkInterfaces()
 }
 
 let verifiedHostCache: Set<string> | null = null
@@ -77,7 +88,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
   app.get('/api/admin/redirect-domains', async (request) => {
     await requireAdmin(app, request)
     const rows = await app.db.select().from(redirectDomains).orderBy(desc(redirectDomains.createdAt))
-    return { domains: rows.map(publicDomain), serverAddresses: await lookupServerAddresses(app.env.SHORT_URL_BASE) }
+    return { domains: rows.map(publicDomain), serverAddresses: lookupServerAddresses() }
   })
 
   /**
@@ -108,7 +119,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
         entityId: created.id,
         metadata: { hostname: created.hostname },
       })
-      return { domain: publicDomain(created), serverAddresses: await lookupServerAddresses(app.env.SHORT_URL_BASE) }
+      return { domain: publicDomain(created), serverAddresses: lookupServerAddresses() }
     } catch (caught) {
       if (isUniqueViolation(caught)) throw new AppError(409, 'That domain is already added')
       throw caught
@@ -204,15 +215,37 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
   })
 }
 
-export async function lookupServerAddresses(shortUrlBase: string): Promise<string[]> {
-  const host = deploymentHostname(shortUrlBase)
-  if (!host) return []
-  try {
-    const addresses = await dnsLookup.resolve4(host)
-    return [...new Set(addresses.filter((address) => address.trim()))]
-  } catch {
-    return []
+export function lookupServerAddresses(): string[] {
+  return publicIpv4Addresses(readInterfaces())
+}
+
+export function publicIpv4Addresses(interfaces: NetworkInterfaces): string[] {
+  const found: string[] = []
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries ?? []) {
+      if (entry.internal) continue
+      const family = entry.family as string | number
+      if (family !== 'IPv4' && family !== 4) continue
+      if (!isPublicIpv4(entry.address)) continue
+      found.push(entry.address)
+    }
   }
+  return [...new Set(found)]
+}
+
+function isPublicIpv4(address: string): boolean {
+  const parts = address.split('.')
+  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part))) return false
+  const numbers = parts.map((part) => Number(part))
+  const a = numbers[0]
+  const b = numbers[1]
+  if (a === undefined || b === undefined || numbers.some((part) => part > 255)) return false
+  if (a === 0 || a === 10 || a === 127 || a >= 224) return false
+  if (a === 172 && b >= 16 && b <= 31) return false
+  if (a === 192 && b === 168) return false
+  if (a === 169 && b === 254) return false
+  if (a === 100 && b >= 64 && b <= 127) return false
+  return true
 }
 
 function deploymentHosts(app: FastifyInstance): string[] {
