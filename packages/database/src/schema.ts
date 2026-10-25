@@ -34,6 +34,22 @@ export const users = pgTable(
   ],
 )
 
+export const redirectDomains = pgTable(
+  'redirect_domains',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    hostname: text('hostname').notNull(),
+    status: text('status').notNull().default('pending'),
+    txtToken: text('txt_token').notNull(),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('redirect_domains_hostname_lower_idx').on(sql`lower(${table.hostname})`)],
+)
+
 export const links = pgTable(
   'links',
   {
@@ -41,6 +57,7 @@ export const links = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
+    redirectDomainId: uuid('redirect_domain_id').references(() => redirectDomains.id, { onDelete: 'set null' }),
     slug: text('slug').notNull(),
     destinationUrl: text('destination_url').notNull(),
     title: text('title'),
@@ -55,6 +72,7 @@ export const links = pgTable(
   (table) => [
     uniqueIndex('links_slug_lower_idx').on(sql`lower(${table.slug})`),
     index('links_user_id_idx').on(table.userId),
+    index('links_redirect_domain_id_idx').on(table.redirectDomainId),
   ],
 )
 
@@ -251,5 +269,6 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
 
 export type UserRecord = typeof users.$inferSelect
 export type LinkRecord = typeof links.$inferSelect
+export type RedirectDomainRecord = typeof redirectDomains.$inferSelect
 export type SessionRecord = typeof sessions.$inferSelect
 export type ApiKeyRecord = typeof apiKeys.$inferSelect

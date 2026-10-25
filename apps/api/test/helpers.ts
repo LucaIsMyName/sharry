@@ -10,6 +10,7 @@ import { createDb, sessions, users, type Database } from '@sharry/database'
 import { parseRuntimeEnv, type RuntimeEnv } from '@sharry/shared'
 import { hashPassword } from '../src/passwords.ts'
 import { buildApp } from '../src/server.ts'
+import { invalidateRedirectHosts } from '../src/redirect-domains.ts'
 import { invalidateSettings } from '../src/settings-store.ts'
 import { hashToken, randomToken } from '../src/support.ts'
 import type { FastifyInstance } from 'fastify'
@@ -81,11 +82,13 @@ export async function resetDatabase(db: Database): Promise<void> {
       sessions,
       audit_logs,
       links,
+      redirect_domains,
       users,
       app_settings
     restart identity cascade
   `)
   invalidateSettings()
+  invalidateRedirectHosts()
 }
 
 async function closeContext(): Promise<void> {

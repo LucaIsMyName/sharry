@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { clickEvents, links, qrCodes, trackingConfigs, type Database, type LinkRecord } from '@sharry/database'
+import { clickEvents, links, qrCodes, redirectDomains, trackingConfigs, type Database, type LinkRecord } from '@sharry/database'
 import {
   SLUG_TAKEN_MESSAGE,
   buildShortUrl,
@@ -12,6 +12,7 @@ import {
   type UtmParams,
 } from '@sharry/shared'
 import { requireUser, type Actor } from './auth.ts'
+import { requireVerifiedDomain } from './redirect-domains.ts'
 import { writeAudit } from './audit.ts'
 import { hashPassword } from './passwords.ts'
 import { getSettings, type AppSettings } from './settings-store.ts'
@@ -40,9 +41,13 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const rows = await app.db.select().from(links).where(where).orderBy(desc(links.createdAt)).limit(limit).offset(offset)
     const total = await countLinks(app.db, where)
     const ids = rows.map((row) => row.id)
-    const [configs, clicks] = await Promise.all([loadConfigs(app.db, ids), loadClickCounts(app.db, ids)])
+    const [configs, clicks, hosts] = await Promise.all([
+      loadConfigs(app.db, ids),
+      loadClickCounts(app.db, ids),
+      loadVerifiedHosts(app.db, rows.map((row) => row.redirectDomainId)),
+    ])
     return {
-      links: rows.map((row) => ({ ...serializeLink(row, settings, configs.get(row.id)), clicks: clicks.get(row.id) ?? 0 })),
+      links: rows.map((row) => ({ ...serializeLink(row, settings, configs.get(row.id), hosts), clicks: clicks.get(row.id) ?? 0 })),
       total,
     }
   })
@@ -72,7 +77,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @route POST /api/links
    * @tag Links
    * @auth api-key or session
-   * @body JSON { destinationUrl, title?, description?, slug?, redirectType?, expiresAt?, password?, utm? }
+   * @body JSON { destinationUrl, title?, description?, slug?, redirectType?, redirectDomainId?, expiresAt?, password?, utm? }
    * @response 200 Link
    * @response 409 This short URL is already in use
    */
@@ -82,7 +87,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const settings = await getSettings(app.db, app.env)
     const link = await createLink(app.db, actor, body, settings)
     const config = (await loadConfigs(app.db, [link.id])).get(link.id)
-    return serializeLink(link, settings, config)
+    return serializeLink(link, settings, config, await loadVerifiedHosts(app.db, [link.redirectDomainId]))
   })
 
   /**
@@ -100,7 +105,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const link = await getLinkForActor(app.db, actor, id)
     const settings = await getSettings(app.db, app.env)
     const config = (await loadConfigs(app.db, [link.id])).get(link.id)
-    return serializeLink(link, settings, config)
+    return serializeLink(link, settings, config, await loadVerifiedHosts(app.db, [link.redirectDomainId]))
   })
 
   /**
@@ -109,7 +114,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @tag Links
    * @auth api-key or session
    * @param id string Link id
-   * @body JSON { destinationUrl?, title?, description?, slug?, redirectType?, status?, expiresAt?, password?, utm? }
+   * @body JSON { destinationUrl?, title?, description?, slug?, redirectType?, redirectDomainId?, status?, expiresAt?, password?, utm? }
    * @response 200 Link
    */
   app.patch('/api/links/:id', async (request) => {
@@ -119,7 +124,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const settings = await getSettings(app.db, app.env)
     const link = await updateLink(app.db, actor, id, body, settings)
     const config = (await loadConfigs(app.db, [link.id])).get(link.id)
-    return serializeLink(link, settings, config)
+    return serializeLink(link, settings, config, await loadVerifiedHosts(app.db, [link.redirectDomainId]))
   })
 
   /**
@@ -146,6 +151,7 @@ type CreateBody = {
   redirectType?: '301' | '302' | '307' | '308'
   expiresAt?: string | null
   password?: string
+  redirectDomainId?: string | null
   utm?: UtmParams
 }
 
@@ -162,6 +168,7 @@ export async function createLink(
     if (error) throw new AppError(400, error, 'validation')
   }
   const passwordHash = input.password ? await hashPassword(input.password) : null
+  const redirectDomainId = await requireVerifiedDomain(db, input.redirectDomainId)
   return db.transaction(async (tx) => {
     const database = tx as unknown as Database
     let created: LinkRecord | undefined
@@ -178,6 +185,7 @@ export async function createLink(
           redirectType: input.redirectType ?? settings.defaultRedirectType,
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
           passwordHash,
+          redirectDomainId,
         })
         break
       } catch (error) {
@@ -231,6 +239,7 @@ export async function updateLink(
     status?: 'active' | 'disabled'
     expiresAt?: string | null
     password?: string | null
+    redirectDomainId?: string | null
     utm?: UtmParams
   },
   settings: AppSettings,
@@ -256,6 +265,7 @@ export async function updateLink(
     if (input.status) patch.status = input.status
     if (input.expiresAt !== undefined) patch.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null
     if (passwordHash !== undefined) patch.passwordHash = passwordHash
+    if (input.redirectDomainId !== undefined) patch.redirectDomainId = await requireVerifiedDomain(database, input.redirectDomainId)
     if (requestedSlug && requestedSlug.toLowerCase() !== current.slug.toLowerCase()) patch.slug = requestedSlug
     let updated = current
     if (assignRandomSlug) {
@@ -373,15 +383,39 @@ async function upsertUtm(db: Database, linkId: string, utm: UtmParams): Promise<
     })
 }
 
+export async function loadVerifiedHosts(db: Database, ids: Array<string | null | undefined>): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))]
+  const hosts = new Map<string, string>()
+  if (unique.length === 0) return hosts
+  const rows = await db
+    .select({ id: redirectDomains.id, hostname: redirectDomains.hostname })
+    .from(redirectDomains)
+    .where(and(inArray(redirectDomains.id, unique), eq(redirectDomains.status, 'verified')))
+  for (const row of rows) hosts.set(row.id, row.hostname)
+  return hosts
+}
+
+export function originForLink(
+  link: { redirectDomainId: string | null },
+  settings: { shortUrlBase: string },
+  hosts: Map<string, string>,
+): string {
+  const hostname = link.redirectDomainId ? hosts.get(link.redirectDomainId) : undefined
+  return hostname ? `https://${hostname}` : settings.shortUrlBase
+}
+
 export function serializeLink(
   link: LinkRecord,
   settings: AppSettings,
   utm?: UtmParams,
+  hosts: Map<string, string> = new Map(),
 ) {
+  const redirectDomainId = link.redirectDomainId && hosts.has(link.redirectDomainId) ? link.redirectDomainId : null
   return {
     id: link.id,
     slug: link.slug,
-    shortUrl: buildShortUrl(settings.shortUrlBase, settings.shortUrlPrefix, link.slug),
+    shortUrl: buildShortUrl(originForLink(link, settings, hosts), settings.shortUrlPrefix, link.slug),
+    redirectDomainId,
     destinationUrl: link.destinationUrl,
     title: link.title,
     description: link.description,

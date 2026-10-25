@@ -55,6 +55,7 @@ export type ShortLink = {
   updatedAt: string
   utm: UtmParams
   userId: string
+  redirectDomainId: string | null
 }
 
 export type LinkSummary = ShortLink & { clicks: number }

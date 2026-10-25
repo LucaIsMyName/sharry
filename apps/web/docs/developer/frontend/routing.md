@@ -37,6 +37,7 @@ Admin pages add a loader that allows only the admin role. Anyone else is sent to
 | `/admin/users` | Create and manage accounts |
 | `/admin/api-keys` | API keys |
 | `/admin/settings` | Prefix, sessions, mail, and CSV export |
+| `/admin/domains` | Redirect domains, DNS verification, and the setup dialog |
 | `/admin/server` | Host memory, disk, operating system, and installed runtime |
 | `/admin/audit` | Audit log |
 

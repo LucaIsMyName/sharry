@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { upsertEnvKeys } from './env-file.ts'
-import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, linuxDistro, minimumNodeVersion, nodeInstallScript, nodeVersionIsCurrent, provisionHost, psqlCommand } from './provision.ts'
+import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, ensureCaddyOnDemand, linuxDistro, minimumNodeVersion, nodeInstallScript, nodeVersionIsCurrent, provisionHost, psqlCommand } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { activateRelease } from './release.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
@@ -132,6 +132,17 @@ describe('server bootstrap', () => {
     expect(caddyHasSite('share.example.com {\n\treverse_proxy 127.0.0.1:3000\n}\n', 'share.example.com')).toBe(true)
     expect(caddyHasSite('# share.example.com\n:80 {\n}\n', 'share.example.com')).toBe(false)
     expect(caddySiteBlock('share.example.com')).toContain('reverse_proxy 127.0.0.1:3000')
+    const partial = ensureCaddyOnDemand('share.example.com {\n\treverse_proxy 127.0.0.1:3000\n}\n', 'share.example.com')
+    expect(partial.changed).toBe(true)
+    expect(partial.file.match(/share\.example\.com \{/g)).toHaveLength(1)
+    expect(partial.file).toContain('on_demand_tls')
+    expect(partial.file).toContain('ask http://127.0.0.1:3000/internal/caddy/ask')
+    expect(partial.file).toContain('https:// {')
+    const withGlobal = ensureCaddyOnDemand('{\n\temail admin@example.com\n}\n\nshare.example.com {\n\treverse_proxy 127.0.0.1:3000\n}\n', 'share.example.com')
+    expect(withGlobal.file.match(/^\{$/gm)).toHaveLength(1)
+    expect(withGlobal.file).toContain('email admin@example.com')
+    expect(withGlobal.file).toContain('on_demand_tls')
+    expect(ensureCaddyOnDemand(partial.file, 'share.example.com').changed).toBe(false)
     const script = nodeInstallScript()
     expect(script).toContain('/usr/bin/node')
     expect(script).toContain('latest-v22.x')
@@ -169,7 +180,7 @@ describe('server bootstrap', () => {
         return remoteResult(command, {
           os: 'ID=ubuntu\n',
           role: '1\n',
-          caddy: 'share.example.com {\n}\n',
+          caddy: '{\n\ton_demand_tls {\n\t\task http://127.0.0.1:3000/internal/caddy/ask\n\t\tinterval 2m\n\t\tburst 5\n\t}\n}\n\nshare.example.com {\n}\n\nhttps:// {\n\ttls {\n\t\ton_demand\n\t}\n\treverse_proxy 127.0.0.1:3000\n}\n',
         })
       },
       {
@@ -218,7 +229,10 @@ describe('server bootstrap', () => {
     const file = Buffer.from(encoded, 'base64').toString('utf8')
     expect(file).toContain(':80 {')
     expect(file).toContain('share.example.com {')
+    expect(file).toContain('on_demand_tls')
+    expect(file).toContain('https:// {')
     expect(file).toContain('reverse_proxy 127.0.0.1:3000')
+    expect(file.match(/share\.example\.com \{/g)).toHaveLength(1)
   })
 
   it('stops when the database role already exists and no URL is saved', async () => {

@@ -1,6 +1,7 @@
 export * from './password.ts'
 export * from './env.ts'
 export * from './prefix.ts'
+export * from './domain.ts'
 export * from './utm.ts'
 export * from './qr.ts'
 export * from './schemas.ts'

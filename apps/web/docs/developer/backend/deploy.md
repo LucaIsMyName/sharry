@@ -7,7 +7,7 @@ Two things stay outside the script:
 - The VPS is already running Ubuntu or Debian, and it accepts SSH with the key in `.env.production`. `DEPLOY_USER` is `root`, or a user that can run `sudo -n`.
 - The domain’s A record points at the VPS IPv4 address. The provider’s firewall allows ports 22, 80, and 443. A cloud firewall is not the machine’s own firewall, so the script cannot open it.
 
-Caddy requests and renews the certificate because the site name is a hostname and ports 80 and 443 reach the server. Sharry does not call a certificate API.
+Caddy requests and renews the certificate for `DOMAIN` because the site name is a hostname and ports 80 and 443 reach the server. Sharry does not call a certificate API. The Caddyfile also allows on-demand certificates for redirect domains an administrator has verified. Caddy asks `http://127.0.0.1:3000/internal/caddy/ask` before issuing one, with a short interval and burst so unknown names do not consume the certificate quota. Provision adds those blocks when they are missing and reloads Caddy. It leaves the existing site block for `DOMAIN` in place. A file that already has an `https://` site is not given a second one.
 
 ## Fill in `.env.production`
 

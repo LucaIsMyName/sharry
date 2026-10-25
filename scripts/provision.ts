@@ -38,6 +38,42 @@ export function caddyHasSite(contents: string, domain: string): boolean {
   })
 }
 
+const caddyAskUrl = 'http://127.0.0.1:3000/internal/caddy/ask'
+
+export function caddyHasOnDemandTls(contents: string): boolean {
+  return contents.includes('on_demand_tls')
+}
+
+export function caddyHasOnDemandSite(contents: string): boolean {
+  return contents.split('\n').some((line) => line.trim().startsWith('https://'))
+}
+
+export function ensureCaddyOnDemand(contents: string, domain: string): { file: string; changed: boolean } {
+  const needsSite = !caddyHasSite(contents, domain)
+  const needsTls = !caddyHasOnDemandTls(contents)
+  const needsCatchAll = !caddyHasOnDemandSite(contents)
+  if (!needsSite && !needsTls && !needsCatchAll) return { file: contents, changed: false }
+
+  let text = contents.replace(/\s*$/, '')
+  if (needsSite) {
+    const site = caddySiteBlock(domain).trimEnd()
+    text = text ? `${text}\n\n${site}` : site
+  }
+  if (needsTls) {
+    const snippet = `\ton_demand_tls {\n\t\task ${caddyAskUrl}\n\t\tinterval 2m\n\t\tburst 5\n\t}`
+    const lines = text.split('\n')
+    const globalStart = lines.findIndex((line) => line.trim() === '{')
+    if (globalStart >= 0) lines.splice(globalStart + 1, 0, snippet)
+    else text = `{\n${snippet}\n}\n\n${text}`
+    if (globalStart >= 0) text = lines.join('\n')
+  }
+  if (needsCatchAll) {
+    const site = `https:// {\n\ttls {\n\t\ton_demand\n\t}\n\treverse_proxy 127.0.0.1:3000\n}`
+    text = text ? `${text}\n\n${site}` : site
+  }
+  return { file: `${text.replace(/\s*$/, '')}\n`, changed: true }
+}
+
 /** Oldest Node.js 22 release that includes the October 21, 2026 security fixes. */
 export const minimumNodeVersion = '22.23.4'
 
@@ -188,9 +224,9 @@ systemctl enable --now caddy`),
   } catch {
     caddyfile = ''
   }
-  if (!caddyHasSite(caddyfile, input.domain)) {
-    const next = `${caddyfile.trim() ? `${caddyfile.replace(/\s*$/, '')}\n\n` : ''}${caddySiteBlock(input.domain)}`
-    const encoded = Buffer.from(next).toString('base64')
+  const next = ensureCaddyOnDemand(caddyfile, input.domain)
+  if (next.changed) {
+    const encoded = Buffer.from(next.file).toString('base64')
     await run(
       privileged(`set -euo pipefail
 echo ${encoded} | base64 -d > /etc/caddy/Caddyfile

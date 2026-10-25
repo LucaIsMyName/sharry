@@ -3,6 +3,7 @@ import { api, type Me } from './api.ts'
 import { DocumentHead } from './components/page-title.tsx'
 import { Shell } from './components/shell.tsx'
 import { AdminAuditPage, AdminSettingsPage, AdminUsersPage } from './pages/admin.tsx'
+import { AdminDomainsPage } from './pages/domains.tsx'
 import { ServerPage } from './pages/server.tsx'
 import { ApiKeysPage } from './pages/api-keys.tsx'
 import { DocsPage } from './pages/docs.tsx'
@@ -92,6 +93,7 @@ export const router = createBrowserRouter([
           { path: 'admin/users', loader: adminLoader, handle: { title: 'Users' }, element: <AdminUsersPage /> },
           { path: 'admin/api-keys', loader: adminLoader, handle: { title: 'API keys' }, element: <ApiKeysPage /> },
           { path: 'admin/settings', loader: adminLoader, handle: { title: 'Settings' }, element: <AdminSettingsPage /> },
+          { path: 'admin/domains', loader: adminLoader, handle: { title: 'Domains' }, element: <AdminDomainsPage /> },
           { path: 'admin/server', loader: adminLoader, handle: { title: 'Server' }, element: <ServerPage /> },
           { path: 'admin/audit', loader: adminLoader, handle: { title: 'Audit' }, element: <AdminAuditPage /> },
         ],

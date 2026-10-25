@@ -8,7 +8,15 @@ The catch-all route is registered for `GET`, `HEAD`, and `POST`. It tries a shor
 
 Reserved names in `packages/shared/src/prefix.ts` include `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, and `docs`. A short-link prefix cannot take those URLs. Slugs reserve the same names plus `favicon.ico` and `robots.txt`.
 
-The prefix is not stored on the link. Displayed short URLs are built from `SHORT_URL_BASE`, the current prefix, and the slug. Changing the prefix in Settings rewrites every displayed link on the next read. Printed QR codes still contain the old path. Enabling legacy prefixes keeps resolving previous prefixes. That change asks for confirmation because saved addresses would otherwise 404.
+The prefix is not stored on the link. Displayed short URLs are built from the link's redirect domain when that domain is still verified, otherwise from `SHORT_URL_BASE`, then the current prefix and the slug. Changing the prefix in Settings rewrites every displayed link on the next read. Printed QR codes still contain the old path. Enabling legacy prefixes keeps resolving previous prefixes. That change asks for confirmation because saved addresses would otherwise 404.
+
+## Redirect domains
+
+Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_sharry-challenge.<hostname>` and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. `GET /api/redirect-domains` returns verified hostnames to every signed-in user. Creating or editing a link can store `redirectDomainId`. A missing, pending, or deleted domain falls back to `SHORT_URL_BASE` for the displayed URL, CSV export, and new QR codes.
+
+The same slug still resolves on every host that reaches this process. The selected domain is the canonical address. It does not make the slug exclusive to that host.
+
+Caddy asks `GET /internal/caddy/ask?domain=` before issuing a certificate. The route returns 200 only for a verified hostname, and only when the connection comes from loopback. Other names return 404. Paths that are not a short link return 404 on a verified custom host, so the dashboard stays on the deployment host.
 
 Slug uniqueness is case-insensitive. The taken-slug response is 409 with "This short URL is already in use. Please choose a different slug."
 

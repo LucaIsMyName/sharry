@@ -15,7 +15,7 @@ import {
 } from '@sharry/shared'
 import { requireUser, type Actor } from './auth.ts'
 import { writeAudit } from './audit.ts'
-import { getLinkForActor, removeLogo } from './links.ts'
+import { getLinkForActor, loadVerifiedHosts, originForLink, removeLogo } from './links.ts'
 import { getSettings } from './settings-store.ts'
 import { AppError, parseBody } from './support.ts'
 
@@ -33,12 +33,14 @@ export function registerQrRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string }
     const link = await getLinkForActor(app.db, actor, id)
     const settings = await getSettings(app.db, app.env)
+    const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
+    const base = originForLink(link, settings, hosts)
     const rows = await app.db
       .select()
       .from(qrCodes)
       .where(eq(qrCodes.linkId, link.id))
       .orderBy(desc(qrCodes.createdAt))
-    return { qrCodes: rows.map((row) => serializeQr(row, settings.shortUrlBase, settings.shortUrlPrefix, link.slug)) }
+    return { qrCodes: rows.map((row) => serializeQr(row, base, settings.shortUrlPrefix, link.slug)) }
   })
 
   /**
@@ -72,8 +74,9 @@ export function registerQrRoutes(app: FastifyInstance): void {
       metadata: { linkId: link.id, name: created.name },
     })
     const settings = await getSettings(app.db, app.env)
+    const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
     return {
-      ...serializeQr(created, settings.shortUrlBase, settings.shortUrlPrefix, link.slug),
+      ...serializeQr(created, originForLink(link, settings, hosts), settings.shortUrlPrefix, link.slug),
       warnings: qrWarnings(parseQrStyle(body.style), false),
     }
   })
@@ -242,11 +245,13 @@ async function getQrForActor(app: FastifyInstance, actor: Actor, id: string) {
   if (!qr) throw new AppError(404, 'QR code not found')
   const link = await getLinkForActor(app.db, actor, qr.linkId)
   const settings = await getSettings(app.db, app.env)
-  const url = buildShortUrl(settings.shortUrlBase, settings.shortUrlPrefix, link.slug, {
+  const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
+  const base = originForLink(link, settings, hosts)
+  const url = buildShortUrl(base, settings.shortUrlPrefix, link.slug, {
     qr: qr.id,
     v: qr.trackingVariantId ?? undefined,
   })
-  return { qr, link, url, base: settings.shortUrlBase, prefix: settings.shortUrlPrefix }
+  return { qr, link, url, base, prefix: settings.shortUrlPrefix }
 }
 
 function serializeQr(

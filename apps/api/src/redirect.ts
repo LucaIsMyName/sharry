@@ -15,6 +15,18 @@ import { variantUtm } from './tracking.ts'
 
 const UNLOCK_COOKIE = 'sharry_unlock'
 
+export function isShortLinkPath(
+  pathname: string,
+  settings: { shortUrlPrefix: string; legacyPrefixEnabled: boolean; legacyPrefixes: string[] },
+): boolean {
+  const segments = pathname.split('/').filter(Boolean)
+  if (segments.length !== 2) return false
+  const prefix = `/${segments[0]}`
+  if (validatePrefix(prefix)) return false
+  if (prefix === settings.shortUrlPrefix) return true
+  return settings.legacyPrefixEnabled && settings.legacyPrefixes.includes(prefix)
+}
+
 export async function tryShortLink(
   app: FastifyInstance,
   request: FastifyRequest,

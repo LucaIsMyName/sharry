@@ -19,7 +19,9 @@ import { registerAuthRoutes } from './auth.ts'
 import { registerLinkRoutes } from './links.ts'
 import type { Mailer } from './mail.ts'
 import { registerQrRoutes } from './qr.ts'
-import { recordPendingClick, sendSpa, tryShortLink } from './redirect.ts'
+import { recordPendingClick, sendSpa, tryShortLink, isShortLinkPath } from './redirect.ts'
+import { isVerifiedRedirectHost, registerRedirectDomainRoutes, requestHostname } from './redirect-domains.ts'
+import { getSettings } from './settings-store.ts'
 import { AppError, hashToken } from './support.ts'
 import { registerTrackingRoutes } from './tracking.ts'
 import type { ClickDraft } from './analytics.ts'
@@ -86,6 +88,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     },
   })
 
+  app.addHook('preHandler', async (request, reply) => {
+    if (!(await isVerifiedRedirectHost(app.db, requestHostname(request)))) return
+    const pathname = request.url.split('?')[0] ?? ''
+    const settings = await getSettings(app.db, app.env)
+    if (isShortLinkPath(pathname, settings)) return
+    return reply.code(404).type('text/plain').send('Not found')
+  })
+
   app.addHook('preHandler', async (request) => {
     if (!request.url.startsWith('/api')) return
     if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return
@@ -120,6 +130,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAnalyticsRoutes(app)
   registerQrRoutes(app)
   registerAdminRoutes(app)
+  registerRedirectDomainRoutes(app)
   registerSystemRoutes(app)
 
   if (options.env.NODE_ENV === 'production') {

@@ -98,7 +98,7 @@ Two things stay outside the script:
 - The VPS is already running Ubuntu or Debian, and it accepts SSH with the key in `.env.production`. `DEPLOY_USER` is `root`, or a user that can run `sudo -n`.
 - The domain’s A record points at the VPS IPv4 address. The provider’s firewall allows ports 22, 80, and 443. A cloud firewall is not the machine’s own firewall, so the script cannot open it.
 
-`npm run deploy` installs the rest. Caddy requests and renews the certificate because the site name is a hostname and ports 80 and 443 reach the server. Sharry does not call a certificate API.
+`npm run deploy` installs the rest. Caddy requests and renews the certificate for the deployment domain because the site name is a hostname and ports 80 and 443 reach the server. Sharry does not call a certificate API. Administrators can add more redirect domains in the dashboard. Each one is checked with a DNS TXT record. After it is verified, and its A record points at this server, Caddy issues a certificate for that hostname the first time someone opens it. People then choose that domain when they create a link. The deployment domain stays the default.
 
 ### 1. Fill in `.env.production`
 

@@ -286,6 +286,60 @@ export function LinksPage() {
   );
 }
 
+const defaultRedirectDomain = "default";
+
+function redirectDomainPayload(value: string): string | null {
+  return value === defaultRedirectDomain ? null : value;
+}
+
+function RedirectDomainField({
+  value,
+  onValueChange,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const [domains, setDomains] = useState<{ id: string; hostname: string }[]>([]);
+  const [defaultHost, setDefaultHost] = useState("Default");
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      api<{ domains: { id: string; hostname: string }[] }>("/api/redirect-domains"),
+      api<PublicSettings>("/api/settings/public"),
+    ])
+      .then(([list, settings]) => {
+        if (cancelled) return;
+        setDomains(list.domains);
+        try {
+          setDefaultHost(new URL(settings.shortUrlBase).host);
+        } catch {
+          setDefaultHost(settings.shortUrlBase);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <Field label="Redirect domain">
+      <Select
+        value={value}
+        options={[
+          { value: defaultRedirectDomain, label: `${defaultHost} (default)` },
+          ...domains.map((domain) => ({ value: domain.id, label: domain.hostname })),
+        ]}
+        onValueChange={onValueChange}
+      />
+      <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+        The short URL uses this domain. A QR code downloaded later uses the domain saved on the link.
+      </p>
+    </Field>
+  );
+}
+
 export function LinkFormPage() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<PublicSettings | null>(null);
@@ -296,6 +350,7 @@ export function LinkFormPage() {
     "301" | "302" | "307" | "308"
   >("302");
   const [utm, setUtm] = useState<UtmParams>(emptyUtm);
+  const [redirectDomainId, setRedirectDomainId] = useState(defaultRedirectDomain);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -318,6 +373,7 @@ export function LinkFormPage() {
           title,
           slug,
           redirectType,
+          redirectDomainId: redirectDomainPayload(redirectDomainId),
           utm,
         }),
       });
@@ -360,6 +416,7 @@ export function LinkFormPage() {
                 placeholder="Leave blank for a random slug"
               />
             </Field>
+            <RedirectDomainField value={redirectDomainId} onValueChange={setRedirectDomainId} />
             <Field label="Redirect">
               <Select
                 value={redirectType}
@@ -404,6 +461,7 @@ export function LinkDetailPage() {
   const [expiresAt, setExpiresAt] = useState("");
   const [password, setPassword] = useState("");
   const [utm, setUtm] = useState<UtmParams>(emptyUtm);
+  const [redirectDomainId, setRedirectDomainId] = useState(defaultRedirectDomain);
   const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
   const [style, setStyle] = useState<QrStyle>(defaultQrStyle);
   const [qrName, setQrName] = useState("Default");
@@ -435,6 +493,7 @@ export function LinkDetailPage() {
     setExpiresAt("");
     setPassword("");
     setUtm(emptyUtm);
+    setRedirectDomainId(defaultRedirectDomain);
     setQrCodes([]);
     setActiveQr(null);
     setAnalytics(null);
@@ -461,6 +520,7 @@ export function LinkDetailPage() {
         setStatus(next.status);
         setExpiresAt(toDatetimeLocal(next.expiresAt));
         setUtm(next.utm);
+        setRedirectDomainId(next.redirectDomainId ?? defaultRedirectDomain);
         setQrCodes(codes.qrCodes);
         setAnalytics(stats);
         setVariants(variantData.variants);
@@ -512,11 +572,13 @@ export function LinkDetailPage() {
           status,
           expiresAt: fromDatetimeLocal(expiresAt),
           password: password ? password : undefined,
+          redirectDomainId: redirectDomainPayload(redirectDomainId),
           utm,
         }),
       });
       setLink(updated);
       setSlug(updated.slug);
+      setRedirectDomainId(updated.redirectDomainId ?? defaultRedirectDomain);
       setPassword("");
       setMessage(
         slug.trim()
@@ -761,6 +823,7 @@ export function LinkDetailPage() {
                 placeholder="Leave blank for a random slug"
               />
             </Field>
+            <RedirectDomainField value={redirectDomainId} onValueChange={setRedirectDomainId} />
             <Field label="Title">
               <Input
                 value={title}

@@ -3,18 +3,10 @@ import path from 'node:path'
 import { desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { apiKeys, auditLogs, links, qrCodes, sessions, trackingCampaigns, users, type Database, type UserRecord } from '@sharry/database'
-import {
-  buildShortUrl,
-  createApiKeySchema,
-  createUserSchema,
-  settingsUpdateSchema,
-  updateUserSchema,
-  validatePrefix,
-  type RuntimeEnv,
-} from '@sharry/shared'
+import { buildShortUrl, createApiKeySchema, createUserSchema, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
 import { requireAdmin } from './auth.ts'
 import { writeAudit } from './audit.ts'
-import { removeLogo } from './links.ts'
+import { loadVerifiedHosts, originForLink, removeLogo } from './links.ts'
 import { smtpSource } from './mail.ts'
 import { hashPassword } from './passwords.ts'
 import { rowsOf, getSettings, invalidateSettings, writeSetting, type AppSettings } from './settings-store.ts'
@@ -332,12 +324,13 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       .from(links)
       .innerJoin(users, eq(links.userId, users.id))
       .orderBy(desc(links.createdAt))
+    const hosts = await loadVerifiedHosts(app.db, rows.map(({ link }) => link.redirectDomainId))
     const body = csv([
       ['id', 'slug', 'short_url', 'destination_url', 'title', 'status', 'owner_email', 'created_at'],
       ...rows.map(({ link, email }) => [
         link.id,
         link.slug,
-        buildShortUrl(settings.shortUrlBase, settings.shortUrlPrefix, link.slug),
+        buildShortUrl(originForLink(link, settings, hosts), settings.shortUrlPrefix, link.slug),
         link.destinationUrl,
         link.title ?? '',
         link.status,

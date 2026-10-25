@@ -27,12 +27,15 @@ export const utmSchema = z.object(
 
 export const redirectTypeSchema = z.enum(['301', '302', '307', '308'])
 
+const redirectDomainId = z.string().uuid().nullable().optional()
+
 export const createLinkSchema = z.object({
   destinationUrl: destinationSchema,
   title: z.string().trim().max(200).optional(),
   description: z.string().trim().max(2000).optional(),
   slug: z.string().trim().max(64).optional().or(z.literal('')),
   redirectType: redirectTypeSchema.optional(),
+  redirectDomainId,
   expiresAt: z.string().datetime().nullable().optional(),
   password: z.string().min(1).max(200).optional().or(z.literal('')),
   utm: utmSchema.optional(),
@@ -44,10 +47,15 @@ export const updateLinkSchema = z.object({
   description: z.string().trim().max(2000).nullable().optional(),
   slug: z.string().trim().max(64).optional().or(z.literal('')),
   redirectType: redirectTypeSchema.optional(),
+  redirectDomainId,
   status: z.enum(['active', 'disabled']).optional(),
   expiresAt: z.string().datetime().nullable().optional(),
   password: z.string().min(1).max(200).nullable().optional(),
   utm: utmSchema.optional(),
+})
+
+export const createRedirectDomainSchema = z.object({
+  hostname: z.string().trim().min(1).max(253),
 })
 
 export const loginSchema = z.object({

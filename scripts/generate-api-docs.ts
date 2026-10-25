@@ -27,7 +27,7 @@ export type ApiDoc = {
 
 const METHODS = new Set(['get', 'post', 'patch', 'delete', 'put', 'head'])
 
-const TAG_ORDER = ['Links', 'Campaigns', 'Analytics', 'QR codes', 'Account', 'Admin', 'Settings']
+const TAG_ORDER = ['Links', 'Campaigns', 'Analytics', 'QR codes', 'Account', 'Admin', 'Settings', 'Domains']
 
 export function extractApiDocs(dir: string): ApiDoc[] {
   const files = fs

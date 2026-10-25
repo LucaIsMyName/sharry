@@ -6,6 +6,8 @@ A short link keeps its slug when you change the destination, so printed QR codes
 
 The public path uses the prefix stored in Settings, for example `https://share.example.com/s/summer-sale`. Changing the prefix updates every displayed link. Enable legacy prefixes to keep resolving the previous path. That change asks for confirmation.
 
+The domain in that address comes from the deployment origin unless the link stores a verified redirect domain. New link and the link editor both offer that choice. The deployment domain stays the default. A domain that is later removed drops out of the short URL, the CSV export, and new QR codes. A QR image that was already downloaded keeps the address that was encoded at the time. The same slug still opens on the deployment host.
+
 The prefix is a single path segment. It must start with `/` and may contain only lowercase letters, digits, and hyphens. It cannot be a dashboard path such as `api`, `docs`, `login`, or `links`. A slug is 2 to 64 characters of letters, digits, and hyphens, and it cannot be a reserved name such as `favicon.ico` or `robots.txt`.
 
 Leave the slug blank to generate one. The length comes from Settings and is between 4 and 16 characters. The default length is 5. The alphabet leaves out characters that are easy to confuse.
@@ -26,7 +28,7 @@ Pause sets the status to disabled. A paused link does not redirect. Switch it ba
 
 A link can require a password before it redirects. Visitors must enter this password before the short link redirects. The password is stored as a hash. Leave the field blank on a later edit to keep the saved password. Clearing it removes the requirement.
 
-Save link is the only save on the editor. It stores the destination, slug, title, description, redirect type, expiry, password, and UTM fields together.
+Save link is the only save on the editor. It stores the destination, slug, title, description, redirect domain, redirect type, expiry, password, and UTM fields together.
 
 ## Redirects
 

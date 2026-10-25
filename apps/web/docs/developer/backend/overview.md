@@ -11,12 +11,13 @@ The same purge runs every hour. `SIGINT` and `SIGTERM` close the HTTP server and
 - `auth.ts` for sessions, passwords, and two-factor authentication
 - `links.ts`, `tracking.ts`, `analytics.ts`, and `qr.ts` for the product
 - `admin.ts` for users, settings, audit, exports, and API keys
+- `redirect-domains.ts` for custom redirect domains and the certificate allow-list
 - `system.ts` for the administrator server snapshot
 - `redirect.ts` for short links that are not under `/api`
 
 PostgreSQL is accessed through Drizzle in `packages/database`. Schema changes go through `npm run db:generate` and `npm run db:migrate`. Request bodies are checked with Zod schemas in `packages/shared`.
 
-In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link returns the dashboard `index.html`. `POST` to an unknown path, and any unknown `/api` path, returns 404. In development, Vite serves the dashboard and this process serves only the API, health check, and short links. Production sends a Content-Security-Policy that allows `blob:` connections so a QR center image can be embedded.
+In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link returns the dashboard `index.html` when the host is the deployment domain. A verified redirect domain serves short links only. Other paths on that host return 404, including the dashboard and `/api`. `POST` to an unknown path, and any unknown `/api` path, returns 404. In development, Vite serves the dashboard and this process serves only the API, health check, and short links. Production sends a Content-Security-Policy that allows `blob:` connections so a QR center image can be embedded.
 
 ## Request path
 
