@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Link } from "react-router";
 import { api, type Analytics, type LinkSummary } from "../api.ts";
+import { EmptyState } from "../components/empty-state.tsx";
 import { buttonVariants } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
@@ -11,6 +12,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
+  ClickableTableRow,
   TableRow,
 } from "../components/ui/table.tsx";
 import { useI18n } from "../i18n/index.tsx";
@@ -43,7 +45,7 @@ export function DashboardPage() {
     <section>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">
             {t("Overview")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -99,9 +101,23 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       )}
-      <Card className="mt-4">
-        <CardContent>
+      <div className="mt-4">
           <h2 className="mb-2 text-lg font-medium">{t("Recent links")}</h2>
+          {loading ? (
+            <EmptyState>{t("Loading links…")}</EmptyState>
+          ) : failed ? (
+            <EmptyState>{t("Could not load links.")}</EmptyState>
+          ) : links.length === 0 ? (
+            <EmptyState
+              action={
+                <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+                  <Plus /> {t("New link")}
+                </Link>
+              }
+            >
+              {t("No links yet.")}
+            </EmptyState>
+          ) : (
           <Table className="table-fixed">
             <TableHeader>
               <TableRow>
@@ -113,34 +129,12 @@ export function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">
-                    {t("Loading links…")}
-                  </TableCell>
-                </TableRow>
-              ) : failed ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">
-                    {t("Could not load links.")}
-                  </TableCell>
-                </TableRow>
-              ) : links.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">
-                    {t("No links yet.")}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                links.map((link) => (
-                  <TableRow key={link.id}>
-                    <TableCell className="truncate">
-                      <Link
-                        className="font-medium hover:text-primary"
-                        to={`/links/${link.id}`}
-                      >
-                        {link.title?.trim() || link.slug}
-                      </Link>
+                {links.map((link) => {
+                  const name = link.title?.trim() || link.slug;
+                  return (
+                  <ClickableTableRow key={link.id} to={`/links/${link.id}`} label={name}>
+                    <TableCell className="truncate font-medium">
+                      {name}
                     </TableCell>
                     <TableCell
                       className="truncate text-muted-foreground"
@@ -151,13 +145,13 @@ export function DashboardPage() {
                     <TableCell className="tabular-nums">
                       {link.clicks}
                     </TableCell>
-                  </TableRow>
-                ))
-              )}
+                  </ClickableTableRow>
+                  );
+                })}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+          )}
+      </div>
     </section>
   );
 }

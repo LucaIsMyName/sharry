@@ -14,6 +14,7 @@
     "@sharry/shared": "*",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
+    "dayjs": "^1.11.23",
     "lucide-react": "^1.59.0",
     "qr-code-styling": "^1.9.2",
     "react": "^19.1.0",

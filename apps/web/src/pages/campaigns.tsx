@@ -4,6 +4,7 @@ import { Check, Copy, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import type { UtmParams } from "@sharry/shared";
 import { api, type ShortLink } from "../api.ts";
+import { EmptyState } from "../components/empty-state.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { UtmFields, utmSummary } from "../components/utm-fields.tsx";
 import { Button } from "../components/ui/button.tsx";
@@ -69,7 +70,7 @@ export function CampaignsPage() {
   return (
     <section className="grid gap-4">
       <div>
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Campaigns")}
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
@@ -100,41 +101,36 @@ export function CampaignsPage() {
           </form>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t("Loading campaigns…")}</p>
-          ) : campaigns.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No campaigns yet.")}</p>
-          ) : (
-            <ul>
-              {campaigns.map((campaign) => (
-                <li
-                  key={campaign.id}
-                  className="flex items-start justify-between gap-4 border-b border-border py-3 last:border-0"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      className="font-medium hover:text-primary"
-                      to={`/campaigns/${campaign.id}`}
-                    >
-                      {campaign.name}
-                    </Link>
-                    {campaign.description ? (
-                      <p className="truncate text-sm text-muted-foreground">
-                        {campaign.description}
-                      </p>
-                    ) : null}
-                  </div>
-                  <p className="shrink-0 text-sm text-muted-foreground">
-                    {variantLabel(campaign.variantCount)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      {loading ? (
+        <EmptyState>{t("Loading campaigns…")}</EmptyState>
+      ) : campaigns.length === 0 ? (
+        <EmptyState>
+          {t("No campaigns yet. Create one in the form above.")}
+        </EmptyState>
+      ) : (
+        <ul>
+          {campaigns.map((campaign) => (
+            <li key={campaign.id} className="border-b border-border last:border-0">
+              <Link
+                className="flex items-start justify-between gap-4 py-3 hover:text-primary"
+                to={`/campaigns/${campaign.id}`}
+              >
+                <div className="min-w-0">
+                  <span className="font-medium">{campaign.name}</span>
+                  {campaign.description ? (
+                    <p className="truncate text-sm text-muted-foreground">
+                      {campaign.description}
+                    </p>
+                  ) : null}
+                </div>
+                <p className="shrink-0 text-sm text-muted-foreground">
+                  {variantLabel(campaign.variantCount)}
+                </p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -337,7 +333,7 @@ export function CampaignDetailPage() {
       />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">
             {loading
               ? t("Loading campaign…")
               : (campaign?.name ?? t("Campaign"))}

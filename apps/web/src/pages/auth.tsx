@@ -302,7 +302,7 @@ export function AccountPage() {
   return (
     <section className="grid gap-4">
       <div className="mb-1">
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Account")}
         </h1>
         <p className="text-sm text-muted-foreground">{me?.user.email}</p>

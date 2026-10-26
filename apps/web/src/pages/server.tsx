@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { api } from "../api.ts";
+import { RelativeTime } from "../components/relative-time.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
@@ -30,7 +31,7 @@ type SystemSnapshot = {
 };
 
 export function ServerPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [snapshot, setSnapshot] = useState<SystemSnapshot | null>(null);
   const [pending, setPending] = useState(true);
 
@@ -53,15 +54,15 @@ export function ServerPage() {
     <section className="grid gap-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">
             {t("Server")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {snapshot
-              ? t("Updated {time}.", {
-                  time: new Date(snapshot.collectedAt).toLocaleString(locale),
-                })
-              : t("Memory, disk, and the installed runtime on this host.")}
+            {snapshot ? (
+              <UpdatedLine at={snapshot.collectedAt} />
+            ) : (
+              t("Memory, disk, and the installed runtime on this host.")
+            )}
           </p>
         </div>
         <Button
@@ -84,6 +85,18 @@ export function ServerPage() {
       ) : null}
       {snapshot ? <SnapshotView snapshot={snapshot} /> : null}
     </section>
+  );
+}
+
+function UpdatedLine({ at }: { at: string }) {
+  const { t } = useI18n();
+  const [before, after = ""] = t("Updated {time}.").split("{time}");
+  return (
+    <>
+      {before}
+      <RelativeTime value={at} />
+      {after}
+    </>
   );
 }
 

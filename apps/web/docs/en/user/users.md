@@ -54,3 +54,4 @@ Actions you will see include:
 | `redirect_domain.created` | An administrator adds a redirect domain |
 | `redirect_domain.verified` | The TXT record matches and the domain becomes verified |
 | `redirect_domain.deleted` | An administrator removes a redirect domain |
+| `redirect_domain.verification_lost` | A verified domain lost its TXT record. |

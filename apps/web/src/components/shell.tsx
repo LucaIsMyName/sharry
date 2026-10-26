@@ -20,6 +20,8 @@ import { cn } from "cn";
 import { api, type Me } from "../api.ts";
 import { useAppName } from "../brand.ts";
 import { useAccountLocale, useI18n } from "../i18n/index.tsx";
+import { setTheme, useTheme, type ThemeChoice } from "../theme.ts";
+import { useRouteTitle } from "./page-title.tsx";
 import { Button } from "./ui/button.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
@@ -28,6 +30,7 @@ export function Shell() {
   const appName = useAppName();
   useAccountLocale(me.user.locale);
   const { t } = useI18n();
+  const title = useRouteTitle();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const admin = me.user.role === "admin";
@@ -54,10 +57,10 @@ export function Shell() {
           onNavigate={() => setOpen(false)}
         />
       </aside>
-      <main className="min-h-svh p-5 md:ml-60 md:p-7">
-        <div className="mb-3 md:hidden">
+      <main className="min-h-svh md:ml-60">
+        <div className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border bg-background px-3 md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger render={<Button variant="outline" type="button" />}>
+            <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
               <Menu /> {t("Menu")}
             </SheetTrigger>
             <SheetContent
@@ -75,8 +78,9 @@ export function Shell() {
               />
             </SheetContent>
           </Sheet>
+          <p className="min-w-0 truncate text-sm font-medium">{title}</p>
         </div>
-        <div className="page">
+        <div className="page px-5 py-5 md:px-7 md:py-7">
           <Outlet />
         </div>
       </main>
@@ -180,6 +184,40 @@ function Item({
   );
 }
 
+const themeOptions: { value: ThemeChoice; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "system", label: "System" },
+];
+
+function ThemeSwitch() {
+  const { t } = useI18n();
+  const choice = useTheme();
+  return (
+    <div className="grid gap-1.5" role="group" aria-label={t("Appearance")}>
+      <p className="px-0.5 text-xs text-sidebar-foreground/70">{t("Appearance")}</p>
+      <div className="grid grid-cols-3 gap-1">
+        {themeOptions.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-pressed={choice === option.value}
+            className={cn(
+              "border-sidebar-border bg-transparent px-1 text-xs text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
+              choice === option.value && "bg-sidebar-accent text-white",
+            )}
+            onClick={() => setTheme(option.value)}
+          >
+            {t(option.label)}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AccountFoot({
   user,
   onLogout,
@@ -207,6 +245,7 @@ function AccountFoot({
       <Item to="/account" icon={icon}>
         {user.username}
       </Item>
+      <ThemeSwitch />
       <Button
         variant="outline"
         className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"

@@ -29,6 +29,7 @@ import {
   type ShortLink,
 } from "../api.ts";
 import { useAppName } from "../brand.ts";
+import { EmptyState } from "../components/empty-state.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { choiceNote, correctionOptions, redirectOptions } from "../choices.ts";
 import { downloadQr, QrPreview } from "../components/qr-preview.tsx";
@@ -50,6 +51,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
+  ClickableTableRow,
   TableRow,
 } from "../components/ui/table.tsx";
 import { t, useI18n } from "../i18n/index.tsx";
@@ -180,7 +182,7 @@ export function LinksPage() {
     <section>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">
             {t("Links")}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -198,8 +200,26 @@ export function LinksPage() {
           placeholder="Slug, title, or destination"
         />
       </Field>
-      <Card className="mt-4 min-w-0">
-        <CardContent className="min-w-0">
+      <div className="mt-4 min-w-0">
+          {loading ? (
+            <EmptyState>{t("Loading links…")}</EmptyState>
+          ) : links.length === 0 ? (
+            <EmptyState
+              action={
+                failed || query.trim() ? null : (
+                  <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+                    <Plus /> {t("New link")}
+                  </Link>
+                )
+              }
+            >
+              {failed
+                ? t("Could not load links.")
+                : query.trim()
+                  ? t("No links match.")
+                  : t("No links yet.")}
+            </EmptyState>
+          ) : (
           <Table className="min-w-full w-max">
             <TableHeader>
               <TableRow>
@@ -217,34 +237,12 @@ export function LinksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={links.some((link) => "owner" in link) ? 7 : 6}
-                    className="text-muted-foreground"
-                  >
-                    {t("Loading links…")}
-                  </TableCell>
-                </TableRow>
-              ) : links.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={links.some((link) => "owner" in link) ? 7 : 6}
-                    className="text-muted-foreground"
-                  >
-                    {failed ? t("Could not load links.") : t("No links match.")}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                links.map((link) => (
-                  <TableRow key={link.id}>
-                    <TableCell className="truncate">
-                      <Link
-                        className="font-medium hover:text-primary"
-                        to={`/links/${link.id}`}
-                      >
-                        {link.title?.trim() || link.slug}
-                      </Link>
+                {links.map((link) => {
+                  const name = link.title?.trim() || link.slug;
+                  return (
+                  <ClickableTableRow key={link.id} to={`/links/${link.id}`} label={name}>
+                    <TableCell className="truncate font-medium">
+                      {name}
                     </TableCell>
                     {links.some((item) => "owner" in item) ? (
                       <TableCell className="truncate">
@@ -275,7 +273,7 @@ export function LinksPage() {
                     <TableCell className="tabular-nums">
                       {link.clicks}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-row-action>
                       <a
                         className={buttonVariants({
                           variant: "outline",
@@ -284,18 +282,17 @@ export function LinksPage() {
                         href={link.shortUrl}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label={t("Test {name}", {
-                          name: link.title?.trim() || link.slug,
-                        })}
+                        aria-label={t("Test {name}", { name })}
                       >
                         <ExternalLink />
                       </a>
                     </TableCell>
-                  </TableRow>
-                ))
-              )}
+                  </ClickableTableRow>
+                  );
+                })}
             </TableBody>
           </Table>
+          )}
           {!loading && links.length < total ? (
             <Button
               className="mt-4"
@@ -312,8 +309,7 @@ export function LinksPage() {
                   })}
             </Button>
           ) : null}
-        </CardContent>
-      </Card>
+      </div>
     </section>
   );
 }
@@ -425,7 +421,7 @@ export function LinkFormPage() {
   const conflicts = utmConflicts(destinationUrl, utm);
   return (
     <section>
-      <h1 className="mb-5 font-heading text-4xl font-medium tracking-tight">
+      <h1 className="mb-5 font-heading text-2xl font-medium tracking-tight">
         {t("New link")}
       </h1>
       <Card>
@@ -771,9 +767,9 @@ export function LinkDetailPage() {
         title={link?.title?.trim() || link?.slug || "Link"}
         literal={Boolean(link?.title?.trim() || link?.slug)}
       />
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="sticky top-12 z-20 -mx-5 flex flex-wrap items-end justify-between gap-4 border-b border-border bg-background px-5 py-3 md:top-0 md:-mx-7 md:px-7">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">
+          <h1 className="font-heading text-3xl font-medium tracking-tight">
             {link?.title?.trim() || link?.slug || t("Link")}
           </h1>
           {link ? (
@@ -786,12 +782,15 @@ export function LinkDetailPage() {
               >
                 {link.shortUrl}
               </a>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <div
+              className="flex gap-3 items-center mt-2"
+              ><p className="text-sm text-muted-foreground text-xs">
                 {t("Created by")} {link.owner?.username ?? t("Unknown")}
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-xs">
                 {t("Last changed by")} {link.updatedBy?.username ?? t("Unknown")}
               </p>
+              </div>
               {locked ? (
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t("You can view this link but not change it.")}

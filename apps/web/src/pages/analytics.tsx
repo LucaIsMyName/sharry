@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import {
   CartesianGrid,
@@ -11,7 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { api, type Analytics, type LinkStat } from "../api.ts";
-import { Button } from "../components/ui/button.tsx";
+import { EmptyState } from "../components/empty-state.tsx";
+import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import {
@@ -20,9 +21,11 @@ import {
   TableCell,
   TableHead,
   TableHeader,
+  ClickableTableRow,
   TableRow,
 } from "../components/ui/table.tsx";
 import { cn } from "cn";
+import { chartDayLabel } from "../chart-day.ts";
 import { useI18n } from "../i18n/index.tsx";
 
 export function AnalyticsPage() {
@@ -72,7 +75,7 @@ export function AnalyticsPage() {
     <section>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-heading text-4xl font-medium tracking-tight">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">
             {selected ? (
               <Link to={`/links/${selected.id}`}>
                 {selected.title?.trim() || selected.slug}
@@ -99,7 +102,7 @@ export function AnalyticsPage() {
         ) : null}
       </div>
       {loading && !analytics ? (
-        <p className="text-sm text-muted-foreground">{t("Loading analytics…")}</p>
+        <EmptyState>{t("Loading analytics…")}</EmptyState>
       ) : null}
       {analytics ? (
         <div className="grid gap-4">
@@ -143,13 +146,20 @@ export function AnalyticsPage() {
           </div>
         </div>
       ) : null}
-      <Card className="mt-4 min-w-0">
-        <CardContent className="min-w-0">
+      <div className="mt-4 min-w-0">
           <h2 className="mb-3 text-lg font-medium">{t("Links")}</h2>
           {loading && links.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("Loading links…")}</p>
+            <EmptyState>{t("Loading links…")}</EmptyState>
           ) : links.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No links yet.")}</p>
+            <EmptyState
+              action={
+                <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+                  <Plus /> {t("New link")}
+                </Link>
+              }
+            >
+              {t("No links yet.")}
+            </EmptyState>
           ) : (
             <Table className="min-w-full w-max">
               <TableHeader>
@@ -160,43 +170,57 @@ export function AnalyticsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {links.map((link) => (
-                  <TableRow
+                {links.map((link) => {
+                  const name = link.title?.trim() || link.slug;
+                  return (
+                  <ClickableTableRow
                     key={link.id}
+                    label={name}
                     className={cn(link.id === linkId && "bg-muted")}
+                    onSelect={() => setParams({ link: link.id })}
                   >
-                    <TableCell>
-                      <button
-                        type="button"
-                        className="text-left font-medium"
-                        onClick={() => setParams({ link: link.id })}
-                      >
-                        {link.title?.trim() || link.slug}
-                      </button>
-                    </TableCell>
+                    <TableCell className="font-medium">{name}</TableCell>
                     <TableCell>{link.clicks}</TableCell>
                     <TableCell>{link.uniqueVisitors}</TableCell>
-                  </TableRow>
-                ))}
+                  </ClickableTableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </div>
     </section>
   );
 }
 
 export function ClickChart({ series }: { series: Analytics["series"] }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={series}>
           <CartesianGrid stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} minTickGap={24} />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 12 }}
+            minTickGap={24}
+            tickFormatter={(value) => chartDayLabel(String(value), locale)}
+          />
           <YAxis allowDecimals={false} width={36} />
-          <Tooltip />
+          <Tooltip
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const clicks = payload[0]?.value ?? 0;
+              return (
+                <div className="rounded-md bg-popover px-2.5 py-1.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
+                  <div>{chartDayLabel(String(label), locale)}</div>
+                  <div className="tabular-nums">
+                    {clicks} {t("Clicks")}
+                  </div>
+                </div>
+              );
+            }}
+          />
           <Line
             type="monotone"
             dataKey="clicks"
@@ -239,7 +263,7 @@ export function Breakdown({
       <CardContent>
         <h2 className="mb-3 text-lg font-medium">{t(title)}</h2>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No data yet.")}</p>
+          <EmptyState>{t("No data yet.")}</EmptyState>
         ) : (
           <div className="grid gap-2">
             {rows.map((row, index) => (

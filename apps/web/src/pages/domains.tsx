@@ -9,6 +9,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { api } from "../api.ts";
+import { EmptyState } from "../components/empty-state.tsx";
+import { IconAction } from "../components/icon-action.tsx";
+import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
@@ -125,7 +128,7 @@ export function AdminDomainsPage() {
   return (
     <section className="grid gap-4">
       <div>
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Domains")}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -151,84 +154,69 @@ export function AdminDomainsPage() {
           </form>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("Domain")}</TableHead>
-                <TableHead>{t("Status")}</TableHead>
-                <TableHead></TableHead>
+      {domains.length === 0 ? (
+        <EmptyState>
+          {t("No redirect domains yet. Add one in the form above.")}
+        </EmptyState>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("Domain")}</TableHead>
+              <TableHead>{t("Status")}</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {domains.map((domain) => (
+              <TableRow key={domain.id}>
+                <TableCell className="whitespace-normal">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="font-mono text-sm">
+                      {domain.hostname}
+                    </span>
+                    {domain.lastError ? (
+                      <FieldMessage
+                        tone="error"
+                        message={domain.lastError}
+                        initialOpen={false}
+                      />
+                    ) : null}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={domain.status === "verified" ? "secondary" : "outline"}
+                  >
+                    {domain.status === "verified" ? t("Verified") : t("Pending")}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-nowrap items-center justify-end gap-1">
+                    {domain.status === "pending" ? (
+                      <IconAction label={t("Setup")} onClick={() => setSetup(domain)}>
+                        <ListChecks />
+                      </IconAction>
+                    ) : null}
+                    {domain.status === "pending" ? (
+                      <IconAction
+                        label={verifyingId === domain.id ? t("Checking…") : t("Verify")}
+                        disabled={verifyingId === domain.id}
+                        onClick={() => void verify(domain)}
+                      >
+                        <BadgeCheck />
+                      </IconAction>
+                    ) : null}
+                    <IconAction label={t("Delete")} onClick={() => setDeleteFor(domain)}>
+                      <Trash2 />
+                    </IconAction>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {domains.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-muted-foreground">
-                    {t("No redirect domains yet.")}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                domains.map((domain) => (
-                  <TableRow key={domain.id}>
-                    <TableCell className="whitespace-normal">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="font-mono text-sm">
-                          {domain.hostname}
-                        </span>
-                        {domain.lastError ? (
-                          <FieldMessage
-                            tone="error"
-                            message={domain.lastError}
-                            initialOpen={false}
-                          />
-                        ) : null}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {domain.status === "verified" ? t("Verified") : t("Pending")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {domain.status === "pending" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSetup(domain)}
-                          >
-                            <ListChecks /> {t("Setup")}
-                          </Button>
-                        ) : null}
-                        {domain.status === "pending" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={verifyingId === domain.id}
-                            onClick={() => void verify(domain)}
-                          >
-                            <BadgeCheck />{" "}
-                            {verifyingId === domain.id ? t("Checking…") : t("Verify")}
-                          </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDeleteFor(domain)}
-                        >
-                          <Trash2 /> {t("Delete")}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            ))}
+          </TableBody>
+        </Table>
+      )}
       <Dialog
         open={Boolean(setup)}
         onOpenChange={(open) => {

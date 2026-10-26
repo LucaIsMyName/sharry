@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Ban, Check, Copy, Plus } from "lucide-react";
 import { api } from "../api.ts";
+import { RelativeTime } from "../components/relative-time.tsx";
 import { copyText } from "../components/ui/copy.ts";
+import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
@@ -49,7 +51,7 @@ type ApiKeyRow = {
 type CreatedKey = ApiKeyRow & { secret: string };
 
 export function ApiKeysPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [name, setName] = useState("");
@@ -126,7 +128,7 @@ export function ApiKeysPage() {
   return (
     <section className="grid gap-4">
       <div>
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("API keys")}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -166,9 +168,7 @@ export function ApiKeysPage() {
           </form>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent>
-          <Table>
+      <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("Name")}</TableHead>
@@ -189,11 +189,13 @@ export function ApiKeysPage() {
                     {key.tokenPrefix}
                   </TableCell>
                   <TableCell className="whitespace-normal">
-                    {key.revokedAt
-                      ? t("Revoked")
-                      : key.lastUsedAt
-                        ? new Date(key.lastUsedAt).toLocaleString(locale)
-                        : t("Never")}
+                    {key.revokedAt ? (
+                      <Badge variant="outline">{t("Revoked")}</Badge>
+                    ) : key.lastUsedAt ? (
+                      <RelativeTime value={key.lastUsedAt} />
+                    ) : (
+                      t("Never")
+                    )}
                   </TableCell>
                   <TableCell>
                     {key.revokedAt ? null : (
@@ -210,9 +212,7 @@ export function ApiKeysPage() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      </Table>
       <Dialog
         open={Boolean(created)}
         onOpenChange={(open) => {

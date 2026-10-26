@@ -19,6 +19,11 @@ import {
   type QrStyle,
 } from "@sharry/shared";
 import { api } from "../api.ts";
+import { auditActionSentence } from "../audit-actions.ts";
+import { EmptyState } from "../components/empty-state.tsx";
+import { IconAction } from "../components/icon-action.tsx";
+import { RelativeTime } from "../components/relative-time.tsx";
+import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
@@ -169,7 +174,7 @@ export function AdminUsersPage() {
 
   return (
     <section className="grid gap-4">
-      <h1 className="font-heading text-4xl font-medium tracking-tight">
+      <h1 className="font-heading text-2xl font-medium tracking-tight">
         {t("Users")}
       </h1>
       <Card>
@@ -247,9 +252,7 @@ export function AdminUsersPage() {
           </form>
         </CardContent>
       </Card>
-      <Card>
-        <CardContent>
-          <Table>
+      <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("User")}</TableHead>
@@ -278,50 +281,49 @@ export function AdminUsersPage() {
                     />
                   </TableCell>
                   <TableCell className="whitespace-normal">
-                    {user.isActive ? t("Active") : t("Disabled")}
-                    {user.mustChangePassword ? t(" · password change") : ""}
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <Badge variant={user.isActive ? "secondary" : "outline"}>
+                        {user.isActive ? t("Active") : t("Disabled")}
+                      </Badge>
+                      {user.mustChangePassword ? (
+                        <span className="text-sm text-muted-foreground">
+                          {t(" · password change")}
+                        </span>
+                      ) : null}
+                    </span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
+                    <div className="flex flex-nowrap items-center justify-end gap-1">
+                      <IconAction
+                        label={t("Set password")}
                         onClick={() => {
                           setPasswordFor(user);
                           setNextPassword("");
                           setCopied(false);
                         }}
                       >
-                        <KeyRound /> {t("Set password")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
+                        <KeyRound />
+                      </IconAction>
+                      <IconAction
+                        label={user.isActive ? t("Deactivate") : t("Activate")}
                         onClick={() =>
                           void update(user.id, { isActive: !user.isActive })
                         }
                       >
-                        {user.isActive ? <UserX /> : <UserCheck />}{" "}
-                        {user.isActive ? t("Deactivate") : t("Activate")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
+                        {user.isActive ? <UserX /> : <UserCheck />}
+                      </IconAction>
+                      <IconAction
+                        label={t("Delete")}
                         onClick={() => setDeleteFor(user)}
                       >
-                        <Trash2 /> {t("Delete")}
-                      </Button>
+                        <Trash2 />
+                      </IconAction>
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
       <Dialog
         open={Boolean(passwordFor)}
         onOpenChange={(open) => {
@@ -481,7 +483,7 @@ export function AdminSettingsPage() {
   if (!settings)
     return (
       <section className="grid gap-4">
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Settings")}
         </h1>
         {loaded ? null : (
@@ -492,7 +494,7 @@ export function AdminSettingsPage() {
   return (
     <section className="grid gap-4">
       <div>
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Settings")}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -781,7 +783,7 @@ function smtpStatus(settings: Settings): string {
 }
 
 export function AdminAuditPage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -794,45 +796,53 @@ export function AdminAuditPage() {
   }, []);
   return (
     <section className="grid gap-4">
-      <h1 className="font-heading text-4xl font-medium tracking-tight">
+      <h1 className="font-heading text-2xl font-medium tracking-tight">
         {t("Audit")}
       </h1>
-      <Card className="min-w-0">
-        <CardContent className="min-w-0">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t("Loading audit log…")}</p>
-          ) : entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t("No audit events yet.")}
-            </p>
-          ) : (
-            <Table className="min-w-full w-max">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("When")}</TableHead>
-                  <TableHead>{t("User")}</TableHead>
-                  <TableHead>{t("Action")}</TableHead>
-                  <TableHead>{t("Entity")}</TableHead>
+      {loading ? (
+        <EmptyState>{t("Loading audit log…")}</EmptyState>
+      ) : entries.length === 0 ? (
+        <EmptyState>{t("No audit events yet.")}</EmptyState>
+      ) : (
+        <Table className="min-w-full w-max">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("When")}</TableHead>
+              <TableHead>{t("User")}</TableHead>
+              <TableHead>{t("Action")}</TableHead>
+              <TableHead>{t("Entity")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entries.map((entry) => {
+              const sentence = auditActionSentence(entry.action);
+              return (
+                <TableRow key={entry.id}>
+                  <TableCell>
+                    <RelativeTime value={entry.createdAt} />
+                  </TableCell>
+                  <TableCell>{entry.actorUsername ?? "—"}</TableCell>
+                  <TableCell className="whitespace-normal" title={entry.action}>
+                    {sentence ? (
+                      <div>
+                        <div>{t(sentence)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {entry.action}
+                        </div>
+                      </div>
+                    ) : (
+                      entry.action
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {entry.entityType}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>
-                      {new Date(entry.createdAt).toLocaleString(locale)}
-                    </TableCell>
-                    <TableCell>{entry.actorUsername ?? "—"}</TableCell>
-                    <TableCell>{entry.action}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {entry.entityType}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
     </section>
   );
 }

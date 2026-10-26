@@ -1,0 +1,33 @@
+const sentences: Record<string, string> = {
+  "auth.login": "A password is accepted",
+  "auth.password_changed": "The signed-in person changes their password",
+  "auth.password_reset": "A reset link sets a new password",
+  "auth.mfa_enabled": "Two-factor authentication is turned on",
+  "auth.mfa_disabled": "Two-factor authentication is turned off",
+  "user.created": "An administrator creates an account",
+  "user.updated": "Role, active flag, or temporary password changes",
+  "user.deleted": "An account is deleted",
+  "admin.provisioned": "The first administrator is created at startup",
+  "admin.created": "`npm run create-admin` adds an administrator",
+  "link.created": "A link is created",
+  "link.destination_changed": "A destination is edited",
+  "link.slug_changed": "A slug is edited",
+  "link.deleted": "A link is deleted",
+  "campaign.created": "A campaign is created",
+  "campaign.deleted": "A campaign is deleted",
+  "qr.created": "A QR code is saved",
+  "api_key.create": "An API key is created",
+  "api_key.revoke": "An API key is revoked",
+  "settings.prefix_changed": "The public prefix changes",
+  "settings.mfa_required": "The two-factor requirement changes",
+  "settings.link_sharing": "Who can see or change another person's links changes",
+  "settings.smtp_updated": "The mail server is saved",
+  "redirect_domain.created": "An administrator adds a redirect domain",
+  "redirect_domain.verified": "The TXT record matches and the domain becomes verified",
+  "redirect_domain.deleted": "An administrator removes a redirect domain",
+  "redirect_domain.verification_lost": "A verified domain lost its TXT record.",
+};
+
+export function auditActionSentence(action: string): string | null {
+  return sentences[action] ?? null;
+}

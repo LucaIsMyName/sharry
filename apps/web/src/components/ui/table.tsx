@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Link, useNavigate } from "react-router";
 import { cn } from "cn";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
@@ -62,6 +63,84 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   );
 }
 
+function rowActionTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest("[data-row-action], a, button, input, select, textarea"));
+}
+
+function withHitTarget(children: React.ReactNode, hit: React.ReactNode) {
+  const items = React.Children.toArray(children);
+  const [first, ...rest] = items;
+  if (!React.isValidElement<{ children?: React.ReactNode }>(first)) return children;
+  return [
+    React.cloneElement(first, {}, hit, first.props.children),
+    ...rest,
+  ];
+}
+
+function ClickableTableRow({
+  to,
+  onSelect,
+  label,
+  className,
+  children,
+}: {
+  to?: string;
+  onSelect?: () => void;
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const navigate = useNavigate();
+
+  function open(event: React.MouseEvent<HTMLTableRowElement>) {
+    if (rowActionTarget(event.target)) return;
+    if (to) {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        window.open(to, "_blank", "noopener");
+        return;
+      }
+      navigate(to);
+      return;
+    }
+    onSelect?.();
+  }
+
+  return (
+    <TableRow
+      className={cn(
+        "relative cursor-pointer [transform:translateZ(0)] has-[:focus-visible]:bg-muted [&_[data-row-action]]:relative [&_[data-row-action]]:z-10",
+        className,
+      )}
+      onClick={open}
+      onAuxClick={(event) => {
+        if (event.button !== 1 || !to || rowActionTarget(event.target)) return;
+        window.open(to, "_blank", "noopener");
+      }}
+    >
+      {withHitTarget(
+        children,
+        to ? (
+          <Link
+            aria-label={label}
+            className="pointer-events-none absolute inset-0 z-0 focus-visible:outline-2 focus-visible:outline-ring"
+            to={to}
+          />
+        ) : (
+          <button
+            aria-label={label}
+            className="pointer-events-none absolute inset-0 z-0 focus-visible:outline-2 focus-visible:outline-ring"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect?.();
+            }}
+          />
+        ),
+      )}
+    </TableRow>
+  );
+}
+
 function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
@@ -108,6 +187,7 @@ export {
   TableFooter,
   TableHead,
   TableRow,
+  ClickableTableRow,
   TableCell,
   TableCaption,
 };

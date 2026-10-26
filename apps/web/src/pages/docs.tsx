@@ -197,7 +197,7 @@ function ApiReference() {
   return (
     <div className="grid gap-8">
       <div>
-        <h1 className="font-heading text-4xl font-medium tracking-tight">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("API reference")}
         </h1>
         <p className="mt-3 text-sm leading-6">
@@ -309,7 +309,7 @@ function Markdown({ source }: { source: string }) {
 
 const markdownComponents: Components = {
   h1: ({ children }) => (
-    <h1 className="font-heading text-4xl font-medium tracking-tight">
+    <h1 className="font-heading text-2xl font-medium tracking-tight">
       {children}
     </h1>
   ),

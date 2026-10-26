@@ -16,6 +16,13 @@ export function DocumentHead() {
   );
 }
 
+export function useRouteTitle(): string {
+  const { t } = useI18n();
+  const matches = useMatches();
+  const title = routeTitle(matches);
+  return title ? t(title) : "";
+}
+
 export function PageTitle({
   title,
   literal = false,

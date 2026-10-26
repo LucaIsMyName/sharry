@@ -54,3 +54,4 @@ Aktionen, die du siehst, sind unter anderem:
 | `redirect_domain.created` | Eine Administratorin oder ein Administrator fügt eine Weiterleitungsdomain hinzu |
 | `redirect_domain.verified` | Der TXT-Eintrag passt und die Domain wird verifiziert |
 | `redirect_domain.deleted` | Eine Administratorin oder ein Administrator entfernt eine Weiterleitungsdomain |
+| `redirect_domain.verification_lost` | Eine verifizierte Domain hat ihren TXT-Eintrag verloren. |
