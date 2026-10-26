@@ -455,6 +455,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
    * @auth admin api-key or admin session
    * @body JSON { name, userId }
    * @response 200 { id, name, userId, username, tokenPrefix, secret, createdAt }
+   * @response 400 Turn on two-factor authentication for this account before creating an API key
    * @response 404 User not found
    */
   app.post('/api/admin/api-keys', async (request) => {
@@ -463,6 +464,10 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     const found = await app.db.select().from(users).where(eq(users.id, body.userId)).limit(1)
     const user = found[0]
     if (!user) throw new AppError(404, 'User not found')
+    const settings = await getSettings(app.db, app.env)
+    if (settings.mfaRequired && !user.totpEnabled) {
+      throw new AppError(400, 'Turn on two-factor authentication for this account before creating an API key')
+    }
     const secret = `${apiKeySecretPrefix(app.env.APP_NAME)}${randomToken(32)}`
     const [created] = await app.db
       .insert(apiKeys)

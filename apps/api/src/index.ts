@@ -3,6 +3,8 @@ import { createDb, runMigrations, sessions } from '@sharry/database'
 import { parseRuntimeEnv } from '@sharry/shared'
 import { purgeOldClicks } from './analytics.ts'
 import { purgeExpiredResetTokens } from './auth.ts'
+import { recheckVerifiedDomains } from './redirect-domains.ts'
+import { purgeLinkPasswordAttempts } from './redirect.ts'
 import { loadEnvFile } from './load-env.ts'
 import { provisionAdmin } from './provision.ts'
 import { buildApp } from './server.ts'
@@ -52,6 +54,8 @@ async function runRetention(): Promise<void> {
   await purgeOldClicks(db, settings.analyticsRetentionDays)
   await purgeExpiredResetTokens(db)
   await db.delete(sessions).where(sql`${sessions.expiresAt} < now()`)
+  await purgeLinkPasswordAttempts(db)
+  await recheckVerifiedDomains(db, env.APP_NAME)
 }
 
 try {

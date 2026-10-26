@@ -21,11 +21,13 @@ Passwords are hashed with Argon2id. A missing user still runs a dummy verify so 
 
 ## API keys
 
-Outside `/api/auth`, a request may instead send `Authorization: Bearer`. `actorFromApiKey` in `apps/api/src/api-keys.ts` hashes the secret with `SESSION_SECRET` and loads the bound user as a full session. The plaintext is not stored. Revoked keys, inactive users, and users who must change their password are rejected.
+Outside `/api/auth`, a request may instead send `Authorization: Bearer`. `actorFromApiKey` in `apps/api/src/api-keys.ts` hashes the secret with `SESSION_SECRET` and loads the bound user as a full session. The plaintext is not stored. Revoked keys, inactive users, and users who must change their password are rejected. When Settings require two-factor authentication, a key works only after that user has enrolled. The same secret starts working again once enrollment is finished, or when the requirement is turned off. The key does not send an authenticator code. Creating a key for a user who has not enrolled is refused while that setting is on.
 
 `requireAdmin` is the same check plus the admin role. Link, campaign, QR, and analytics queries keep using that actor, so a standard user’s key cannot read another user’s rows.
 
-API key requests are limited to about 120 per minute per key. Account routes ignore keys and keep their own stricter limits. Sign-in, password reset, the two-factor challenge, and authenticator confirmation are each limited to 10 attempts per minute.
+API key requests are limited to about 120 per minute per key. Account routes ignore keys and keep their own stricter limits. Sign-in, password change, password reset, authenticator setup, the two-factor challenge, authenticator confirmation, turning two-factor authentication off, and recovery-code replacement are each limited to 10 attempts per minute. A forgotten-password address is mailed at most 5 times an hour. Further requests for that address still return `{ ok: true }` and send nothing, including when the address has no account.
+
+Changing the password, or turning two-factor authentication on or off, deletes every other session for that account. The browser that made the change stays signed in. Signing in on another device does not end existing sessions. API keys are not sessions.
 
 ## Recovery and reset
 

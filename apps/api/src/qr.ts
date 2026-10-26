@@ -128,7 +128,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * Upload a center image. PNG, JPEG, or WebP, up to 512 KB and 1024 pixels on each side.
+   * Upload a center image. PNG, JPEG, or WebP, up to 512 KB and 1024 pixels on each side. Sharry stores a WebP copy.
    * @route POST /api/qr/:id/logo
    * @tag QR codes
    * @auth api-key or session
@@ -150,11 +150,13 @@ export function registerQrRoutes(app: FastifyInstance): void {
     if ((meta.width ?? 0) > 1024 || (meta.height ?? 0) > 1024) {
       throw new AppError(400, 'Images must be 1024 pixels or smaller on each side')
     }
-    const extension = meta.format === 'jpeg' ? 'jpg' : meta.format
-    const filename = `${current.qr.id}.${extension}`
+    const encoded = await sharp(buffer).rotate().webp({ quality: 80 }).toBuffer().catch(() => null)
+    if (!encoded) throw new AppError(400, 'Use a PNG, JPEG, or WebP image')
+    if (encoded.length > 512 * 1024) throw new AppError(400, 'Images must be 512 KB or smaller')
+    const filename = `${current.qr.id}.webp`
     await fs.mkdir(app.env.QR_DATA_DIR, { recursive: true })
     if (current.qr.logoPath && current.qr.logoPath !== filename) await removeLogo(app.env.QR_DATA_DIR, current.qr.logoPath)
-    await fs.writeFile(path.join(app.env.QR_DATA_DIR, filename), buffer)
+    await fs.writeFile(path.join(app.env.QR_DATA_DIR, filename), encoded)
     await app.db.update(qrCodes).set({ logoPath: filename }).where(eq(qrCodes.id, current.qr.id))
     const style = { ...current.qr.styleConfig, errorCorrectionLevel: 'H' as const }
     await app.db.update(qrCodes).set({ styleConfig: style }).where(eq(qrCodes.id, current.qr.id))

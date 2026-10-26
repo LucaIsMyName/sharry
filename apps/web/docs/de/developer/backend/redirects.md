@@ -16,13 +16,15 @@ Administratorinnen und Administratoren fügen Hostnamen unter Domains hinzu. Sha
 
 Derselbe Slug löst weiter auf jedem Host auf, der diesen Prozess erreicht. Die gewählte Domain ist die kanonische Adresse. Sie macht den Slug nicht exklusiv für diesen Host.
 
+Sharry prüft verifizierte Domains jede Stunde erneut. Ein Lookup-Timeout oder ein anderer vorübergehender DNS-Fehler lässt die Domain verifiziert. Zwei Prüfungen hintereinander ohne passenden TXT-Eintrag setzen sie auf ausstehend zurück. Ausstehend stoppt neue Zertifikate und nimmt den Hostnamen aus dem Weiterleitungsmenü, bis eine Administratorin oder ein Administrator ihn wieder prüft.
+
 Caddy fragt `GET /internal/caddy/ask?domain=` bevor es ein Zertifikat ausstellt. Die Route gibt nur für einen verifizierten Hostnamen 200 zurück, und nur wenn die Verbindung von Loopback kommt. Andere Namen geben 404 zurück. Pfade, die kein Kurzlink sind, geben auf einem verifizierten eigenen Host 404 zurück, deshalb bleibt das Dashboard auf dem Deployment-Host.
 
 Die Eindeutigkeit von Slugs ignoriert die Großschreibung. Die Antwort für einen vergebenen Slug ist 409 mit "This short URL is already in use. Please choose a different slug."
 
 ## Passwort, Cache und Klicks
 
-Ein passwortgeschützter Link zeigt ein kleines HTML-Formular und setzt ein Freischalt-Cookie. Eine erfolgreiche Passworteingabe antwortet mit 303, damit der Browser dem Ziel mit GET folgt, und dieses Freischalten zählt als Klick. Spätere Besuche nutzen den Weiterleitungstyp des Links. Jede Weiterleitung sendet `Cache-Control: no-store`, auch 301 und 308, damit eine Zieländerung nicht im Browser hängen bleibt.
+Ein passwortgeschützter Link zeigt ein kleines HTML-Formular und setzt ein Freischalt-Cookie. Falsche Passwörter sind auf 10 Versuche pro Minute für diesen Link und Besucher begrenzt. Die Besucher-ID ist derselbe tägliche HMAC wie für Klicks, deshalb wird die rohe IP nicht gespeichert. Der Zähler liegt in der Datenbank, und alte Zeilen gehen mit der stündlichen Bereinigung raus. Eine erfolgreiche Passworteingabe antwortet mit 303, damit der Browser dem Ziel mit GET folgt, und dieses Freischalten zählt als Klick. Spätere Besuche nutzen den Weiterleitungstyp des Links. Jede Weiterleitung sendet `Cache-Control: no-store`, auch 301 und 308, damit eine Zieländerung nicht im Browser hängen bleibt.
 
 Klicks werden nach der Antwort aufgezeichnet, aus einem `onResponse`-Hook. Ein pausierter, fehlender oder abgelaufener Link zeichnet keinen Klick auf. Die anonyme Besucher-ID ist ein täglicher HMAC einer gekürzten IP und des User-Agents. Die rohe IP wird nicht gespeichert. Referrer werden als Hostnamen gespeichert.
 

@@ -11,7 +11,7 @@ Gib einen Hostnamen wie `go.brand.com` ein. Der Name hat kein Schema, keinen Por
 
 Wenn dieser Server keine öffentliche IPv4-Adresse hat, sagt der Dialog, dass die Adresse nicht nachgeschlagen werden konnte.
 
-Prüfen kontrolliert den TXT-Eintrag. Veröffentliche beide Einträge und klicke dann in der Zeile auf Prüfen. Nach der Verifizierung öffne `https://go.brand.com` einmal, damit das Zertifikat ausgestellt werden kann. Der erste Besuch kann langsam sein, während das Zertifikat angefordert wird.
+Prüfen kontrolliert den TXT-Eintrag. Veröffentliche beide Einträge und klicke dann in der Zeile auf Prüfen. Nach der Verifizierung öffne `https://go.brand.com` einmal, damit das Zertifikat ausgestellt werden kann. Der erste Besuch kann langsam sein, während das Zertifikat angefordert wird. Sharry prüft den TXT-Eintrag jede Stunde erneut. Ein vorübergehender Lookup-Fehler lässt die Domain verifiziert. Zwei Prüfungen hintereinander ohne passenden Eintrag setzen sie auf ausstehend zurück.
 
 Eine ausstehende Zeile kann denselben Dialog mit Einrichtung wieder öffnen. Ein vergebener Hostname antwortet: "That domain is already added."
 

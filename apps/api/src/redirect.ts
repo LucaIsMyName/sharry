@@ -2,8 +2,8 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { and, eq } from 'drizzle-orm'
-import { qrCodes, trackingConfigs, trackingVariants, type LinkRecord } from '@sharry/database'
+import { and, eq, gt, lt } from 'drizzle-orm'
+import { linkPasswordAttempts, qrCodes, trackingConfigs, trackingVariants, type Database, type LinkRecord } from '@sharry/database'
 import { applyUtm, cleanUtm, mergeUtm, unlockCookieName, validatePrefix, type UtmParams } from '@sharry/shared'
 import { recordClick, type ClickDraft } from './analytics.ts'
 import { lookupGeo } from './geo.ts'
@@ -56,7 +56,12 @@ export async function tryShortLink(
   let justUnlocked = false
   if (link.passwordHash && !unlockValid(request.cookies[unlockCookie(app)], link.id, app.env.SESSION_SECRET)) {
     if (request.method === 'POST') {
-      if (!allowLinkPasswordAttempt(request.ip)) {
+      const visitorId = anonymousVisitorId(
+        request.ip,
+        typeof request.headers['user-agent'] === 'string' ? request.headers['user-agent'] : '',
+        app.env.ENCRYPTION_KEY,
+      )
+      if (!(await allowLinkPasswordAttempt(app.db, link.id, visitorId))) {
         reply.code(429).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'limited', app.env.APP_NAME))
         return true
       }
@@ -247,21 +252,25 @@ function unlockValid(token: string | undefined, linkId: string, secret: string):
 
 const PASSWORD_WINDOW_MS = 60_000
 const PASSWORD_MAX_ATTEMPTS = 10
-const passwordAttempts = new Map<string, number[]>()
 
-export function clearLinkPasswordAttempts(): void {
-  passwordAttempts.clear()
+export async function purgeLinkPasswordAttempts(db: Database): Promise<void> {
+  const cutoff = new Date(Date.now() - PASSWORD_WINDOW_MS)
+  await db.delete(linkPasswordAttempts).where(lt(linkPasswordAttempts.attemptedAt, cutoff))
 }
 
-function allowLinkPasswordAttempt(ip: string): boolean {
-  const now = Date.now()
-  const recent = (passwordAttempts.get(ip) ?? []).filter((time) => now - time < PASSWORD_WINDOW_MS)
-  if (recent.length >= PASSWORD_MAX_ATTEMPTS) {
-    passwordAttempts.set(ip, recent)
-    return false
-  }
-  recent.push(now)
-  passwordAttempts.set(ip, recent)
+async function allowLinkPasswordAttempt(db: Database, linkId: string, visitorId: string): Promise<boolean> {
+  const since = new Date(Date.now() - PASSWORD_WINDOW_MS)
+  const recent = await db
+    .select({ id: linkPasswordAttempts.id })
+    .from(linkPasswordAttempts)
+    .where(and(
+      eq(linkPasswordAttempts.linkId, linkId),
+      eq(linkPasswordAttempts.visitorId, visitorId),
+      gt(linkPasswordAttempts.attemptedAt, since),
+    ))
+    .limit(PASSWORD_MAX_ATTEMPTS)
+  if (recent.length >= PASSWORD_MAX_ATTEMPTS) return false
+  await db.insert(linkPasswordAttempts).values({ linkId, visitorId })
   return true
 }
 

@@ -21,11 +21,13 @@ Passwörter werden mit Argon2id gehasht. Ein fehlender Benutzer führt trotzdem 
 
 ## API-Schlüssel
 
-Außerhalb von `/api/auth` darf eine Anfrage stattdessen `Authorization: Bearer` senden. `actorFromApiKey` in `apps/api/src/api-keys.ts` hasht das Geheimnis mit `SESSION_SECRET` und lädt den gebundenen Benutzer als volle Sitzung. Der Klartext wird nicht gespeichert. Widerrufene Schlüssel, inaktive Benutzer und Benutzer, die das Passwort ändern müssen, werden abgelehnt.
+Außerhalb von `/api/auth` darf eine Anfrage stattdessen `Authorization: Bearer` senden. `actorFromApiKey` in `apps/api/src/api-keys.ts` hasht das Geheimnis mit `SESSION_SECRET` und lädt den gebundenen Benutzer als volle Sitzung. Der Klartext wird nicht gespeichert. Widerrufene Schlüssel, inaktive Benutzer und Benutzer, die das Passwort ändern müssen, werden abgelehnt. Wenn die Einstellungen Zwei-Faktor-Authentifizierung verlangen, funktioniert ein Schlüssel erst, nachdem dieser Benutzer sie eingerichtet hat. Dasselbe Geheimnis funktioniert wieder, sobald die Einrichtung fertig ist oder die Pflicht ausgeschaltet wird. Der Schlüssel sendet keinen Authenticator-Code. Einen Schlüssel für einen Benutzer anzulegen, der noch nicht eingerichtet ist, wird abgelehnt, solange diese Einstellung an ist.
 
 `requireAdmin` ist dieselbe Prüfung plus die Admin-Rolle. Abfragen für Links, Kampagnen, QR und Analysen nutzen weiter diesen Akteur, deshalb kann der Schlüssel eines Standardbenutzers keine Zeilen eines anderen Benutzers lesen.
 
-Anfragen mit API-Schlüssel sind auf etwa 120 pro Minute und Schlüssel begrenzt. Kontorouten ignorieren Schlüssel und behalten ihre eigenen strengeren Limits. Anmeldung, Passwort zurücksetzen, die Zwei-Faktor-Abfrage und die Authenticator-Bestätigung sind jeweils auf 10 Versuche pro Minute begrenzt.
+Anfragen mit API-Schlüssel sind auf etwa 120 pro Minute und Schlüssel begrenzt. Kontorouten ignorieren Schlüssel und behalten ihre eigenen strengeren Limits. Anmeldung, Passwortwechsel, Passwort zurücksetzen, Authenticator-Einrichtung, die Zwei-Faktor-Abfrage, die Authenticator-Bestätigung, das Ausschalten der Zwei-Faktor-Authentifizierung und das Ersetzen der Wiederherstellungscodes sind jeweils auf 10 Versuche pro Minute begrenzt. Eine Adresse für „Passwort vergessen“ erhält höchstens 5 E-Mails pro Stunde. Weitere Anfragen für diese Adresse antworten weiter mit `{ ok: true }` und senden nichts, auch wenn die Adresse zu keinem Konto gehört.
+
+Ein Passwortwechsel oder das Ein- und Ausschalten der Zwei-Faktor-Authentifizierung löscht jede andere Sitzung dieses Kontos. Der Browser, der die Änderung gemacht hat, bleibt angemeldet. Die Anmeldung auf einem anderen Gerät beendet bestehende Sitzungen nicht. API-Schlüssel sind keine Sitzungen.
 
 ## Wiederherstellung und Zurücksetzen
 

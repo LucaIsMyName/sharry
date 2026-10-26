@@ -18,7 +18,7 @@ Der Schlüssel eines Standardbenutzers sieht nur die Links, Kampagnen, QR-Codes 
 
 Kontorouten unter `/api/auth`, einschließlich Anmeldung, Passwortwechsel und Zwei-Faktor-Authentifizierung, akzeptieren nur das Sitzungscookie. Ein Bearer-Token auf diesen Routen wird abgelehnt.
 
-Ein widerrufener Schlüssel, ein Schlüssel für ein deaktiviertes Konto und ein Schlüssel für ein Konto, das noch das Passwort ändern muss, werden abgelehnt.
+Ein widerrufener Schlüssel, ein Schlüssel für ein deaktiviertes Konto und ein Schlüssel für ein Konto, das noch das Passwort ändern muss, werden abgelehnt. Wenn die Einstellungen Zwei-Faktor-Authentifizierung verlangen, funktioniert ein Schlüssel erst, nachdem dieser Benutzer sie eingerichtet hat. Das Geheimnis bleibt gleich. Es wird abgelehnt, bis die Einrichtung fertig ist, und es sendet keinen Authenticator-Code. Einen Schlüssel für einen Benutzer anzulegen, der noch nicht eingerichtet ist, wird abgelehnt, solange diese Einstellung an ist.
 
 Anfragen mit API-Schlüssel sind auf etwa 120 pro Minute und Schlüssel begrenzt. Anmeldung, Passwort zurücksetzen, die Zwei-Faktor-Abfrage und die Authenticator-Bestätigung sind jeweils auf 10 Versuche pro Minute begrenzt und akzeptieren keinen Schlüssel.
 

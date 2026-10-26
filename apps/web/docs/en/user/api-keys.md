@@ -18,7 +18,7 @@ A standard user’s key sees only that user’s links, campaigns, QR codes, and 
 
 Account routes under `/api/auth`, including sign-in, password changes, and two-factor authentication, accept only the session cookie. A bearer token on those routes is rejected.
 
-A revoked key, a key for a disabled account, and a key for an account that still must change its password are rejected.
+A revoked key, a key for a disabled account, and a key for an account that still must change its password are rejected. When Settings require two-factor authentication, a key works only after that user has enrolled. The secret stays the same. It is rejected until enrollment finishes, and it does not send an authenticator code. Creating a key for a user who has not enrolled is refused while that setting is on.
 
 API key requests are limited to about 120 per minute per key. Sign-in, password reset, the two-factor challenge, and authenticator confirmation are each limited to 10 attempts per minute, and they do not accept a key.
 

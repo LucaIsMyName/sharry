@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   boolean,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -45,6 +46,7 @@ export const redirectDomains = pgTable(
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
     lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
     lastError: text('last_error'),
+    txtMismatchStreak: integer('txt_mismatch_streak').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -74,6 +76,22 @@ export const links = pgTable(
     uniqueIndex('links_slug_lower_idx').on(sql`lower(${table.slug})`),
     index('links_user_id_idx').on(table.userId),
     index('links_redirect_domain_id_idx').on(table.redirectDomainId),
+  ],
+)
+
+export const linkPasswordAttempts = pgTable(
+  'link_password_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => links.id, { onDelete: 'cascade' }),
+    visitorId: text('visitor_id').notNull(),
+    attemptedAt: timestamp('attempted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('link_password_attempts_lookup_idx').on(table.linkId, table.visitorId, table.attemptedAt),
+    index('link_password_attempts_attempted_at_idx').on(table.attemptedAt),
   ],
 )
 

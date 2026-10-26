@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { Secret, TOTP } from 'otpauth'
 import sharp from 'sharp'
@@ -53,6 +53,24 @@ let dummyHashPromise: Promise<string> | null = null
 function dummyHash(): Promise<string> {
   dummyHashPromise ??= hashPassword('dummy-password-not-used-for-login')
   return dummyHashPromise
+}
+
+const FORGOT_PASSWORD_WINDOW_MS = 60 * 60 * 1000
+const FORGOT_PASSWORD_MAX = 5
+const forgotPasswordAttempts = new Map<string, number[]>()
+
+function allowForgotPassword(email: string): boolean {
+  const now = Date.now()
+  for (const [key, times] of forgotPasswordAttempts) {
+    const recent = times.filter((time) => now - time < FORGOT_PASSWORD_WINDOW_MS)
+    if (recent.length === 0) forgotPasswordAttempts.delete(key)
+    else if (recent.length !== times.length) forgotPasswordAttempts.set(key, recent)
+  }
+  const recent = forgotPasswordAttempts.get(email) ?? []
+  if (recent.length >= FORGOT_PASSWORD_MAX) return false
+  recent.push(now)
+  forgotPasswordAttempts.set(email, recent)
+  return true
 }
 
 export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null): void {
@@ -244,7 +262,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
    * @body JSON { currentPassword, newPassword }
    * @response 200 { scope }
    */
-  app.post('/api/auth/change-password', async (request, reply) => {
+  app.post('/api/auth/change-password', limit, async (request, reply) => {
     const actor = await requireUser(app, request, ['full', 'password_change'])
     const body = parseBody(changePasswordSchema, request.body)
     const user = await requireRecord(app.db, actor.id)
@@ -264,6 +282,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     const settings = await getSettings(app.db, app.env)
     const next = scopeAfterPassword({ ...user, mustChangePassword: false }, settings.mfaRequired)
     const scope: SessionScope = actor.scope === 'full' ? 'full' : next
+    await revokeOtherSessions(app, request, user.id)
     await replaceSession(app, reply, request, user.id, scope)
     return { scope }
   })
@@ -279,6 +298,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
   app.post('/api/auth/forgot-password', limit, async (request) => {
     const body = parseBody(forgotPasswordSchema, request.body)
     const email = body.email.toLowerCase()
+    if (!allowForgotPassword(email)) return { ok: true }
     const found = await app.db.select().from(users).where(sql`lower(${users.email}) = ${email}`).limit(1)
     const user = found[0]
     const settings = await getSettings(app.db, app.env)
@@ -353,7 +373,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
    * @auth session
    * @response 200 { secret, otpauthUrl }
    */
-  app.post('/api/auth/mfa/setup', async (request) => {
+  app.post('/api/auth/mfa/setup', limit, async (request) => {
     const actor = await requireUser(app, request, ['full', 'mfa_enroll'])
     const user = await requireRecord(app.db, actor.id)
     if (user.totpEnabled) throw new AppError(400, 'Two-factor authentication is already on')
@@ -387,6 +407,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
     }
     const codes = await replaceRecoveryCodes(app, user.id)
     await app.db.update(users).set({ totpEnabled: true, updatedAt: new Date() }).where(eq(users.id, user.id))
+    await revokeOtherSessions(app, request, user.id)
     await replaceSession(app, reply, request, user.id, 'full')
     await writeAudit(app.db, {
       actorUserId: user.id,
@@ -405,7 +426,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
    * @body JSON { currentPassword }
    * @response 200 { totpEnabled: false }
    */
-  app.post('/api/auth/mfa/disable', async (request) => {
+  app.post('/api/auth/mfa/disable', limit, async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(changePasswordSchema.pick({ currentPassword: true }), request.body)
     const user = await requireRecord(app.db, actor.id)
@@ -419,6 +440,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
       .set({ totpEnabled: false, totpSecretEncrypted: null, updatedAt: new Date() })
       .where(eq(users.id, user.id))
     await app.db.delete(recoveryCodes).where(eq(recoveryCodes.userId, user.id))
+    await revokeOtherSessions(app, request, user.id)
     await writeAudit(app.db, {
       actorUserId: user.id,
       action: 'auth.mfa_disabled',
@@ -436,7 +458,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
    * @body JSON { currentPassword }
    * @response 200 { recoveryCodes }
    */
-  app.post('/api/auth/recovery-codes', async (request) => {
+  app.post('/api/auth/recovery-codes', limit, async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(changePasswordSchema.pick({ currentPassword: true }), request.body)
     const user = await requireRecord(app.db, actor.id)
@@ -501,6 +523,17 @@ async function startSession(app: FastifyInstance, reply: FastifyReply, userId: s
   })
   setSessionCookie(reply, app, token, ttl)
   return token
+}
+
+async function revokeOtherSessions(app: FastifyInstance, request: FastifyRequest, userId: string): Promise<void> {
+  const token = request.cookies[sessionCookie(app)]
+  if (!token) {
+    await app.db.delete(sessions).where(eq(sessions.userId, userId))
+    return
+  }
+  await app.db
+    .delete(sessions)
+    .where(and(eq(sessions.userId, userId), ne(sessions.tokenHash, hashToken(token, app.env.SESSION_SECRET))))
 }
 
 async function replaceSession(

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { users } from '@sharry/database'
+import { writeSetting } from '../src/settings-store.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 
 describe('API keys', () => {
@@ -100,6 +101,47 @@ describe('API keys', () => {
       headers: { authorization: `Bearer ${replacement.secret}` },
     })
     expect(unfinished.statusCode).toBe(401)
+  })
+
+  it('keeps an existing secret and rejects it only when required MFA is not enrolled', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    await ctx.db.update(users).set({ totpEnabled: false }).where(eq(users.id, user.id))
+    const key = await issueKey(admin.cookie, user.id, 'Ada script')
+    const open = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/links',
+      headers: { authorization: `Bearer ${key.secret}` },
+    })
+    expect(open.statusCode).toBe(200)
+
+    await writeSetting(ctx.db, 'mfa_required', 'true', admin.id)
+    const blocked = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/links',
+      headers: { authorization: `Bearer ${key.secret}` },
+    })
+    expect(blocked.statusCode).toBe(401)
+
+    const refused = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/admin/api-keys',
+      headers: { cookie: admin.cookie },
+      payload: { name: 'Too soon', userId: user.id },
+    })
+    expect(refused.statusCode).toBe(400)
+    expect(refused.json().error).toBe('Turn on two-factor authentication for this account before creating an API key')
+
+    await ctx.db.update(users).set({ totpEnabled: true }).where(eq(users.id, user.id))
+    const restored = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/links',
+      headers: { authorization: `Bearer ${key.secret}` },
+    })
+    expect(restored.statusCode).toBe(200)
+    const enrolled = await issueKey(admin.cookie, user.id, 'After enrollment')
+    expect(enrolled.secret).not.toBe(key.secret)
   })
 })
 

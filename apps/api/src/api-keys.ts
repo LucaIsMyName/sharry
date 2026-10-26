@@ -2,6 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { apiKeys, users } from '@sharry/database'
 import type { Actor } from './auth.ts'
+import { getSettings } from './settings-store.ts'
 import { AppError, hashToken } from './support.ts'
 
 export function bearerToken(request: { headers: { authorization?: string | undefined } }): string | null {
@@ -25,6 +26,8 @@ export async function actorFromApiKey(app: FastifyInstance, token: string): Prom
     .limit(1)
   const row = found[0]
   if (!row || !row.user.isActive || row.user.mustChangePassword) throw new AppError(401, 'API key is not valid')
+  const settings = await getSettings(app.db, app.env)
+  if (settings.mfaRequired && !row.user.totpEnabled) throw new AppError(401, 'API key is not valid')
   const lastUsed = row.key.lastUsedAt?.getTime() ?? 0
   if (Date.now() - lastUsed >= 60_000) {
     await app.db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.key.id))

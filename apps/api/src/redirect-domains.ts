@@ -160,6 +160,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
       lastError: null,
       verifiedAt: current.verifiedAt ?? checkedAt,
       lastCheckedAt: checkedAt,
+      txtMismatchStreak: 0,
     })
     invalidateRedirectHosts()
     if (!current.verifiedAt) {
@@ -273,10 +274,82 @@ async function findDomain(db: Database, id: string): Promise<RedirectDomainRecor
   return domain
 }
 
+const TXT_MISMATCHES_BEFORE_DEMOTION = 2
+
+export async function recheckVerifiedDomains(db: Database, appName: string): Promise<void> {
+  const rows = await db.select().from(redirectDomains).where(eq(redirectDomains.status, 'verified'))
+  const slug = appSlug(appName)
+  for (const domain of rows) {
+    const checkedAt = new Date()
+    const outcome = await lookupTxtOutcome(redirectChallengeName(domain.hostname, slug), domain.txtToken)
+    if (outcome === 'match') {
+      await markCheck(db, domain.id, {
+        status: 'verified',
+        lastError: null,
+        verifiedAt: domain.verifiedAt,
+        lastCheckedAt: checkedAt,
+        txtMismatchStreak: 0,
+      })
+      continue
+    }
+    if (outcome === 'transient') {
+      await markCheck(db, domain.id, {
+        status: 'verified',
+        lastError: TXT_LOOKUP_FAILED,
+        verifiedAt: domain.verifiedAt,
+        lastCheckedAt: checkedAt,
+        txtMismatchStreak: domain.txtMismatchStreak,
+      })
+      continue
+    }
+    const streak = domain.txtMismatchStreak + 1
+    if (streak < TXT_MISMATCHES_BEFORE_DEMOTION) {
+      await markCheck(db, domain.id, {
+        status: 'verified',
+        lastError: TXT_MISSING,
+        verifiedAt: domain.verifiedAt,
+        lastCheckedAt: checkedAt,
+        txtMismatchStreak: streak,
+      })
+      continue
+    }
+    await markCheck(db, domain.id, {
+      status: 'pending',
+      lastError: TXT_MISSING,
+      verifiedAt: null,
+      lastCheckedAt: checkedAt,
+      txtMismatchStreak: streak,
+    })
+    invalidateRedirectHosts()
+    await writeAudit(db, {
+      actorUserId: null,
+      action: 'redirect_domain.verification_lost',
+      entityType: 'redirect_domain',
+      entityId: domain.id,
+      metadata: { hostname: domain.hostname },
+    })
+  }
+}
+
+async function lookupTxtOutcome(hostname: string, token: string): Promise<'match' | 'mismatch' | 'transient'> {
+  try {
+    const records = await dnsLookup.resolveTxt(hostname)
+    return txtRecordMatches(records, token) ? 'match' : 'mismatch'
+  } catch (error) {
+    return txtFailureKind(error) === 'missing' ? 'mismatch' : 'transient'
+  }
+}
+
 async function markCheck(
   db: Database,
   id: string,
-  patch: { status: 'pending' | 'verified'; lastError: string | null; verifiedAt: Date | null; lastCheckedAt: Date },
+  patch: {
+    status: 'pending' | 'verified'
+    lastError: string | null
+    verifiedAt: Date | null
+    lastCheckedAt: Date
+    txtMismatchStreak?: number
+  },
 ): Promise<RedirectDomainRecord[]> {
   return db
     .update(redirectDomains)
@@ -286,9 +359,13 @@ async function markCheck(
 }
 
 function txtLookupMessage(error: unknown): string {
+  return txtFailureKind(error) === 'missing' ? TXT_MISSING : TXT_LOOKUP_FAILED
+}
+
+function txtFailureKind(error: unknown): 'missing' | 'transient' {
   const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: string }).code) : ''
-  if (code === 'ENOTFOUND' || code === 'ENODATA' || code === 'ENOTIMP') return TXT_MISSING
-  return TXT_LOOKUP_FAILED
+  if (code === 'ENOTFOUND' || code === 'ENODATA' || code === 'ENOTIMP') return 'missing'
+  return 'transient'
 }
 
 async function verifiedHostSet(db: Database): Promise<Set<string>> {

@@ -71,6 +71,7 @@ export async function getContext(): Promise<TestContext> {
 export async function resetDatabase(db: Database): Promise<void> {
   await db.execute(sql`
     truncate table
+      link_password_attempts,
       click_events,
       qr_codes,
       tracking_variants,

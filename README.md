@@ -97,7 +97,7 @@ In development, Vite serves the dashboard. This process serves the API, `/health
 - The body limit is 1 MB. An uploaded image is a separate limit of 512 KB and one file.
 - State-changing `/api` requests that include an `Origin` header must match `APP_URL` or `SHORT_URL_BASE`. `GET`, `HEAD`, and `OPTIONS` skip that check. Outside production, an origin on `localhost` or `127.0.0.1` is allowed as well.
 - `/api/auth` rejects `Authorization: Bearer` before the handler runs. Other `/api` routes accept the session cookie or a bearer token.
-- API-key calls are limited to about 120 per minute per key. Sign-in, password reset, the two-factor challenge, and authenticator confirmation are each limited to 10 attempts per minute.
+- API-key calls are limited to about 120 per minute per key. Sign-in, password change, password reset, authenticator setup, the two-factor challenge, authenticator confirmation, turning two-factor authentication off, and recovery-code replacement are each limited to 10 attempts per minute. A forgotten-password address is mailed at most 5 times an hour. Further requests still return success and send nothing.
 - Clicks are written after the response, from an `onResponse` hook. A paused, missing, or expired link does not record a click.
 - Logs redact `cookie`, `authorization`, and `set-cookie`.
 - `GET /health` runs `select 1` and returns `{ ok: true }`. It does not require a session.
@@ -317,6 +317,8 @@ Administrators create a named key for a chosen user from API keys. The secret is
 
 The key can do what that user can. A standard user’s key sees only that user’s links, campaigns, QR codes, and analytics. An administrator’s key can also call admin routes. Sign-in, password changes, and two-factor routes under `/api/auth` accept only the session cookie. The dashboard client never sends a bearer token. It uses `credentials: 'include'`.
 
+When Settings require two-factor authentication, a key works only after that user has enrolled. The stored secret does not change, and the key does not send a code. Until enrollment, the key is rejected. Creating a key for a user who has not enrolled is refused while that setting is on. Changing a password, or turning two-factor authentication on or off, signs out other browsers for that account. The browser that made the change stays signed in. API keys are separate from those sessions.
+
 ### Dashboard routes
 
 `apps/web/src/router.tsx` uses React Router. Loaders call `/api/auth/me` and send people to the page that matches the session scope.
@@ -348,7 +350,7 @@ Public URLs look like `https://share.example.com/s/summer-sale`. `tryShortLink` 
 
 Reserved prefixes, in `packages/shared/src/prefix.ts`, are `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, and `docs`. Slugs reserve those names plus `favicon.ico` and `robots.txt`. A prefix is one lowercase segment: letters, digits, and hyphens.
 
-Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_<slug>-challenge.<hostname>` (`_sharry-challenge.links.example.com` when the app name is Sharry) and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. After verification, and once the hostname’s A record points at this server, Caddy issues a certificate the first time someone opens it. Caddy asks `GET /internal/caddy/ask?domain=` first. That route returns 200 only for a verified hostname, and only when the connection comes from loopback.
+Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_<slug>-challenge.<hostname>` (`_sharry-challenge.links.example.com` when the app name is Sharry) and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. After verification, and once the hostname’s A record points at this server, Caddy issues a certificate the first time someone opens it. Sharry checks the TXT record again every hour. A temporary lookup failure leaves the domain verified. Two checks in a row with no matching record move it back to pending. Caddy asks `GET /internal/caddy/ask?domain=` first. That route returns 200 only for a verified hostname, and only when the connection comes from loopback.
 
 `GET /api/redirect-domains` returns verified hostnames to every signed-in user so the link form can offer them. Creating or editing a link can store `redirectDomainId`. A missing, pending, or deleted domain falls back to `SHORT_URL_BASE`. The same slug still resolves on every host that reaches this process. The selected domain is the address shown in the dashboard, CSV export, and new QR codes.
 

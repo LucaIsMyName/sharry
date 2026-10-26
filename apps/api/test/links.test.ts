@@ -1,9 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
-import { clickEvents, links } from '@sharry/database'
+import { clickEvents, linkPasswordAttempts, links } from '@sharry/database'
 import { defaultQrStyle } from '@sharry/shared'
 import { createLink } from '../src/links.ts'
-import { clearLinkPasswordAttempts } from '../src/redirect.ts'
+import { purgeLinkPasswordAttempts } from '../src/redirect.ts'
+import { buildApp } from '../src/server.ts'
 import { getSettings, writeSetting } from '../src/settings-store.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 import type { Actor } from '../src/auth.ts'
@@ -558,48 +559,60 @@ describe('short links', () => {
   })
 
   it('limits password guesses without limiting ordinary redirects', async () => {
-    clearLinkPasswordAttempts()
-    try {
-      const ctx = await getContext()
-      const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
-      const created = await ctx.app.inject({
-        method: 'POST',
-        url: '/api/links',
-        headers: { cookie: user.cookie },
-        payload: { destinationUrl: 'https://example.com/secret', slug: 'limited' },
-      })
-      await ctx.app.inject({
-        method: 'PATCH',
-        url: `/api/links/${created.json().id}`,
-        headers: { cookie: user.cookie },
-        payload: { password: 'poster-secret' },
-      })
-      await ctx.app.inject({
-        method: 'POST',
-        url: '/api/links',
-        headers: { cookie: user.cookie },
-        payload: { destinationUrl: 'https://example.com/open', slug: 'open-link' },
-      })
-      let limited = false
-      for (let attempt = 0; attempt < 12; attempt += 1) {
-        const wrong = await ctx.app.inject({ method: 'POST', url: '/s/limited', payload: { password: 'nope' } })
-        if (wrong.statusCode === 429) {
-          expect(wrong.body).toContain('Too many attempts')
-          limited = true
-          break
-        }
-        expect(wrong.statusCode).toBe(401)
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/secret', slug: 'limited' },
+    })
+    await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${created.json().id}`,
+      headers: { cookie: user.cookie },
+      payload: { password: 'poster-secret' },
+    })
+    await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/open', slug: 'open-link' },
+    })
+    let limited = false
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const wrong = await ctx.app.inject({ method: 'POST', url: '/s/limited', payload: { password: 'nope' } })
+      if (wrong.statusCode === 429) {
+        expect(wrong.body).toContain('Too many attempts')
+        limited = true
+        break
       }
-      expect(limited).toBe(true)
-      const page = await ctx.app.inject({ method: 'GET', url: '/s/limited' })
-      expect(page.statusCode).toBe(200)
-      expect(page.body).toContain('password protected')
-      const open = await ctx.app.inject({ method: 'GET', url: '/s/open-link' })
-      expect(open.statusCode).toBe(302)
-      expect(open.headers.location).toBe('https://example.com/open')
-    } finally {
-      clearLinkPasswordAttempts()
+      expect(wrong.statusCode).toBe(401)
     }
+    expect(limited).toBe(true)
+    const stored = await ctx.db.select().from(linkPasswordAttempts)
+    expect(stored.length).toBeGreaterThan(0)
+    expect(stored.every((row) => /^[a-f0-9]{64}$/.test(row.visitorId))).toBe(true)
+    const restarted = await buildApp({ env: ctx.env, db: ctx.db, pool: ctx.pool, logger: false })
+    await restarted.ready()
+    const again = await restarted.inject({ method: 'POST', url: '/s/limited', payload: { password: 'nope' } })
+    expect(again.statusCode).toBe(429)
+    await restarted.close()
+    await ctx.db.insert(linkPasswordAttempts).values({
+      linkId: created.json().id as string,
+      visitorId: 'a'.repeat(64),
+      attemptedAt: new Date(Date.now() - 120_000),
+    })
+    await purgeLinkPasswordAttempts(ctx.db)
+    const left = await ctx.db.select().from(linkPasswordAttempts)
+    expect(left.some((row) => row.visitorId === 'a'.repeat(64))).toBe(false)
+    expect(left.length).toBeGreaterThan(0)
+    const page = await ctx.app.inject({ method: 'GET', url: '/s/limited' })
+    expect(page.statusCode).toBe(200)
+    expect(page.body).toContain('password protected')
+    const open = await ctx.app.inject({ method: 'GET', url: '/s/open-link' })
+    expect(open.statusCode).toBe(302)
+    expect(open.headers.location).toBe('https://example.com/open')
   })
 })
 

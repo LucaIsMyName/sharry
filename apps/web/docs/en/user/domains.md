@@ -11,7 +11,7 @@ Enter a hostname such as `go.brand.com`. The name has no scheme, port, or path. 
 
 If this server has no public IPv4 address, the dialog says the address could not be looked up.
 
-Verify checks the TXT record. Publish both records, then click Verify on the row. After it is verified, open `https://go.brand.com` once so the certificate can be issued. The first visit can be slow while the certificate is requested.
+Verify checks the TXT record. Publish both records, then click Verify on the row. After it is verified, open `https://go.brand.com` once so the certificate can be issued. The first visit can be slow while the certificate is requested. Sharry checks the TXT record again every hour. A temporary lookup failure leaves the domain verified. Two checks in a row with no matching record move it back to pending.
 
 A pending row can open the same dialog again with Setup. A taken hostname returns: "That domain is already added."
 

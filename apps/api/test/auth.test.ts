@@ -7,10 +7,10 @@ import { buildApp } from '../src/server.ts'
 import { provisionAdmin } from '../src/provision.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 import { decryptString } from '../src/support.ts'
-import { appSettings, passwordResetTokens, recoveryCodes, sessions } from '@sharry/database'
+import { appSettings, passwordResetTokens, recoveryCodes, sessions, users } from '@sharry/database'
 import { eq } from 'drizzle-orm'
 import { purgeExpiredResetTokens } from '../src/auth.ts'
-import { hashToken, randomToken } from '../src/support.ts'
+import { encryptString, hashToken, randomToken } from '../src/support.ts'
 
 describe('authentication', () => {
   useTestApp()
@@ -217,6 +217,94 @@ describe('authentication', () => {
     expect([left.statusCode, right.statusCode].sort()).toEqual([200, 401])
   })
 
+  it('drops other sessions on password change and keeps the API key and a later sign-in', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    await ctx.db.update(users).set({ totpEnabled: false }).where(eq(users.id, user.id))
+    const other = randomToken()
+    await ctx.db.insert(sessions).values({
+      userId: user.id,
+      tokenHash: hashToken(other, ctx.env.SESSION_SECRET),
+      scope: 'full',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    const key = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/admin/api-keys',
+      headers: { cookie: admin.cookie },
+      payload: { name: 'Ada', userId: user.id },
+    })
+    const changed = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { cookie: user.cookie },
+      payload: { currentPassword: 'long-password-value', newPassword: 'another-long-password' },
+    })
+    expect(changed.statusCode).toBe(200)
+    const current = cookieFrom(changed)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: current } })).statusCode).toBe(200)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: `sharry_session=${other}` } })).statusCode).toBe(401)
+    const listed = await ctx.app.inject({
+      method: 'GET',
+      url: '/api/links',
+      headers: { authorization: `Bearer ${key.json().secret}` },
+    })
+    expect(listed.statusCode).toBe(200)
+    const login = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { usernameOrEmail: 'ada', password: 'another-long-password' },
+    })
+    expect(login.statusCode).toBe(200)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: current } })).statusCode).toBe(200)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: cookieFrom(login) } })).statusCode).toBe(200)
+  })
+
+  it('drops other sessions when two-factor authentication is turned on or off', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const secret = new Secret({ size: 20 })
+    await ctx.db.update(users).set({
+      totpEnabled: false,
+      totpSecretEncrypted: encryptString(secret.base32, ctx.env.ENCRYPTION_KEY),
+    }).where(eq(users.id, user.id))
+    const duringEnroll = randomToken()
+    await ctx.db.insert(sessions).values({
+      userId: user.id,
+      tokenHash: hashToken(duringEnroll, ctx.env.SESSION_SECRET),
+      scope: 'full',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    const confirm = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/mfa/confirm',
+      headers: { cookie: user.cookie },
+      payload: { code: totp(secret.base32, 'ada@example.com', ctx.env.OTP_ISSUER) },
+    })
+    expect(confirm.statusCode).toBe(200)
+    const enrolled = cookieFrom(confirm)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: enrolled } })).statusCode).toBe(200)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: `sharry_session=${duringEnroll}` } })).statusCode).toBe(401)
+
+    const other = randomToken()
+    await ctx.db.insert(sessions).values({
+      userId: user.id,
+      tokenHash: hashToken(other, ctx.env.SESSION_SECRET),
+      scope: 'full',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    const disabled = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/auth/mfa/disable',
+      headers: { cookie: enrolled },
+      payload: { currentPassword: 'long-password-value' },
+    })
+    expect(disabled.statusCode).toBe(200)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: enrolled } })).statusCode).toBe(200)
+    expect((await ctx.app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: `sharry_session=${other}` } })).statusCode).toBe(401)
+  })
+
   it('limits authenticator confirmation attempts', async () => {
     const { db, env, pool } = await getContext()
     const limited = await buildApp({ env, db, pool, logger: false })
@@ -232,6 +320,78 @@ describe('authentication', () => {
     expect(responses[9]?.statusCode).not.toBe(429)
     expect(responses[10]?.statusCode).toBe(429)
     await limited.close()
+  })
+
+  it('limits password changes, authenticator setup, disabling two-factor authentication, and recovery codes', async () => {
+    const { db, env, pool } = await getContext()
+    const limited = await buildApp({ env, db, pool, logger: false })
+    await limited.ready()
+    for (const url of ['/api/auth/change-password', '/api/auth/mfa/setup', '/api/auth/mfa/disable', '/api/auth/recovery-codes']) {
+      const responses = []
+      for (let attempt = 0; attempt < 11; attempt += 1) {
+        responses.push(await limited.inject({
+          method: 'POST',
+          url,
+          payload: { currentPassword: 'long-password-value', newPassword: 'another-long-password' },
+        }))
+      }
+      expect(responses[9]?.statusCode, url).not.toBe(429)
+      expect(responses[10]?.statusCode, url).toBe(429)
+    }
+    await limited.close()
+  })
+
+  it('stops mailing one address after five requests and still returns success', async () => {
+    const ctx = await getContext()
+    await createSessionUser(ctx, { username: 'capped', email: 'capped@example.com' })
+    const messages: { to: string }[] = []
+    const mailApp = await buildApp({
+      env: ctx.env,
+      db: ctx.db,
+      pool: ctx.pool,
+      logger: false,
+      mailer: { async send(message) { messages.push(message) } },
+    })
+    await mailApp.ready()
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const sent = await mailApp.inject({
+        method: 'POST',
+        url: '/api/auth/forgot-password',
+        payload: { email: 'capped@example.com' },
+      })
+      expect(sent.statusCode).toBe(200)
+      expect(sent.json()).toEqual({ ok: true })
+    }
+    expect(messages).toHaveLength(5)
+    const extra = await mailApp.inject({
+      method: 'POST',
+      url: '/api/auth/forgot-password',
+      payload: { email: 'capped@example.com' },
+    })
+    expect(extra.statusCode).toBe(200)
+    expect(extra.json()).toEqual({ ok: true })
+    expect(messages).toHaveLength(5)
+    await mailApp.close()
+
+    const unknownApp = await buildApp({
+      env: ctx.env,
+      db: ctx.db,
+      pool: ctx.pool,
+      logger: false,
+      mailer: { async send(message) { messages.push(message) } },
+    })
+    await unknownApp.ready()
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const unknown = await unknownApp.inject({
+        method: 'POST',
+        url: '/api/auth/forgot-password',
+        payload: { email: 'missing@example.com' },
+      })
+      expect(unknown.statusCode).toBe(200)
+      expect(unknown.json()).toEqual({ ok: true })
+    }
+    expect(messages.every((message) => message.to !== 'missing@example.com')).toBe(true)
+    await unknownApp.close()
   })
 
   it('deletes expired and used reset tokens', async () => {

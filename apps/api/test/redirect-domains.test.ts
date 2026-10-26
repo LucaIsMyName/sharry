@@ -1,8 +1,9 @@
 import type os from 'node:os'
+import type { FastifyInstance } from 'fastify'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { defaultQrStyle } from '@sharry/shared'
 import { appSlug, redirectChallengeName } from '@sharry/shared'
-import { publicIpv4Addresses, resetDnsLookup, resetNetworkInterfaces, setDnsLookup, setNetworkInterfaces, type DnsLookup } from '../src/redirect-domains.ts'
+import { publicIpv4Addresses, recheckVerifiedDomains, resetDnsLookup, resetNetworkInterfaces, setDnsLookup, setNetworkInterfaces, type DnsLookup } from '../src/redirect-domains.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 
 function ipv4(address: string, internal = false): os.NetworkInterfaceInfo {
@@ -223,6 +224,66 @@ describe('redirect domains', () => {
     expect(created.json().serverAddresses).toEqual([])
   })
 
+  it('keeps a verified domain through a lookup timeout and drops it after repeated TXT mismatches', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/admin/redirect-domains',
+      headers: { cookie: admin.cookie },
+      payload: { hostname: 'go.brand.com' },
+    })
+    const domain = created.json().domain as { id: string; txtName: string; txtValue: string }
+    txt.set(domain.txtName, [[domain.txtValue]])
+    const verified = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/admin/redirect-domains/${domain.id}/verify`,
+      headers: { cookie: admin.cookie },
+    })
+    expect(verified.statusCode).toBe(200)
+
+    setDnsLookup({
+      async resolveTxt() {
+        const error = new Error('timeout') as NodeJS.ErrnoException
+        error.code = 'ETIMEOUT'
+        throw error
+      },
+    })
+    await recheckVerifiedDomains(ctx.db, ctx.env.APP_NAME)
+    expect(await domainRow(ctx.app, admin.cookie)).toMatchObject({
+      status: 'verified',
+      lastError: 'Could not look up the TXT record. Try again.',
+    })
+    expect((await ctx.app.inject({ method: 'GET', url: '/internal/caddy/ask?domain=go.brand.com' })).statusCode).toBe(200)
+
+    setDnsLookup({
+      async resolveTxt() {
+        const error = new Error('not found') as NodeJS.ErrnoException
+        error.code = 'ENOTFOUND'
+        throw error
+      },
+    })
+    await recheckVerifiedDomains(ctx.db, ctx.env.APP_NAME)
+    expect((await domainRow(ctx.app, admin.cookie)).status).toBe('verified')
+    txt.set(domain.txtName, [[domain.txtValue]])
+    setDnsLookup(lookup())
+    await recheckVerifiedDomains(ctx.db, ctx.env.APP_NAME)
+    expect(await domainRow(ctx.app, admin.cookie)).toMatchObject({ status: 'verified', lastError: null })
+
+    setDnsLookup({
+      async resolveTxt() {
+        const error = new Error('not found') as NodeJS.ErrnoException
+        error.code = 'ENOTFOUND'
+        throw error
+      },
+    })
+    await recheckVerifiedDomains(ctx.db, ctx.env.APP_NAME)
+    expect((await domainRow(ctx.app, admin.cookie)).status).toBe('verified')
+    await recheckVerifiedDomains(ctx.db, ctx.env.APP_NAME)
+    expect((await domainRow(ctx.app, admin.cookie)).status).toBe('pending')
+    expect((await ctx.app.inject({ method: 'GET', url: '/internal/caddy/ask?domain=go.brand.com' })).statusCode).toBe(404)
+  })
+
   it('answers the certificate ask from loopback for verified domains only', async () => {
     const ctx = await getContext()
     const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
@@ -302,3 +363,11 @@ describe('redirect domains', () => {
     expect(customHealth.headers['content-type']).toContain('text/plain')
   })
 })
+
+async function domainRow(app: FastifyInstance, cookie: string): Promise<{ hostname: string; status: string; lastError: string | null }> {
+  const listed = await app.inject({ method: 'GET', url: '/api/admin/redirect-domains', headers: { cookie } })
+  const domains = listed.json().domains as { hostname: string; status: string; lastError: string | null }[]
+  const row = domains.find((domain) => domain.hostname === 'go.brand.com')
+  if (!row) throw new Error('domain missing')
+  return row
+}
