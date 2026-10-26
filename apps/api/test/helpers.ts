@@ -62,6 +62,9 @@ export async function getContext(): Promise<TestContext> {
   if (context) return context
   const env = testEnv(inject('databaseUrl'))
   const { db, pool } = createDb(env.DATABASE_URL)
+  pool.on('error', () => {
+    // The suite stops Postgres after the files finish. An idle client reports that disconnect.
+  })
   const app = await buildApp({ env, db, pool, logger: false })
   await app.ready()
   context = { app, db, pool, env }

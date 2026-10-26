@@ -18,6 +18,8 @@ export default async function setup(project: TestProject): Promise<() => Promise
     password: 'sharry',
     port,
     persistent: true,
+    onLog: () => {},
+    onError: () => {},
   })
   try {
     await embedded.initialise()
@@ -40,5 +42,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
   project.provide('databaseUrl', databaseUrl)
   return async () => {
     await embedded?.stop()
+    console.log('DB for tests successfully shut down')
   }
 }
