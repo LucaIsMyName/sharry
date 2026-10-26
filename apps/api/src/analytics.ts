@@ -1,9 +1,9 @@
-import { sql } from 'drizzle-orm'
+import { sql, type SQL } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { clickEvents, type Database } from '@sharry/database'
 import { requireUser } from './auth.ts'
-import { getLinkForActor } from './links.ts'
-import { rowsOf } from './settings-store.ts'
+import { getLinkForActor, visibleLinksWhere } from './links.ts'
+import { getSettings, rowsOf } from './settings-store.ts'
 import { AppError } from './support.ts'
 
 export type ClickDraft = {
@@ -28,7 +28,7 @@ export type ClickDraft = {
 
 export function registerAnalyticsRoutes(app: FastifyInstance): void {
   /**
-   * Summarize clicks for the caller. Administrators see every link.
+   * Summarize clicks for the links the caller can see.
    * @route GET /api/analytics
    * @tag Analytics
    * @auth api-key or session
@@ -39,9 +39,10 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
   app.get('/api/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const range = parseRange(request.query)
-    const filter = { userId: actor.role === 'admin' ? undefined : actor.id }
+    const settings = await getSettings(app.db, app.env)
+    const filter = { visibility: visibleLinksWhere(actor, settings, 'links') }
     const analytics = await loadAnalytics(app.db, filter, range)
-    return { ...analytics, links: await loadLinkStats(app.db, filter, range) }
+    return { ...analytics, links: await loadLinkStats(app.db, visibleLinksWhere(actor, settings, 'l'), range) }
   })
 
   /**
@@ -57,10 +58,13 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
   app.get('/api/links/:id/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
-    await getLinkForActor(app.db, actor, id)
-    return loadAnalytics(app.db, { linkId: id }, parseRange(request.query))
+    const settings = await getSettings(app.db, app.env)
+    await getLinkForActor(app.db, actor, id, settings, 'view')
+    return loadAnalytics(app.db, { linkId: id, visibility: null }, parseRange(request.query))
   })
 }
+
+type ClickFilter = { linkId?: string; visibility: SQL | null }
 
 export async function recordClick(db: Database, draft: ClickDraft): Promise<void> {
   await db.insert(clickEvents).values({
@@ -93,11 +97,7 @@ export async function purgeOldClicks(db: Database, retentionDays: number): Promi
   return rowCount(result)
 }
 
-export async function loadAnalytics(
-  db: Database,
-  filter: { linkId?: string; userId?: string },
-  range: { from: Date; to: Date },
-) {
+export async function loadAnalytics(db: Database, filter: ClickFilter, range: { from: Date; to: Date }) {
   const where = filterSql(filter, range)
   const totals = rowsOf<{ total: number; unique_visitors: number; bots: number }>(
     await db.execute(sql`
@@ -160,12 +160,8 @@ export async function loadAnalytics(
   }
 }
 
-async function loadLinkStats(
-  db: Database,
-  filter: { userId?: string },
-  range: { from: Date; to: Date },
-) {
-  const owner = filter.userId ? sql`l.user_id = ${filter.userId}` : sql`true`
+async function loadLinkStats(db: Database, visibility: SQL | null, range: { from: Date; to: Date }) {
+  const owner = visibility ?? sql`true`
   const rows = rowsOf<{ id: string; slug: string; title: string | null; clicks: number; unique_visitors: number }>(
     await db.execute(sql`
       select l.id::text as id, l.slug, l.title,
@@ -191,17 +187,17 @@ async function loadLinkStats(
   }))
 }
 
-function filterSql(filter: { linkId?: string; userId?: string }, range: { from: Date; to: Date }) {
+function filterSql(filter: ClickFilter, range: { from: Date; to: Date }) {
   const parts = [sql`occurred_at >= ${range.from}`, sql`occurred_at < ${range.to}`]
   if (filter.linkId) parts.push(sql`link_id = ${filter.linkId}`)
-  if (filter.userId) parts.push(sql`link_id in (select id from links where user_id = ${filter.userId})`)
+  if (filter.visibility) parts.push(sql`link_id in (select id from links where ${filter.visibility})`)
   return sql.join(parts, sql` and `)
 }
 
-function whereAlias(filter: { linkId?: string; userId?: string }, range: { from: Date; to: Date }) {
+function whereAlias(filter: ClickFilter, range: { from: Date; to: Date }) {
   const parts = [sql`e.occurred_at >= ${range.from}`, sql`e.occurred_at < ${range.to}`]
   if (filter.linkId) parts.push(sql`e.link_id = ${filter.linkId}`)
-  if (filter.userId) parts.push(sql`e.link_id in (select id from links where user_id = ${filter.userId})`)
+  if (filter.visibility) parts.push(sql`e.link_id in (select id from links where ${filter.visibility})`)
   return sql.join(parts, sql` and `)
 }
 

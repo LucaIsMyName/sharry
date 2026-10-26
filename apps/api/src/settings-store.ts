@@ -24,6 +24,10 @@ export type AppSettings = {
   sessionTtlHours: number
   defaultQrStyle: QrStyle
   mfaRequired: boolean
+  linkSharing: boolean
+  linkSharingAccess: 'view' | 'edit'
+  linkSharingShowAdmin: boolean
+  linkSharingEditAdmin: boolean
   smtpHost: string
   smtpPort: number
   smtpUser: string
@@ -52,6 +56,10 @@ export function defaultSettings(env: RuntimeEnv): AppSettings {
     sessionTtlHours: 168,
     defaultQrStyle,
     mfaRequired: false,
+    linkSharing: false,
+    linkSharingAccess: 'view',
+    linkSharingShowAdmin: false,
+    linkSharingEditAdmin: false,
     smtpHost: '',
     smtpPort: env.SMTP_PORT,
     smtpUser: '',
@@ -75,6 +83,10 @@ export function settingsToRows(settings: AppSettings): Record<string, string> {
     session_ttl_hours: String(settings.sessionTtlHours),
     default_qr_style: JSON.stringify(settings.defaultQrStyle),
     mfa_required: settings.mfaRequired ? 'true' : 'false',
+    link_sharing: settings.linkSharing ? 'true' : 'false',
+    link_sharing_access: settings.linkSharingAccess,
+    link_sharing_show_admin: settings.linkSharingShowAdmin ? 'true' : 'false',
+    link_sharing_edit_admin: settings.linkSharingEditAdmin ? 'true' : 'false',
     smtp_host: settings.smtpHost,
     smtp_port: String(settings.smtpPort),
     smtp_user: settings.smtpUser,
@@ -109,6 +121,10 @@ export function parseSettings(map: Record<string, string | undefined>, env: Runt
     sessionTtlHours: clamp(Number(map.session_ttl_hours ?? defaults.sessionTtlHours), 1, 24 * 90),
     defaultQrStyle: parseQrStyle(map.default_qr_style) ?? defaults.defaultQrStyle,
     mfaRequired: map.mfa_required === 'true',
+    linkSharing: map.link_sharing === 'true',
+    linkSharingAccess: map.link_sharing_access === 'edit' ? 'edit' : 'view',
+    linkSharingShowAdmin: map.link_sharing_show_admin === 'true' || map.link_sharing_edit_admin === 'true',
+    linkSharingEditAdmin: map.link_sharing_edit_admin === 'true',
     smtpHost: map.smtp_host ?? '',
     smtpPort: clamp(Number(map.smtp_port ?? defaults.smtpPort), 1, 65535),
     smtpUser: map.smtp_user ?? '',

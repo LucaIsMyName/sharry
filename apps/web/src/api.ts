@@ -57,6 +57,11 @@ export type Me = {
   mailConfigured: boolean;
 };
 
+export type LinkPerson = {
+  username: string;
+  role: "admin" | "user";
+};
+
 export type ShortLink = {
   id: string;
   slug: string;
@@ -73,6 +78,9 @@ export type ShortLink = {
   utm: UtmParams;
   userId: string;
   redirectDomainId: string | null;
+  canEdit?: boolean;
+  owner?: LinkPerson | null;
+  updatedBy?: LinkPerson | null;
 };
 
 export type LinkSummary = ShortLink & { clicks: number };

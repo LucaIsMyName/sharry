@@ -16,6 +16,7 @@ import {
 import { requireUser, type Actor } from './auth.ts'
 import { writeAudit } from './audit.ts'
 import { getLinkForActor } from './links.ts'
+import { getSettings } from './settings-store.ts'
 import { AppError, parseBody } from './support.ts'
 import { z } from 'zod'
 
@@ -163,7 +164,8 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string }
     const campaign = await getCampaign(app.db, actor, id)
     const body = parseBody(createVariantSchema, request.body)
-    await getLinkForActor(app.db, actor, body.linkId)
+    const settings = await getSettings(app.db, app.env)
+    await getLinkForActor(app.db, actor, body.linkId, settings, 'view')
     const utm = cleanUtm(body.utm)
     const [created] = await app.db
       .insert(trackingVariants)
@@ -189,7 +191,8 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
   app.get('/api/links/:id/variants', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
-    await getLinkForActor(app.db, actor, id)
+    const settings = await getSettings(app.db, app.env)
+    await getLinkForActor(app.db, actor, id, settings, 'view')
     const rows = await app.db
       .select({ variant: trackingVariants })
       .from(trackingVariants)

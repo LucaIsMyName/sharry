@@ -37,6 +37,175 @@ describe('short links', () => {
     expect(edited.json().title).toBe('From admin')
   })
 
+  it('keeps links private until sharing is turned on, then applies view and edit rules', async () => {
+    const ctx = await getContext()
+    const owner = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const peer = await createSessionUser(ctx, { username: 'grace', email: 'grace@example.com' })
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: owner.cookie },
+      payload: { destinationUrl: 'https://example.com/shared', slug: 'shared-link', title: 'Shared' },
+    })
+    expect(created.statusCode).toBe(200)
+    const id = created.json().id as string
+    expect(created.json()).toMatchObject({
+      owner: { username: 'ada', role: 'user' },
+      updatedBy: { username: 'ada', role: 'user' },
+      canEdit: true,
+    })
+
+    const ownList = await ctx.app.inject({ method: 'GET', url: '/api/links', headers: { cookie: owner.cookie } })
+    expect(ownList.json().links[0].owner).toBeUndefined()
+    expect(ownList.json().links[0].canEdit).toBe(true)
+
+    const hidden = await ctx.app.inject({ method: 'GET', url: `/api/links/${id}`, headers: { cookie: peer.cookie } })
+    expect(hidden.statusCode).toBe(404)
+    const hiddenAnalytics = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${id}/analytics`,
+      headers: { cookie: peer.cookie },
+    })
+    expect(hiddenAnalytics.statusCode).toBe(404)
+
+    const adminEdit = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: admin.cookie },
+      payload: { title: 'Admin note' },
+    })
+    expect(adminEdit.statusCode).toBe(200)
+    const afterAdmin = await ctx.app.inject({ method: 'GET', url: `/api/links/${id}`, headers: { cookie: owner.cookie } })
+    expect(afterAdmin.json()).toMatchObject({
+      owner: { username: 'ada', role: 'user' },
+      updatedBy: { username: 'root', role: 'admin' },
+    })
+
+    const adminLink = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: admin.cookie },
+      payload: { destinationUrl: 'https://example.com/admin', slug: 'admin-link' },
+    })
+    const adminLinkId = adminLink.json().id as string
+
+    await writeSetting(ctx.db, 'link_sharing', 'true', admin.id)
+    const viewed = await ctx.app.inject({ method: 'GET', url: `/api/links/${id}`, headers: { cookie: peer.cookie } })
+    expect(viewed.statusCode).toBe(200)
+    expect(viewed.json()).toMatchObject({
+      canEdit: false,
+      owner: { username: 'ada', role: 'user' },
+      updatedBy: { username: 'root', role: 'admin' },
+    })
+    const sharedList = await ctx.app.inject({ method: 'GET', url: '/api/links', headers: { cookie: peer.cookie } })
+    const sharedSlugs = (sharedList.json().links as { slug: string; owner?: { username: string } }[]).map((row) => ({
+      slug: row.slug,
+      owner: row.owner?.username,
+    }))
+    expect(sharedSlugs).toEqual([{ slug: 'shared-link', owner: 'ada' }])
+    const blocked = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: peer.cookie },
+      payload: { title: 'Peer edit' },
+    })
+    expect(blocked.statusCode).toBe(403)
+    const blockedDelete = await ctx.app.inject({
+      method: 'DELETE',
+      url: `/api/links/${id}`,
+      headers: { cookie: peer.cookie },
+    })
+    expect(blockedDelete.statusCode).toBe(403)
+    const blockedQr = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/qr',
+      headers: { cookie: peer.cookie },
+      payload: { linkId: id, name: 'Poster', style: defaultQrStyle },
+    })
+    expect(blockedQr.statusCode).toBe(403)
+    const visibleAnalytics = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${id}/analytics`,
+      headers: { cookie: peer.cookie },
+    })
+    expect(visibleAnalytics.statusCode).toBe(200)
+    const overview = await ctx.app.inject({ method: 'GET', url: '/api/analytics', headers: { cookie: peer.cookie } })
+    expect((overview.json().links as { slug: string }[]).map((row) => row.slug)).toEqual(['shared-link'])
+    const hiddenAdmin = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${adminLinkId}`,
+      headers: { cookie: peer.cookie },
+    })
+    expect(hiddenAdmin.statusCode).toBe(404)
+
+    await writeSetting(ctx.db, 'link_sharing_access', 'edit', admin.id)
+    const edited = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: peer.cookie },
+      payload: { utm: { utm_source: 'newsletter' } },
+    })
+    expect(edited.statusCode).toBe(200)
+    expect(edited.json().updatedBy).toEqual({ username: 'grace', role: 'user' })
+    expect(edited.json().utm).toMatchObject({ utm_source: 'newsletter' })
+
+    await writeSetting(ctx.db, 'link_sharing_show_admin', 'true', admin.id)
+    const seenAdmin = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${adminLinkId}`,
+      headers: { cookie: peer.cookie },
+    })
+    expect(seenAdmin.statusCode).toBe(200)
+    expect(seenAdmin.json().canEdit).toBe(false)
+    const blockedAdmin = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${adminLinkId}`,
+      headers: { cookie: peer.cookie },
+      payload: { title: 'Nope' },
+    })
+    expect(blockedAdmin.statusCode).toBe(403)
+
+    const forced = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/admin/settings',
+      headers: { cookie: admin.cookie },
+      payload: { linkSharingEditAdmin: true, linkSharingShowAdmin: false },
+    })
+    expect(forced.statusCode).toBe(200)
+    expect(forced.json()).toMatchObject({
+      linkSharing: true,
+      linkSharingAccess: 'edit',
+      linkSharingShowAdmin: true,
+      linkSharingEditAdmin: true,
+    })
+    const changedAdmin = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${adminLinkId}`,
+      headers: { cookie: peer.cookie },
+      payload: { title: 'Peer on admin' },
+    })
+    expect(changedAdmin.statusCode).toBe(200)
+    expect(changedAdmin.json().title).toBe('Peer on admin')
+
+    await writeSetting(ctx.db, 'link_sharing', 'false', admin.id)
+    const privateAgain = await ctx.app.inject({
+      method: 'GET',
+      url: `/api/links/${id}`,
+      headers: { cookie: peer.cookie },
+    })
+    expect(privateAgain.statusCode).toBe(404)
+    const adminStill = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: admin.cookie },
+      payload: { title: 'Admin again' },
+    })
+    expect(adminStill.statusCode).toBe(200)
+    const adminList = await ctx.app.inject({ method: 'GET', url: '/api/links', headers: { cookie: admin.cookie } })
+    expect(adminList.json().links.every((row: { owner?: { username: string } }) => row.owner?.username)).toBe(true)
+  })
+
   it('rejects a duplicate custom slug, including concurrent creates', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })

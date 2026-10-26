@@ -14,6 +14,18 @@ Default redirect is the type used when someone creates a link and does not pick 
 
 Random slug length is used when a new link leaves the slug blank. It is a whole number from 4 to 16. The default is 5.
 
+Four controls decide whether a user can see or change a link owned by someone else. They apply to the user role. An administrator always sees and edits every link. An API key follows the user it belongs to. The default keeps each person’s links private.
+
+“Users see each other's links” is off by default. While it is off, the other three controls have no effect.
+
+“Users can edit each other's links” is off by default, so a shared link can be opened, including its clicks and a QR download, but not changed. Turn it on to allow changes, including delete, password, UTM, and QR updates. The switch stays disabled until “Users see each other's links” is on. A hidden link is not found. A visible link the user cannot change refuses the change.
+
+“Users see admin links” is off by default. Users see those links only when this switch and “Users see each other's links” are both on.
+
+“Users can change admin links” is off by default. Turning it on also turns on “Users see admin links”. Turning off “Users see admin links” turns this off.
+
+Campaigns stay private. A user can attach a link they are allowed to view to their own campaign.
+
 ## Sessions
 
 Analytics retention, days, deletes click events older than that many days. The purge runs when the process starts and then every hour. Use `0` to keep events. The maximum is 3650. The default is 365.

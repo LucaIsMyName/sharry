@@ -8,7 +8,7 @@ Gib einen Benutzernamen, eine E-Mail, ein vorläufiges Passwort und eine Rolle e
 
 Das vorläufige Passwort muss mindestens 12 Zeichen haben. Passwort erzeugen füllt ein 16-stelliges Passwort und zeigt es, damit du es kopieren und der Person schicken kannst. Ihre erste Anmeldung verlangt ein neues Passwort, bevor das Dashboard aufgeht. Das vorläufige Passwort wird als Argon2id-Hash gespeichert.
 
-Die Rolle ist `user` oder `admin`. Ein Standardbenutzer verwaltet nur die eigenen Links, Kampagnen und Analysen. Eine Administratorin oder ein Administrator verwaltet jedes Konto und jeden Link, plus Einstellungen, Domains, Server, API-Schlüssel und Audit.
+Die Rolle ist `user` oder `admin`. Ein Standardbenutzer verwaltet nur die eigenen Links, Kampagnen und Analysen, außer die Einstellungen teilen die Links anderer Personen. Eine Administratorin oder ein Administrator verwaltet jedes Konto und jeden Link, plus Einstellungen, Domains, Server, API-Schlüssel und Audit.
 
 ## Ein Konto ändern
 
@@ -49,6 +49,7 @@ Aktionen, die du siehst, sind unter anderem:
 | `api_key.revoke` | Ein API-Schlüssel wird widerrufen |
 | `settings.prefix_changed` | Das öffentliche Präfix ändert sich |
 | `settings.mfa_required` | Die Zwei-Faktor-Pflicht ändert sich |
+| `settings.link_sharing` | Wer die Links einer anderen Person sehen oder ändern kann, ändert sich |
 | `settings.smtp_updated` | Der Mailserver wird gespeichert |
 | `redirect_domain.created` | Eine Administratorin oder ein Administrator fügt eine Weiterleitungsdomain hinzu |
 | `redirect_domain.verified` | Der TXT-Eintrag passt und die Domain wird verifiziert |

@@ -1,6 +1,6 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { clickEvents, links, qrCodes, redirectDomains, trackingConfigs, type Database, type LinkRecord } from '@sharry/database'
+import { clickEvents, links, qrCodes, redirectDomains, trackingConfigs, users, type Database, type LinkRecord } from '@sharry/database'
 import {
   SLUG_TAKEN_MESSAGE,
   buildShortUrl,
@@ -29,7 +29,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @query q string Filter by slug, title, or destination
    * @query limit number Page size, 1–100, default 50
    * @query offset number Number of rows to skip
-   * @response 200 { links: Link[], total: number } Each link includes clicks, the all-time click total.
+   * @response 200 { links: Link[], total: number } Each link includes clicks, the all-time click total. Owner is included when another person's links can appear.
    */
   app.get('/api/links', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -37,7 +37,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const limit = clampNumber(query.limit, 50, 1, 100)
     const offset = clampNumber(query.offset, 0, 0, 100_000)
     const settings = await getSettings(app.db, app.env)
-    const where = linkScope(actor, query.q)
+    const where = linkScope(actor, settings, query.q)
     const rows = await app.db.select().from(links).where(where).orderBy(desc(links.createdAt)).limit(limit).offset(offset)
     const total = await countLinks(app.db, where)
     const ids = rows.map((row) => row.id)
@@ -46,8 +46,9 @@ export function registerLinkRoutes(app: FastifyInstance): void {
       loadClickCounts(app.db, ids),
       loadVerifiedHosts(app.db, rows.map((row) => row.redirectDomainId)),
     ])
+    const presented = await decorateLinks(app.db, actor, rows, settings, configs, hosts, actor.role === 'admin' || settings.linkSharing)
     return {
-      links: rows.map((row) => ({ ...serializeLink(row, settings, configs.get(row.id), hosts), clicks: clicks.get(row.id) ?? 0 })),
+      links: presented.map((link) => ({ ...link, clicks: clicks.get(link.id) ?? 0 })),
       total,
     }
   })
@@ -87,7 +88,16 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const settings = await getSettings(app.db, app.env)
     const link = await createLink(app.db, actor, body, settings)
     const config = (await loadConfigs(app.db, [link.id])).get(link.id)
-    return serializeLink(link, settings, config, await loadVerifiedHosts(app.db, [link.redirectDomainId]))
+    const [presented] = await decorateLinks(
+      app.db,
+      actor,
+      [link],
+      settings,
+      new Map(config ? [[link.id, config]] : []),
+      await loadVerifiedHosts(app.db, [link.redirectDomainId]),
+      true,
+    )
+    return presented
   })
 
   /**
@@ -96,16 +106,25 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @tag Links
    * @auth api-key or session
    * @param id string Link id
-   * @response 200 Link
+   * @response 200 Link with owner, updatedBy, and canEdit
    * @response 404 Link not found
    */
   app.get('/api/links/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
-    const link = await getLinkForActor(app.db, actor, id)
     const settings = await getSettings(app.db, app.env)
+    const link = await getLinkForActor(app.db, actor, id, settings, 'view')
     const config = (await loadConfigs(app.db, [link.id])).get(link.id)
-    return serializeLink(link, settings, config, await loadVerifiedHosts(app.db, [link.redirectDomainId]))
+    const [presented] = await decorateLinks(
+      app.db,
+      actor,
+      [link],
+      settings,
+      new Map(config ? [[link.id, config]] : []),
+      await loadVerifiedHosts(app.db, [link.redirectDomainId]),
+      true,
+    )
+    return presented
   })
 
   /**
@@ -115,7 +134,8 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @auth api-key or session
    * @param id string Link id
    * @body JSON { destinationUrl?, title?, description?, slug?, redirectType?, redirectDomainId?, status?, expiresAt?, password?, utm? }
-   * @response 200 Link
+   * @response 200 Link with owner, updatedBy, and canEdit
+   * @response 403 You can view this link but not change it.
    */
   app.patch('/api/links/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -124,7 +144,16 @@ export function registerLinkRoutes(app: FastifyInstance): void {
     const settings = await getSettings(app.db, app.env)
     const link = await updateLink(app.db, actor, id, body, settings)
     const config = (await loadConfigs(app.db, [link.id])).get(link.id)
-    return serializeLink(link, settings, config, await loadVerifiedHosts(app.db, [link.redirectDomainId]))
+    const [presented] = await decorateLinks(
+      app.db,
+      actor,
+      [link],
+      settings,
+      new Map(config ? [[link.id, config]] : []),
+      await loadVerifiedHosts(app.db, [link.redirectDomainId]),
+      true,
+    )
+    return presented
   })
 
   /**
@@ -134,6 +163,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @auth api-key or session
    * @param id string Link id
    * @response 204 Empty
+   * @response 403 You can view this link but not change it.
    */
   app.delete('/api/links/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
@@ -186,6 +216,7 @@ export async function createLink(
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
           passwordHash,
           redirectDomainId,
+          updatedBy: actor.id,
         })
         break
       } catch (error) {
@@ -244,7 +275,7 @@ export async function updateLink(
   },
   settings: AppSettings,
 ): Promise<LinkRecord> {
-  const current = await getLinkForActor(db, actor, id)
+  const current = await getLinkForActor(db, actor, id, settings, 'edit')
   const requestedSlug = input.slug?.trim()
   const assignRandomSlug = input.slug !== undefined && !requestedSlug
   if (requestedSlug) {
@@ -255,7 +286,7 @@ export async function updateLink(
     input.password === undefined ? undefined : input.password === null ? null : await hashPassword(input.password)
   return db.transaction(async (tx) => {
     const database = tx as unknown as Database
-    const patch: Partial<typeof links.$inferInsert> = { updatedAt: new Date() }
+    const patch: Partial<typeof links.$inferInsert> = { updatedAt: new Date(), updatedBy: actor.id }
     if (input.destinationUrl && input.destinationUrl !== current.destinationUrl) {
       patch.destinationUrl = input.destinationUrl
     }
@@ -327,7 +358,8 @@ async function updateWithSavepoint(db: Database, id: string, patch: Partial<type
 }
 
 async function deleteLink(app: FastifyInstance, actor: Actor, id: string): Promise<void> {
-  const link = await getLinkForActor(app.db, actor, id)
+  const settings = await getSettings(app.db, app.env)
+  const link = await getLinkForActor(app.db, actor, id, settings, 'edit')
   const logos = await app.db.select().from(qrCodes).where(eq(qrCodes.linkId, link.id))
   await writeAudit(app.db, {
     actorUserId: actor.id,
@@ -340,11 +372,50 @@ async function deleteLink(app: FastifyInstance, actor: Actor, id: string): Promi
   await Promise.all(logos.map((logo) => removeLogo(app.env.QR_DATA_DIR, logo.logoPath)))
 }
 
-export async function getLinkForActor(db: Database, actor: Actor, id: string): Promise<LinkRecord> {
-  const found = await db.select().from(links).where(eq(links.id, id)).limit(1)
-  const link = found[0]
-  if (!link || (actor.role !== 'admin' && link.userId !== actor.id)) throw new AppError(404, 'Link not found')
-  return link
+export async function getLinkForActor(
+  db: Database,
+  actor: Actor,
+  id: string,
+  settings: AppSettings,
+  mode: 'view' | 'edit',
+): Promise<LinkRecord> {
+  const found = await db
+    .select({ link: links, ownerRole: users.role })
+    .from(links)
+    .innerJoin(users, eq(users.id, links.userId))
+    .where(eq(links.id, id))
+    .limit(1)
+  const row = found[0]
+  if (!row || !canAccessLink(actor, row.link, row.ownerRole, settings, 'view')) throw new AppError(404, 'Link not found')
+  if (mode === 'edit' && !canAccessLink(actor, row.link, row.ownerRole, settings, 'edit')) {
+    throw new AppError(403, 'You can view this link but not change it.')
+  }
+  return row.link
+}
+
+export function visibleLinksWhere(actor: Actor, settings: AppSettings, alias: 'links' | 'l'): SQL | null {
+  if (actor.role === 'admin' || (settings.linkSharing && settings.linkSharingShowAdmin)) return null
+  const column = alias === 'l' ? sql`l.user_id` : sql`links.user_id`
+  if (!settings.linkSharing) return sql`${column} = ${actor.id}`
+  return sql`${column} = ${actor.id} or ${column} in (select id from users where role <> 'admin')`
+}
+
+function canAccessLink(
+  actor: Actor,
+  link: { userId: string },
+  ownerRole: string,
+  settings: AppSettings,
+  mode: 'view' | 'edit',
+): boolean {
+  if (actor.role === 'admin' || link.userId === actor.id) return true
+  if (!settings.linkSharing) return false
+  if (ownerRole === 'admin') {
+    if (!settings.linkSharingShowAdmin) return false
+    if (mode === 'edit') return settings.linkSharingEditAdmin
+    return true
+  }
+  if (mode === 'edit') return settings.linkSharingAccess === 'edit'
+  return true
 }
 
 export async function findBySlug(db: Database, slug: string): Promise<LinkRecord | undefined> {
@@ -459,9 +530,48 @@ async function loadConfigs(db: Database, ids: string[]): Promise<Map<string, Utm
   return map
 }
 
-function linkScope(actor: Actor, q?: string) {
+type LinkPerson = { username: string; role: 'admin' | 'user' }
+
+async function decorateLinks(
+  db: Database,
+  actor: Actor,
+  rows: LinkRecord[],
+  settings: AppSettings,
+  configs: Map<string, UtmParams>,
+  hosts: Map<string, string>,
+  includePeople: boolean,
+) {
+  const people = await loadPeople(
+    db,
+    rows.flatMap((row) => (includePeople ? [row.userId, row.updatedBy] : [row.userId])),
+  )
+  return rows.map((row) => {
+    const owner = people.get(row.userId) ?? null
+    const editor = row.updatedBy ? (people.get(row.updatedBy) ?? null) : null
+    return {
+      ...serializeLink(row, settings, configs.get(row.id), hosts),
+      canEdit: canAccessLink(actor, row, owner?.role ?? 'user', settings, 'edit'),
+      ...(includePeople ? { owner, updatedBy: editor } : {}),
+    }
+  })
+}
+
+async function loadPeople(db: Database, ids: Array<string | null | undefined>): Promise<Map<string, LinkPerson>> {
+  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))]
+  const people = new Map<string, LinkPerson>()
+  if (unique.length === 0) return people
+  const rows = await db
+    .select({ id: users.id, username: users.username, role: users.role })
+    .from(users)
+    .where(inArray(users.id, unique))
+  for (const row of rows) people.set(row.id, { username: row.username, role: row.role === 'admin' ? 'admin' : 'user' })
+  return people
+}
+
+function linkScope(actor: Actor, settings: AppSettings, q?: string) {
   const filters = []
-  if (actor.role !== 'admin') filters.push(eq(links.userId, actor.id))
+  const visibility = visibleLinksWhere(actor, settings, 'links')
+  if (visibility) filters.push(visibility)
   if (q?.trim()) {
     const pattern = `%${q.trim().replace(/[%_]/g, '')}%`
     filters.push(sql`(${links.slug} ilike ${pattern} or coalesce(${links.title}, '') ilike ${pattern} or ${links.destinationUrl} ilike ${pattern})`)

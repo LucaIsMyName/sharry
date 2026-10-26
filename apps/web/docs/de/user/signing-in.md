@@ -17,7 +17,7 @@ Eine Sitzung, die noch einen Passwortwechsel oder einen Einrichtungsschritt brau
 
 ## Rollen
 
-Administratorinnen und Administratoren verwalten alle Benutzer, Links, Kampagnen, QR-Codes, Einstellungen, Audit-Ereignisse und API-Schlüssel. Standardbenutzer verwalten nur ihre eigenen Links, Kampagnen und Analysen. Diese Prüfungen laufen in der API. Ein Standardbenutzer sieht Benutzer, API-Schlüssel, Einstellungen und Audit nicht.
+Administratorinnen und Administratoren verwalten alle Benutzer, Links, Kampagnen, QR-Codes, Einstellungen, Audit-Ereignisse und API-Schlüssel. Standardbenutzer verwalten nur ihre eigenen Links, Kampagnen und Analysen, außer die Einstellungen teilen die Links anderer Personen. Diese Prüfungen laufen in der API. Ein Standardbenutzer sieht Benutzer, API-Schlüssel, Einstellungen und Audit nicht.
 
 ## Zwei-Faktor-Authentifizierung
 

@@ -286,6 +286,10 @@ Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password 
 | `analytics_retention_days` | `365` | Settings. `0` keeps events |
 | `session_ttl_hours` | `168` | Settings. Full sessions only |
 | `mfa_required` | `false` | Settings |
+| `link_sharing` | `false` | Settings. Users see each other's links. Off ignores the other three |
+| `link_sharing_access` | `view` | Settings. `view` or `edit` for another user's link |
+| `link_sharing_show_admin` | `false` | Settings. Users also see links owned by administrators |
+| `link_sharing_edit_admin` | `false` | Settings. Users can change links owned by administrators |
 | `default_qr_style` | shared default | Settings |
 | `registration_policy` | `closed` | Fixed. There is no public sign-up |
 | `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `email_from` | empty, port from the environment | Settings. The password is encrypted and is not shown again |
@@ -294,7 +298,7 @@ Password-reset email uses the SMTP host, port, username, password, and from addr
 
 ## Accounts and sessions
 
-There are two roles. Administrators manage every user, link, campaign, QR code, setting, audit event, domain, and API key. Standard users manage only their own links, campaigns, QR codes, and analytics. Those checks run in the API. The dashboard hides admin pages, and the API rejects the same calls from a non-admin.
+There are two roles. Administrators manage every user, link, campaign, QR code, setting, audit event, domain, and API key. Standard users manage only their own links, campaigns, QR codes, and analytics. Settings can let them see or change other people's links. Campaigns stay private. Those checks run in the API. The dashboard hides admin pages, and the API rejects the same calls from a non-admin.
 
 The session cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` in production. The name comes from `APP_NAME` (`sharry_session` by default). The database stores a hash of the token, using `SESSION_SECRET`, not the token.
 
@@ -337,7 +341,7 @@ When Settings require two-factor authentication, a key works only after that use
 | `/account` | Language, password, photo, two-factor authentication |
 | `/admin/users` | Accounts |
 | `/admin/api-keys` | API keys |
-| `/admin/settings` | Prefix, sessions, mail, CSV export |
+| `/admin/settings` | Prefix, link sharing, sessions, mail, CSV export |
 | `/admin/domains` | Redirect domains |
 | `/admin/server` | Host memory, disk, operating system, installed runtime |
 | `/admin/audit` | Audit log |

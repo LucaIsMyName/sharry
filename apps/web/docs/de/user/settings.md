@@ -14,6 +14,18 @@ Die Standardweiterleitung ist der Typ, der gilt, wenn jemand einen Link anlegt u
 
 Die Länge zufälliger Slugs gilt, wenn ein neuer Link den Slug leer lässt. Es ist eine ganze Zahl von 4 bis 16. Die Vorgabe ist 5.
 
+Vier Schalter entscheiden, ob ein Benutzer einen Link sehen oder ändern kann, der jemand anderem gehört. Sie gelten für die Rolle Benutzer. Eine Administratorin oder ein Administrator sieht und bearbeitet immer jeden Link. Ein API-Schlüssel folgt dem Benutzer, zu dem er gehört. Die Vorgabe lässt die Links jeder Person privat.
+
+„Benutzer sehen die Links der anderen“ ist standardmäßig aus. Solange es aus ist, haben die anderen drei Schalter keine Wirkung.
+
+„Benutzer können die Links der anderen bearbeiten“ ist standardmäßig aus. Ein geteilter Link kann dann geöffnet werden, einschließlich seiner Klicks und eines QR-Downloads, aber nicht geändert werden. Einschalten erlaubt Änderungen, einschließlich Löschen, Passwort, UTM und QR-Aktualisierungen. Der Schalter bleibt deaktiviert, bis „Benutzer sehen die Links der anderen“ an ist. Ein verborgener Link wird nicht gefunden. Ein sichtbarer Link, den der Benutzer nicht ändern darf, lehnt die Änderung ab.
+
+„Benutzer sehen Admin-Links“ ist standardmäßig aus. Benutzer sehen diese Links nur, wenn dieser Schalter und „Benutzer sehen die Links der anderen“ beide an sind.
+
+„Benutzer können Admin-Links ändern“ ist standardmäßig aus. Einschalten schaltet auch „Benutzer sehen Admin-Links“ ein. Ausschalten von „Benutzer sehen Admin-Links“ schaltet diesen Schalter aus.
+
+Kampagnen bleiben privat. Ein Benutzer kann einen Link, den er ansehen darf, an die eigene Kampagne hängen.
+
 ## Sitzungen
 
 Analysen aufbewahren, Tage, löscht Klickereignisse, die älter als diese Anzahl Tage sind. Die Bereinigung läuft beim Prozessstart und danach jede Stunde. Nutze `0`, um Ereignisse zu behalten. Das Maximum ist 3650. Die Vorgabe ist 365.

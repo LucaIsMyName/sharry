@@ -31,8 +31,8 @@ export function registerQrRoutes(app: FastifyInstance): void {
   app.get('/api/links/:id/qr', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const { id } = request.params as { id: string }
-    const link = await getLinkForActor(app.db, actor, id)
     const settings = await getSettings(app.db, app.env)
+    const link = await getLinkForActor(app.db, actor, id, settings, 'view')
     const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
     const base = originForLink(link, settings, hosts)
     const rows = await app.db
@@ -54,7 +54,8 @@ export function registerQrRoutes(app: FastifyInstance): void {
   app.post('/api/qr', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(createQrSchema, request.body)
-    const link = await getLinkForActor(app.db, actor, body.linkId)
+    const settings = await getSettings(app.db, app.env)
+    const link = await getLinkForActor(app.db, actor, body.linkId, settings, 'edit')
     await assertVariantOnLink(app.db, link.id, body.trackingVariantId)
     const [created] = await app.db
       .insert(qrCodes)
@@ -73,7 +74,6 @@ export function registerQrRoutes(app: FastifyInstance): void {
       entityId: created.id,
       metadata: { linkId: link.id, name: created.name },
     })
-    const settings = await getSettings(app.db, app.env)
     const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
     return {
       ...serializeQr(created, originForLink(link, settings, hosts), settings.shortUrlPrefix, link.slug),
@@ -92,7 +92,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
    */
   app.patch('/api/qr/:id', async (request) => {
     const actor = await requireUser(app, request, ['full'])
-    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id, 'edit')
     const body = parseBody(updateQrSchema, request.body)
     if (body.trackingVariantId) await assertVariantOnLink(app.db, current.link.id, body.trackingVariantId)
     const [updated] = await app.db
@@ -121,7 +121,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
    */
   app.delete('/api/qr/:id', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
-    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id, 'edit')
     await app.db.delete(qrCodes).where(eq(qrCodes.id, current.qr.id))
     await removeLogo(app.env.QR_DATA_DIR, current.qr.logoPath)
     return reply.code(204).send()
@@ -138,7 +138,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
    */
   app.post('/api/qr/:id/logo', async (request) => {
     const actor = await requireUser(app, request, ['full'])
-    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id, 'edit')
     const file = await request.file()
     if (!file) throw new AppError(400, 'Choose a PNG, JPEG, or WebP image')
     const buffer = await file.toBuffer()
@@ -173,7 +173,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
    */
   app.delete('/api/qr/:id/logo', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
-    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id, 'edit')
     await removeLogo(app.env.QR_DATA_DIR, current.qr.logoPath)
     await app.db.update(qrCodes).set({ logoPath: null }).where(eq(qrCodes.id, current.qr.id))
     return reply.code(204).send()
@@ -190,7 +190,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
    */
   app.get('/api/qr/:id/logo', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
-    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id, 'view')
     if (!current.qr.logoPath) throw new AppError(404, 'This QR code has no center image')
     const file = await readLogo(app.env.QR_DATA_DIR, current.qr.logoPath)
     return reply.type(file.mime).send(file.buffer)
@@ -207,7 +207,7 @@ export function registerQrRoutes(app: FastifyInstance): void {
    */
   app.get('/api/qr/:id/export', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
-    const current = await getQrForActor(app, actor, (request.params as { id: string }).id)
+    const current = await getQrForActor(app, actor, (request.params as { id: string }).id, 'view')
     const format = (request.query as { format?: string }).format ?? 'svg'
     if (format !== 'svg' && format !== 'png' && format !== 'jpeg') {
       throw new AppError(400, 'Choose svg, png, or jpeg')
@@ -241,12 +241,12 @@ async function assertVariantOnLink(db: Database, linkId: string, variantId: stri
   if (!found[0]) throw new AppError(400, 'That variant does not belong to this link')
 }
 
-async function getQrForActor(app: FastifyInstance, actor: Actor, id: string) {
+async function getQrForActor(app: FastifyInstance, actor: Actor, id: string, mode: 'view' | 'edit') {
   const found = await app.db.select().from(qrCodes).where(eq(qrCodes.id, id)).limit(1)
   const qr = found[0]
   if (!qr) throw new AppError(404, 'QR code not found')
-  const link = await getLinkForActor(app.db, actor, qr.linkId)
   const settings = await getSettings(app.db, app.env)
+  const link = await getLinkForActor(app.db, actor, qr.linkId, settings, mode)
   const hosts = await loadVerifiedHosts(app.db, [link.redirectDomainId])
   const base = originForLink(link, settings, hosts)
   const url = buildShortUrl(base, settings.shortUrlPrefix, link.slug, {

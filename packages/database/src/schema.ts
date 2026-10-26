@@ -71,6 +71,7 @@ export const links = pgTable(
     passwordHash: text('password_hash'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   },
   (table) => [
     uniqueIndex('links_slug_lower_idx').on(sql`lower(${table.slug})`),

@@ -13,6 +13,7 @@ export function Select<T extends string>({
   options,
   placeholder = "Choose",
   id,
+  disabled = false,
   "aria-invalid": invalid,
   "aria-describedby": describedBy,
 }: {
@@ -21,12 +22,14 @@ export function Select<T extends string>({
   options: { value: T; label: string; description?: string }[];
   placeholder?: string;
   id?: string;
+  disabled?: boolean;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
 }) {
   const { t } = useI18n();
   return (
     <SelectRoot
+      disabled={disabled}
       value={value === "" ? null : value}
       items={options.map((option) => ({
         value: option.value,

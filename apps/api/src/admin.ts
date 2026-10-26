@@ -238,6 +238,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
         metadata: { enabled: body.mfaRequired },
       })
     }
+    await saveLinkSharing(app.db, actor.id, body, current)
     if (body.smtpHost !== undefined) await writeSetting(app.db, 'smtp_host', body.smtpHost, actor.id)
     if (body.smtpPort !== undefined) await writeSetting(app.db, 'smtp_port', String(body.smtpPort), actor.id)
     if (body.smtpUser !== undefined) await writeSetting(app.db, 'smtp_user', body.smtpUser, actor.id)
@@ -527,6 +528,64 @@ export function registerAdminRoutes(app: FastifyInstance): void {
   })
 }
 
+async function saveLinkSharing(
+  db: Database,
+  actorId: string,
+  body: {
+    linkSharing?: boolean
+    linkSharingAccess?: 'view' | 'edit'
+    linkSharingShowAdmin?: boolean
+    linkSharingEditAdmin?: boolean
+  },
+  current: AppSettings,
+): Promise<void> {
+  if (
+    body.linkSharing === undefined &&
+    body.linkSharingAccess === undefined &&
+    body.linkSharingShowAdmin === undefined &&
+    body.linkSharingEditAdmin === undefined
+  ) {
+    return
+  }
+  let linkSharingShowAdmin = body.linkSharingShowAdmin ?? current.linkSharingShowAdmin
+  let linkSharingEditAdmin = body.linkSharingEditAdmin ?? current.linkSharingEditAdmin
+  if (body.linkSharingEditAdmin === true) linkSharingShowAdmin = true
+  else if (body.linkSharingShowAdmin === false) linkSharingEditAdmin = false
+  if (linkSharingEditAdmin) linkSharingShowAdmin = true
+  if (!linkSharingShowAdmin) linkSharingEditAdmin = false
+  const next = {
+    linkSharing: body.linkSharing ?? current.linkSharing,
+    linkSharingAccess: body.linkSharingAccess ?? current.linkSharingAccess,
+    linkSharingShowAdmin,
+    linkSharingEditAdmin,
+  }
+  const changed =
+    next.linkSharing !== current.linkSharing ||
+    next.linkSharingAccess !== current.linkSharingAccess ||
+    next.linkSharingShowAdmin !== current.linkSharingShowAdmin ||
+    next.linkSharingEditAdmin !== current.linkSharingEditAdmin
+  if (!changed) return
+  if (next.linkSharing !== current.linkSharing) {
+    await writeSetting(db, 'link_sharing', next.linkSharing ? 'true' : 'false', actorId)
+  }
+  if (next.linkSharingAccess !== current.linkSharingAccess) {
+    await writeSetting(db, 'link_sharing_access', next.linkSharingAccess, actorId)
+  }
+  if (next.linkSharingShowAdmin !== current.linkSharingShowAdmin) {
+    await writeSetting(db, 'link_sharing_show_admin', next.linkSharingShowAdmin ? 'true' : 'false', actorId)
+  }
+  if (next.linkSharingEditAdmin !== current.linkSharingEditAdmin) {
+    await writeSetting(db, 'link_sharing_edit_admin', next.linkSharingEditAdmin ? 'true' : 'false', actorId)
+  }
+  await writeAudit(db, {
+    actorUserId: actorId,
+    action: 'settings.link_sharing',
+    entityType: 'settings',
+    entityId: 'link_sharing',
+    metadata: next,
+  })
+}
+
 function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
   return {
     appUrl: settings.appUrl,
@@ -541,6 +600,10 @@ function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
     sessionTtlHours: settings.sessionTtlHours,
     defaultQrStyle: settings.defaultQrStyle,
     mfaRequired: settings.mfaRequired,
+    linkSharing: settings.linkSharing,
+    linkSharingAccess: settings.linkSharingAccess,
+    linkSharingShowAdmin: settings.linkSharingShowAdmin,
+    linkSharingEditAdmin: settings.linkSharingEditAdmin,
     smtpHost: settings.smtpHost,
     smtpPort: settings.smtpPort,
     smtpUser: settings.smtpUser,

@@ -204,6 +204,9 @@ export function LinksPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("Title")}</TableHead>
+                {links.some((link) => "owner" in link) ? (
+                  <TableHead>{t("Created by")}</TableHead>
+                ) : null}
                 <TableHead>{t("Short URL")}</TableHead>
                 <TableHead>{t("Destination")}</TableHead>
                 <TableHead>{t("Status")}</TableHead>
@@ -216,13 +219,19 @@ export function LinksPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground">
+                  <TableCell
+                    colSpan={links.some((link) => "owner" in link) ? 7 : 6}
+                    className="text-muted-foreground"
+                  >
                     {t("Loading links…")}
                   </TableCell>
                 </TableRow>
               ) : links.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-muted-foreground">
+                  <TableCell
+                    colSpan={links.some((link) => "owner" in link) ? 7 : 6}
+                    className="text-muted-foreground"
+                  >
                     {failed ? t("Could not load links.") : t("No links match.")}
                   </TableCell>
                 </TableRow>
@@ -237,6 +246,11 @@ export function LinksPage() {
                         {link.title?.trim() || link.slug}
                       </Link>
                     </TableCell>
+                    {links.some((item) => "owner" in item) ? (
+                      <TableCell className="truncate">
+                        {link.owner?.username ?? t("Unknown")}
+                      </TableCell>
+                    ) : null}
                     <TableCell
                       className="truncate font-mono text-sm text-muted-foreground"
                       title={link.shortUrl}
@@ -577,6 +591,7 @@ export function LinkDetailPage() {
 
   async function save(event: FormEvent) {
     event.preventDefault();
+    if (link?.canEdit === false) return;
     setSaving(true);
     try {
       const updated = await api<ShortLink>(`/api/links/${id}`, {
@@ -676,6 +691,7 @@ export function LinkDetailPage() {
 
   async function createQr(event: FormEvent) {
     event.preventDefault();
+    if (link?.canEdit === false) return;
     setSavingQr(true);
     try {
       const variantId =
@@ -739,6 +755,7 @@ export function LinkDetailPage() {
     toast.success(t("Center image removed."));
   }
 
+  const locked = link?.canEdit === false;
   const conflicts = utmConflicts(destinationUrl, utm);
   const scanWarnings = qrWarnings(style, Boolean(logoUrl));
   const scanWarning = (key: QrWarning["key"]) =>
@@ -760,25 +777,40 @@ export function LinkDetailPage() {
             {link?.title?.trim() || link?.slug || t("Link")}
           </h1>
           {link ? (
-            <a
-              className="mt-1.5 block font-mono text-sm break-all text-muted-foreground underline-offset-3 hover:text-primary"
-              href={link.shortUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {link.shortUrl}
-            </a>
+            <>
+              <a
+                className="mt-1.5 block font-mono text-sm break-all text-muted-foreground underline-offset-3 hover:text-primary"
+                href={link.shortUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {link.shortUrl}
+              </a>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("Created by")} {link.owner?.username ?? t("Unknown")}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {t("Last changed by")} {link.updatedBy?.username ?? t("Unknown")}
+              </p>
+              {locked ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("You can view this link but not change it.")}
+                </p>
+              ) : null}
+            </>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            type="submit"
-            size="sm"
-            form="link-editor"
-            disabled={saving || loading || !link}
-          >
-            <Save /> {saving ? t("Saving…") : t("Save")}
-          </Button>
+          {locked ? null : (
+            <Button
+              type="submit"
+              size="sm"
+              form="link-editor"
+              disabled={saving || loading || !link}
+            >
+              <Save /> {saving ? t("Saving…") : t("Save")}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -796,14 +828,16 @@ export function LinkDetailPage() {
               </>
             )}
           </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-          >
-            <Trash2 /> {t("Delete")}
-          </Button>
+          {locked ? null : (
+            <Button
+              variant="destructive"
+              size="sm"
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 /> {t("Delete")}
+            </Button>
+          )}
         </div>
       </div>
       {loading ? (
@@ -813,9 +847,12 @@ export function LinkDetailPage() {
         <CardContent>
           <form
             id="link-editor"
-            className="grid gap-3"
             onSubmit={(event) => void save(event)}
           >
+            <fieldset
+              disabled={locked}
+              className="m-0 grid min-w-0 gap-3 border-0 p-0"
+            >
             <Field
               label="Destination"
               info={
@@ -894,7 +931,7 @@ export function LinkDetailPage() {
                   : ""}
               </p>
             </Field>
-            {link?.hasPassword ? (
+            {link?.hasPassword && !locked ? (
               <Button
                 variant="outline"
                 type="button"
@@ -909,9 +946,12 @@ export function LinkDetailPage() {
                 url: previewDestination(destinationUrl, utm),
               })}
             </p>
-            <Button type="submit" disabled={saving}>
-              <Save /> {saving ? t("Saving…") : t("Save link")}
-            </Button>
+            {locked ? null : (
+              <Button type="submit" disabled={saving}>
+                <Save /> {saving ? t("Saving…") : t("Save link")}
+              </Button>
+            )}
+            </fieldset>
           </form>
         </CardContent>
       </Card>
@@ -929,6 +969,10 @@ export function LinkDetailPage() {
               className="grid gap-3"
               onSubmit={(event) => void createQr(event)}
             >
+              <fieldset
+                disabled={locked}
+                className="m-0 grid min-w-0 gap-3 border-0 p-0"
+              >
               <h2 className="text-lg font-medium">{t("QR code")}</h2>
               <Field label="Name">
                 <Input
@@ -1063,7 +1107,7 @@ export function LinkDetailPage() {
                     setLogoUrl(URL.createObjectURL(file));
                   }}
                 />
-                {logoUrl ? (
+                {logoUrl && !locked ? (
                   <Button
                     variant="outline"
                     type="button"
@@ -1073,9 +1117,12 @@ export function LinkDetailPage() {
                   </Button>
                 ) : null}
               </Field>
-              <Button type="submit" disabled={savingQr}>
-                <Save /> {savingQr ? t("Saving…") : t("Save QR style")}
-              </Button>
+              {locked ? null : (
+                <Button type="submit" disabled={savingQr}>
+                  <Save /> {savingQr ? t("Saving…") : t("Save QR style")}
+                </Button>
+              )}
+              </fieldset>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button
                   variant="outline"

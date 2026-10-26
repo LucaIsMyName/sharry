@@ -16,7 +16,7 @@ Lass den Slug leer, um einen zu erzeugen. Die Länge kommt aus den Einstellungen
 
 Die Linkseite lädt 50 auf einmal. Mehr laden zeigt den Rest. Die Suche trifft Slug, Titel oder Ziel. Jede Zeile zeigt die Klickzahl. Auf einem schmalen Bildschirm scrollt die Tabelle seitlich, damit die Spalten lesbar bleiben. Der Status ist Aktiv oder Pausiert. Das Test-Symbol öffnet die Kurz-URL in einem neuen Tab.
 
-Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht jeden Link.
+Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht und bearbeitet jeden Link. Die Einstellungen können Benutzer die Links der anderen sehen lassen, sie nur ansehen oder bearbeiten, und optional Admin-Links sehen oder ändern. Ein Link, den du öffnen kannst, zeigt, wer ihn erstellt hat und wer ihn zuletzt geändert hat. Die Linkliste ergänzt Erstellt von, wenn sie den Link einer anderen Person enthalten kann. Zuletzt geändert von ist Unbekannt, wenn Sharry nicht weiß, wer gespeichert hat.
 
 ## Anlegen und bearbeiten
 

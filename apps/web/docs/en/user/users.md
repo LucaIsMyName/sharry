@@ -8,7 +8,7 @@ Enter a username, an email, a temporary password, and a role. The username and e
 
 The temporary password must be at least 12 characters. Generate password fills a 16-character password and shows it so you can copy it and send it to the person. Their first sign-in asks for a new password before the dashboard opens. The temporary password is stored as an Argon2id hash.
 
-The role is `user` or `admin`. A standard user manages only their own links, campaigns, and analytics. An administrator manages every account and every link, plus Settings, Domains, Server, API keys, and Audit.
+The role is `user` or `admin`. A standard user manages only their own links, campaigns, and analytics, unless Settings shares other people's links. An administrator manages every account and every link, plus Settings, Domains, Server, API keys, and Audit.
 
 ## Change an account
 
@@ -49,6 +49,7 @@ Actions you will see include:
 | `api_key.revoke` | An API key is revoked |
 | `settings.prefix_changed` | The public prefix changes |
 | `settings.mfa_required` | The two-factor requirement changes |
+| `settings.link_sharing` | Who can see or change another person's links changes |
 | `settings.smtp_updated` | The mail server is saved |
 | `redirect_domain.created` | An administrator adds a redirect domain |
 | `redirect_domain.verified` | The TXT record matches and the domain becomes verified |

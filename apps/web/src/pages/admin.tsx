@@ -67,6 +67,10 @@ type Settings = {
   sessionTtlHours: number;
   defaultQrStyle: QrStyle;
   mfaRequired: boolean;
+  linkSharing: boolean;
+  linkSharingAccess: "view" | "edit";
+  linkSharingShowAdmin: boolean;
+  linkSharingEditAdmin: boolean;
   smtpHost: string;
   smtpPort: number;
   smtpUser: string;
@@ -449,6 +453,10 @@ export function AdminSettingsPage() {
           sessionTtlHours: settings.sessionTtlHours,
           defaultQrStyle: settings.defaultQrStyle ?? defaultQrStyle,
           mfaRequired: settings.mfaRequired,
+          linkSharing: settings.linkSharing,
+          linkSharingAccess: settings.linkSharingAccess,
+          linkSharingShowAdmin: settings.linkSharingShowAdmin,
+          linkSharingEditAdmin: settings.linkSharingEditAdmin,
           smtpHost: settings.smtpHost,
           smtpPort: settings.smtpPort,
           smtpUser: settings.smtpUser,
@@ -555,6 +563,52 @@ export function AdminSettingsPage() {
                 }
               />
             </Field>
+            <Toggle
+              checked={settings.linkSharing}
+              onChange={(linkSharing) =>
+                setSettings({ ...settings, linkSharing })
+              }
+              label="Users see each other's links"
+            />
+            <Toggle
+              checked={settings.linkSharingAccess === "edit"}
+              disabled={!settings.linkSharing}
+              onChange={(canEdit) =>
+                setSettings({
+                  ...settings,
+                  linkSharingAccess: canEdit ? "edit" : "view",
+                })
+              }
+              label="Users can edit each other's links"
+            />
+            <Toggle
+              checked={settings.linkSharingShowAdmin}
+              disabled={!settings.linkSharing}
+              onChange={(linkSharingShowAdmin) =>
+                setSettings({
+                  ...settings,
+                  linkSharingShowAdmin,
+                  linkSharingEditAdmin: linkSharingShowAdmin
+                    ? settings.linkSharingEditAdmin
+                    : false,
+                })
+              }
+              label="Users see admin links"
+            />
+            <Toggle
+              checked={settings.linkSharingEditAdmin}
+              disabled={!settings.linkSharing || !settings.linkSharingShowAdmin}
+              onChange={(linkSharingEditAdmin) =>
+                setSettings({
+                  ...settings,
+                  linkSharingEditAdmin,
+                  linkSharingShowAdmin: linkSharingEditAdmin
+                    ? true
+                    : settings.linkSharingShowAdmin,
+                })
+              }
+              label="Users can change admin links"
+            />
           </CardContent>
         </Card>
         <Card>

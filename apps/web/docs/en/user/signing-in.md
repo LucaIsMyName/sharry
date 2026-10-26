@@ -17,7 +17,7 @@ A session that still needs a password change or an enrollment step cannot open t
 
 ## Roles
 
-Administrators manage every user, link, campaign, QR code, setting, audit event, and API key. Standard users manage only their own links, campaigns, and analytics. Those checks run in the API. A standard user does not see Users, API keys, Settings, or Audit.
+Administrators manage every user, link, campaign, QR code, setting, audit event, and API key. Standard users manage only their own links, campaigns, and analytics, unless Settings shares other people's links. Those checks run in the API. A standard user does not see Users, API keys, Settings, or Audit.
 
 ## Two-factor authentication
 
