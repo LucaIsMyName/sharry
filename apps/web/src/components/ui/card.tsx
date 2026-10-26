@@ -2,10 +2,10 @@ import * as React from "react";
 import { cn } from "cn";
 
 export const cardBevel =
-  "shadow-[inset_0_1px_1px_rgb(255_255_255/0.55),inset_0_-1px_1px_rgb(0_0_0/0.16),inset_1px_0_1px_rgb(255_255_255/0.22),inset_-1px_0_1px_rgb(0_0_0/0.12)] dark:shadow-[inset_0_1px_1px_rgb(255_255_255/0.16),inset_0_-1px_1px_rgb(0_0_0/0.45),inset_1px_0_1px_rgb(255_255_255/0.08),inset_-1px_0_1px_rgb(0_0_0/0.35)]";
+  "shadow-[inset_0_1px_1px_rgb(255_255_255/0.28),inset_0_-1px_1px_rgb(0_0_0/0.08),inset_1px_0_1px_rgb(255_255_255/0.12),inset_-1px_0_1px_rgb(0_0_0/0.05)] dark:shadow-[inset_0_1px_1px_rgb(255_255_255/0.08),inset_0_-1px_1px_rgb(0_0_0/0.22),inset_1px_0_1px_rgb(255_255_255/0.04),inset_-1px_0_1px_rgb(0_0_0/0.16)]";
 
 export const sidebarBevel =
-  "shadow-[inset_0_1px_1px_rgb(255_255_255/0.2),inset_0_-1px_1px_rgb(0_0_0/0.55),inset_1px_0_1px_rgb(255_255_255/0.1),inset_-1px_0_1px_rgb(0_0_0/0.4)]";
+  "shadow-[inset_0_1px_1px_rgb(255_255_255/0.1),inset_0_-1px_1px_rgb(0_0_0/0.28),inset_1px_0_1px_rgb(255_255_255/0.05),inset_-1px_0_1px_rgb(0_0_0/0.2)]";
 
 function Card({
   className,
