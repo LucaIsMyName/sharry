@@ -521,7 +521,7 @@ The script then does the following, in order:
 6. When `ufw` is already enabled, allows ports 80 and 443. It does not enable `ufw` when it is off.
 7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`. The test-results CSV from the suite that just ran is part of that archive.
 8. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
-9. When free memory plus free swap is below 1.5 GB, adds a 2 GB swap file at `/swapfile`, then runs `npm ci` and `npm run build` on the server. If the build is killed for lack of memory, free disk space for swap and run deploy again.
+9. When free memory plus free swap is below 2.5 GB, adds a 2 GB swap file at `/swapfile`, then runs `npm ci` and `npm run build` on the server. The build gets a 2 GB JavaScript heap so it can use that swap. If the build is still killed for lack of memory, free disk space for swap and run deploy again.
 10. Writes `shared/.env` on the first install, and again when `--sync-env` is set.
 11. Runs `npm run backup`, writing a custom-format dump to `$DEPLOY_REMOTE_DIR/backups`.
 12. Runs migrations against that server environment.

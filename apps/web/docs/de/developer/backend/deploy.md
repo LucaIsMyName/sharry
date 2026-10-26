@@ -116,7 +116,7 @@ Das Skript tut danach der Reihe nach Folgendes:
 6. Wenn `ufw` schon aktiv ist, erlaubt es die Ports 80 und 443. Es schaltet `ufw` nicht ein, wenn es aus ist.
 7. Packt das Repo, ohne `.git`, `node_modules`, die lokalen Umgebungsdateien und `data`, und lädt es nach `$DEPLOY_REMOTE_DIR/releases/<timestamp>` hoch. Das Test-CSV aus der gerade gelaufenen Suite ist Teil dieses Archivs.
 8. Verknüpft `$DEPLOY_REMOTE_DIR/shared/data` mit `data` in der Veröffentlichung, damit QR-Bilder und Avatare die nächste Veröffentlichung überstehen.
-9. Wenn freier Speicher plus freier Swap unter 1,5 GB liegt, fügt es eine 2-GB-Swap-Datei unter `/swapfile` hinzu und führt dann `npm ci` und `npm run build` auf dem Server aus. Wenn der Build wegen Speichermangels beendet wird, gib Speicherplatz für Swap frei und führe Deploy noch einmal aus.
+9. Wenn freier Speicher plus freier Swap unter 2,5 GB liegt, fügt es eine 2-GB-Swap-Datei unter `/swapfile` hinzu und führt dann `npm ci` und `npm run build` auf dem Server aus. Der Build bekommt einen JavaScript-Heap von 2 GB, damit er diesen Swap nutzen kann. Wenn der Build danach immer noch wegen Speichermangels beendet wird, gib Speicherplatz für Swap frei und führe Deploy noch einmal aus.
 10. Schreibt `shared/.env` bei der ersten Installation und wieder, wenn `--sync-env` gesetzt ist. Der Dateimodus ist `0600`.
 11. Führt `npm run backup` aus und schreibt einen Dump im Custom-Format nach `$DEPLOY_REMOTE_DIR/backups`.
 12. Führt Migrationen gegen diese Serverumgebung aus.

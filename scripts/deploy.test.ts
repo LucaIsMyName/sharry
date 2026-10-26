@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { upsertEnvKeys } from './env-file.ts'
-import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, ensureCaddyOnDemand, linuxDistro, minimumNodeVersion, nodeInstallScript, nodeVersionIsCurrent, provisionHost, psqlCommand } from './provision.ts'
+import { buildRanOutOfMemory, caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, ensureCaddyOnDemand, linuxDistro, minimumNodeVersion, nodeInstallScript, nodeVersionIsCurrent, provisionHost, psqlCommand } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { formatDeploySummary } from './deploy-summary.ts'
 import { activateRelease } from './release.ts'
@@ -31,11 +31,17 @@ describe('deploy safety', () => {
     expect(opensshFingerprint(key)).toMatch(/^SHA256:/)
   })
 
-  it('adds swap when free memory is below 1.5 GB', () => {
+  it('adds swap when free memory is below 2.5 GB', () => {
     const command = ensureBuildMemoryCommand()
     expect(command).toContain('MemAvailable')
     expect(command).toContain('/swapfile')
-    expect(command).toContain('1500000')
+    expect(command).toContain('2500000')
+  })
+
+  it('treats a V8 heap abort and an operating-system kill as the same memory failure', () => {
+    expect(buildRanOutOfMemory('FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory\nnpm error code 134')).toBe(true)
+    expect(buildRanOutOfMemory('Killed\n(137)')).toBe(true)
+    expect(buildRanOutOfMemory('npm error code 1\nType error')).toBe(false)
   })
 
   it('runs root commands without sudo and other commands with sudo -n', () => {

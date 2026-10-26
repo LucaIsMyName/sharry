@@ -15,7 +15,7 @@ import {
 } from '@sharry/shared'
 import { formatDeploySummary } from './deploy-summary.ts'
 import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
-import { ensureBuildMemoryCommand, minimumNodeVersion, nodeVersionIsCurrent, provisionHost } from './provision.ts'
+import { buildRanOutOfMemory, ensureBuildMemoryCommand, minimumNodeVersion, nodeVersionIsCurrent, provisionHost } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { activateRelease } from './release.ts'
 import { runNpmTest } from './release-suite.ts'
@@ -151,10 +151,10 @@ try {
   await exec(conn, privileged(ensureBuildMemoryCommand()), secrets)
   try {
     log('Installing dependencies and building')
-    await exec(conn, `cd ${release} && npm ci --no-audit --no-fund && npm run build`, secrets)
+    await exec(conn, `cd ${release} && npm ci --no-audit --no-fund && NODE_OPTIONS=--max-old-space-size=2048 npm run build`, secrets)
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
-    if (/Killed/.test(message) || /\(137\)/.test(message)) {
+    if (buildRanOutOfMemory(message)) {
       throw new Error('The server ran out of memory while installing or building. Free some disk space for swap and run deploy again.')
     }
     throw error

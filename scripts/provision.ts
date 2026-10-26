@@ -268,7 +268,7 @@ export function ensureBuildMemoryCommand(): string {
   return `set -euo pipefail
 avail_kb=$(grep MemAvailable /proc/meminfo | tr -s " " | cut -d " " -f 2)
 swap_free_kb=$(grep SwapFree /proc/meminfo | tr -s " " | cut -d " " -f 2)
-if [ "$((avail_kb + swap_free_kb))" -ge 1500000 ]; then
+if [ "$((avail_kb + swap_free_kb))" -ge 2500000 ]; then
   exit 0
 fi
 if ! swapon --show | tr -s " " | cut -d " " -f 1 | grep -qx /swapfile; then
@@ -280,4 +280,12 @@ if ! swapon --show | tr -s " " | cut -d " " -f 1 | grep -qx /swapfile; then
   swapon /swapfile
 fi
 grep -qs /swapfile /etc/fstab || echo "/swapfile none swap sw 0 0" >> /etc/fstab`
+}
+
+export function buildRanOutOfMemory(output: string): boolean {
+  return /Killed/.test(output)
+    || /\(137\)/.test(output)
+    || /JavaScript heap out of memory/.test(output)
+    || /Reached heap limit/.test(output)
+    || /npm error code 134/.test(output)
 }
