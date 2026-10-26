@@ -14,6 +14,9 @@ import {
   Server,
   Settings,
   Users,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { NavLink, Outlet, useLoaderData, useNavigate } from "react-router";
 import { cn } from "cn";
@@ -23,6 +26,7 @@ import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { setTheme, useTheme, type ThemeChoice } from "../theme.ts";
 import { useRouteTitle } from "./page-title.tsx";
 import { Button } from "./ui/button.tsx";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
 export function Shell() {
@@ -157,12 +161,14 @@ function Item({
   icon,
   compact = false,
   children,
+  className,
 }: {
   to: string;
   end?: boolean;
   icon: ReactNode;
   compact?: boolean;
   children: ReactNode;
+  className?: string;
 }) {
   return (
     <NavLink
@@ -175,6 +181,7 @@ function Item({
             ? "gap-2 px-2.5 py-1.5 text-xs"
             : "gap-2.5 px-2.5 py-2 text-sm",
           isActive && "bg-sidebar-accent text-white",
+          className,
         )
       }
     >
@@ -184,36 +191,34 @@ function Item({
   );
 }
 
-const themeOptions: { value: ThemeChoice; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-  { value: "system", label: "System" },
+const themeOptions: { value: ThemeChoice; label: string | ReactNode }[] = [
+  { value: "light", label: <Sun size={14} /> },
+  { value: "dark", label: <Moon size={14} /> },
+  { value: "system", label: <Monitor size={14} /> },
 ];
 
 function ThemeSwitch() {
   const { t } = useI18n();
   const choice = useTheme();
   return (
-    <div className="grid gap-1.5" role="group" aria-label={t("Appearance")}>
-      <p className="px-0.5 text-xs text-sidebar-foreground/70">{t("Appearance")}</p>
-      <div className="grid grid-cols-3 gap-1">
-        {themeOptions.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-pressed={choice === option.value}
-            className={cn(
-              "border-sidebar-border bg-transparent px-1 text-xs text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
-              choice === option.value && "bg-sidebar-accent text-white",
-            )}
-            onClick={() => setTheme(option.value)}
-          >
-            {t(option.label)}
-          </Button>
-        ))}
-      </div>
+    <div className="flex shrink-0 items-center gap-1" role="group" aria-label={t("Appearance")}>
+      {themeOptions.map((option) => (
+        <Button
+          key={option.value}
+          type="button"
+          size="icon-sm"
+          variant="outline"
+          aria-pressed={choice === option.value}
+          aria-label={t(option.value === "light" ? "Light" : option.value === "dark" ? "Dark" : "System")}
+          className={cn(
+            "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
+            choice === option.value && "bg-sidebar-accent text-white",
+          )}
+          onClick={() => setTheme(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
     </div>
   );
 }
@@ -241,19 +246,39 @@ function AccountFoot({
     </span>
   );
   return (
-    <div className="mt-auto grid gap-2.5" onClick={onNavigate}>
-      <Item to="/account" icon={icon}>
-        {user.username}
-      </Item>
+    <div className="mt-auto grid w-full min-w-0 gap-2" onClick={onNavigate}>
       <ThemeSwitch />
-      <Button
-        variant="outline"
-        className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
-        type="button"
-        onClick={onLogout}
-      >
-        <LogOut /> {t("Sign out")}
-      </Button>
+      <div className="flex min-w-0 items-center gap-1">
+        <NavLink
+          to="/account"
+          className={({ isActive }) =>
+            cn(
+              "inline-flex h-7 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-xs font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
+              isActive && "bg-sidebar-accent text-white",
+            )
+          }
+        >
+          {icon}
+          <span className="truncate">{user.username}</span>
+        </NavLink>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon-sm"
+                type="button"
+                aria-label={t("Sign out")}
+                className="shrink-0 border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+                onClick={onLogout}
+              />
+            }
+          >
+            <LogOut />
+          </TooltipTrigger>
+          <TooltipContent>{t("Sign out")}</TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   );
 }
