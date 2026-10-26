@@ -115,6 +115,7 @@ export const linkFormPrefillSchema = z.object({
 
 export const suggestSlugSchema = z.object({
   destinationUrl: destinationSchema,
+  linkId: z.string().uuid().optional(),
 })
 
 export const analyticsFormPrefillSchema = z.object({

@@ -587,6 +587,7 @@ export function ChatConversation({
                         message={message}
                         submittingForm={submittingForm}
                         pendingProposal={pendingProposal}
+                        aiAvailable={available === true}
                         onConfirm={onConfirm}
                         onDismiss={onDismiss}
                         onSubmitForm={onSubmitForm}
@@ -644,6 +645,7 @@ function AssistantReply({
   message,
   submittingForm,
   pendingProposal,
+  aiAvailable,
   onConfirm,
   onDismiss,
   onSubmitForm,
@@ -651,6 +653,7 @@ function AssistantReply({
   message: ChatMessage;
   submittingForm: string | null;
   pendingProposal: PendingProposal | null;
+  aiAvailable: boolean;
   onConfirm: (proposalId: string) => void;
   onDismiss: (proposalId: string) => void;
   onSubmitForm: (formId: string, body: Record<string, unknown>) => void;
@@ -663,7 +666,12 @@ function AssistantReply({
       <CardContent className="grid gap-3">
         {message.content ? <AssistantText text={message.content} /> : null}
         {hasBlocks ? (
-          <ChatBlocks blocks={message.blocks ?? []} submitting={submittingForm} onSubmit={onSubmitForm} />
+          <ChatBlocks
+            blocks={message.blocks ?? []}
+            submitting={submittingForm}
+            aiAvailable={aiAvailable}
+            onSubmit={onSubmitForm}
+          />
         ) : null}
         {message.proposal ? (
           <ProposalCard proposal={message.proposal} pending={pending} onConfirm={onConfirm} onDismiss={onDismiss} />

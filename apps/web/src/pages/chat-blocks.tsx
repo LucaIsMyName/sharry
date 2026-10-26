@@ -50,10 +50,12 @@ export function CopyableUrl({ url }: { url: string }) {
 export function ChatBlocks({
   blocks,
   submitting,
+  aiAvailable,
   onSubmit,
 }: {
   blocks: ChatBlock[];
   submitting: string | null;
+  aiAvailable: boolean;
   onSubmit: (formId: string, body: Record<string, unknown>) => void;
 }) {
   const { t } = useI18n();
@@ -63,7 +65,13 @@ export function ChatBlocks({
       {blocks.map((block, index) => {
         if (block.type === "form") {
           return (
-            <FormCard key={block.id} block={block} submitting={submitting === block.id} onSubmit={onSubmit} />
+            <FormCard
+              key={block.id}
+              block={block}
+              submitting={submitting === block.id}
+              aiAvailable={aiAvailable}
+              onSubmit={onSubmit}
+            />
           );
         }
         if (block.type === "chart") {
@@ -110,13 +118,15 @@ export function ChatBlocks({
 function FormCard({
   block,
   submitting,
+  aiAvailable,
   onSubmit,
 }: {
   block: Extract<ChatBlock, { type: "form" }>;
   submitting: boolean;
+  aiAvailable: boolean;
   onSubmit: (formId: string, body: Record<string, unknown>) => void;
 }) {
-  if (block.form === "link") return <LinkForm block={block} submitting={submitting} onSubmit={onSubmit} />;
+  if (block.form === "link") return <LinkForm block={block} submitting={submitting} aiAvailable={aiAvailable} onSubmit={onSubmit} />;
   if (block.form === "analytics") return <AnalyticsForm block={block} submitting={submitting} onSubmit={onSubmit} />;
   return <CampaignForm block={block} submitting={submitting} onSubmit={onSubmit} />;
 }
@@ -124,10 +134,12 @@ function FormCard({
 function LinkForm({
   block,
   submitting,
+  aiAvailable,
   onSubmit,
 }: {
   block: Extract<ChatBlock, { type: "form" }>;
   submitting: boolean;
+  aiAvailable: boolean;
   onSubmit: (formId: string, body: Record<string, unknown>) => void;
 }) {
   const { t } = useI18n();
@@ -145,10 +157,15 @@ function LinkForm({
     setSuggesting(true);
     setSuggestError("");
     try {
-      const result = await api<{ slug: string; fromTitle: boolean }>("/api/ai/suggest-slug", {
+      const result = await api<{ slug: string | null; fromTitle: boolean }>("/api/ai/suggest-slug", {
         method: "POST",
         body: JSON.stringify({ destinationUrl }),
       });
+      if (!result.slug) {
+        setSuggested(false);
+        setSuggestError("Could not suggest a slug for that page.");
+        return;
+      }
       setSlug(result.slug);
       setSuggested(true);
       setFromTitle(result.fromTitle);
@@ -178,22 +195,24 @@ function LinkForm({
             <Field label="Custom slug">
               <div className="relative">
                 <Input
-                  className="pr-10"
+                  className={aiAvailable ? "pr-10" : undefined}
                   value={slug}
                   onChange={(event) => {
                     setSlug(event.target.value);
                     setSuggested(false);
                   }}
                 />
-                <button
-                  type="button"
-                  className="absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                  aria-label={t("Suggest a slug")}
-                  disabled={suggesting || !destinationUrl.trim()}
-                  onClick={() => void suggestSlug()}
-                >
-                  <Sparkles size={16} />
-                </button>
+                {aiAvailable ? (
+                  <button
+                    type="button"
+                    className="absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                    aria-label={t("Suggest a slug")}
+                    disabled={suggesting || !destinationUrl.trim()}
+                    onClick={() => void suggestSlug()}
+                  >
+                    <Sparkles size={16} />
+                  </button>
+                ) : null}
               </div>
             </Field>
             {suggested ? (

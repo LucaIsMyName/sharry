@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 import {
   Check,
   Copy,
@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Plus,
   Save,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -14,6 +15,7 @@ import {
   appSlug,
   applyUtm,
   defaultQrStyle,
+  destinationSchema,
   emptyRoutingChoices,
   qrWarnings,
   utmConflicts,
@@ -24,6 +26,7 @@ import {
   type UtmParams,
 } from "@sharry/shared";
 import {
+  ApiError,
   api,
   type Analytics,
   type LinkSummary,
@@ -433,6 +436,24 @@ function RedirectDomainField({
   );
 }
 
+function useAiAvailable() {
+  const [aiAvailable, setAiAvailable] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void api<{ available: boolean }>("/api/ai/status")
+      .then((status) => {
+        if (!cancelled) setAiAvailable(status.available);
+      })
+      .catch(() => {
+        if (!cancelled) setAiAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return aiAvailable;
+}
+
 export function LinkFormPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -448,6 +469,7 @@ export function LinkFormPage() {
     defaultRedirectDomain,
   );
   const [pending, setPending] = useState(false);
+  const aiAvailable = useAiAvailable();
 
   useEffect(() => {
     void api<PublicSettings>("/api/settings/public").then((value) => {
@@ -488,9 +510,14 @@ export function LinkFormPage() {
       <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-            <Field
-              label="Destination"
-              info={
+            <LinkSuggestFields
+              aiAvailable={aiAvailable}
+              destinationUrl={destinationUrl}
+              slug={slug}
+              title={title}
+              slugLabel="Custom slug"
+              titleFirst
+              destinationInfo={
                 conflicts.length > 0
                   ? t(
                       "Saving will replace {fields} already present on the destination.",
@@ -498,30 +525,15 @@ export function LinkFormPage() {
                     )
                   : undefined
               }
+              onDestination={setDestinationUrl}
+              onSlug={setSlug}
+              onTitle={setTitle}
             >
-              <Input
-                value={destinationUrl}
-                onChange={(event) => setDestinationUrl(event.target.value)}
-                required
+              <RedirectDomainField
+                value={redirectDomainId}
+                onValueChange={setRedirectDomainId}
               />
-            </Field>
-            <Field label="Title">
-              <Input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </Field>
-            <Field label="Custom slug">
-              <Input
-                value={slug}
-                onChange={(event) => setSlug(event.target.value)}
-                placeholder="Leave blank for a random slug"
-              />
-            </Field>
-            <RedirectDomainField
-              value={redirectDomainId}
-              onValueChange={setRedirectDomainId}
-            />
+            </LinkSuggestFields>
             <Field label="Redirect">
               <Select
                 value={redirectType}
@@ -545,6 +557,158 @@ export function LinkFormPage() {
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+const suggestButtonClass =
+  "absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50";
+
+export function LinkSuggestFields({
+  aiAvailable,
+  linkId,
+  destinationUrl,
+  slug,
+  title,
+  slugLabel = "Slug",
+  titleFirst = false,
+  destinationInfo,
+  onDestination,
+  onSlug,
+  onTitle,
+  children,
+}: {
+  aiAvailable: boolean;
+  linkId?: string;
+  destinationUrl: string;
+  slug: string;
+  title: string;
+  slugLabel?: string;
+  titleFirst?: boolean;
+  destinationInfo?: string;
+  onDestination: (value: string) => void;
+  onSlug: (value: string) => void;
+  onTitle: (value: string) => void;
+  children?: ReactNode;
+}) {
+  const { t } = useI18n();
+  const [suggesting, setSuggesting] = useState<"slug" | "title" | null>(null);
+  const [slugHint, setSlugHint] = useState<"title" | "page" | null>(null);
+  const [titleHint, setTitleHint] = useState(false);
+  const [slugError, setSlugError] = useState("");
+  const [titleError, setTitleError] = useState("");
+  async function suggest(field: "slug" | "title") {
+    if (!destinationUrl.trim() || suggesting) return;
+    setSuggesting(field);
+    if (field === "slug") setSlugError("");
+    else setTitleError("");
+    try {
+      const result = await api<{ slug: string | null; title: string; fromTitle: boolean }>("/api/ai/suggest-slug", {
+        method: "POST",
+        body: JSON.stringify({ destinationUrl, linkId }),
+      });
+      if (field === "slug") {
+        if (!result.slug) {
+          setSlugHint(null);
+          setSlugError("Could not suggest a slug for that page.");
+          return;
+        }
+        onSlug(result.slug);
+        setSlugHint(result.fromTitle ? "title" : "page");
+        return;
+      }
+      if (!result.title.trim()) {
+        setTitleHint(false);
+        setTitleError("Could not suggest a title for that page.");
+        return;
+      }
+      onTitle(result.title);
+      setTitleHint(true);
+    } catch (caught) {
+      const message = caught instanceof ApiError ? caught.message : "Could not suggest a slug for that page.";
+      if (field === "slug") {
+        setSlugHint(null);
+        setSlugError(message);
+      } else {
+        setTitleHint(false);
+        setTitleError(caught instanceof ApiError ? message : "Could not suggest a title for that page.");
+      }
+    } finally {
+      setSuggesting(null);
+    }
+  }
+  const ready = destinationSchema.safeParse(destinationUrl).success;
+  const slugFields = (
+    <>
+      <Field label={slugLabel}>
+        <div className="relative">
+          <Input
+            className={aiAvailable ? "pr-10" : undefined}
+            value={slug}
+            placeholder="Leave blank for a random slug"
+            onChange={(event) => {
+              onSlug(event.target.value);
+              setSlugHint(null);
+            }}
+          />
+          {aiAvailable ? (
+            <button
+              type="button"
+              className={suggestButtonClass}
+              aria-label={t("Suggest a slug")}
+              disabled={!ready || suggesting === "slug"}
+              onClick={() => void suggest("slug")}
+            >
+              <Sparkles size={16} />
+            </button>
+          ) : null}
+        </div>
+      </Field>
+      {slugHint ? (
+        <p className="text-sm text-muted-foreground">
+          {t(slugHint === "title" ? "Suggested from the page title." : "Suggested from the page.")}
+        </p>
+      ) : null}
+      {slugError ? <p className="text-sm text-destructive">{t(slugError)}</p> : null}
+    </>
+  );
+  const titleFields = (
+    <>
+      <Field label="Title">
+        <div className="relative">
+          <Input
+            className={aiAvailable ? "pr-10" : undefined}
+            value={title}
+            onChange={(event) => {
+              onTitle(event.target.value);
+              setTitleHint(false);
+            }}
+          />
+          {aiAvailable ? (
+            <button
+              type="button"
+              className={suggestButtonClass}
+              aria-label={t("Suggest a title")}
+              disabled={!ready || suggesting === "title"}
+              onClick={() => void suggest("title")}
+            >
+              <Sparkles size={16} />
+            </button>
+          ) : null}
+        </div>
+      </Field>
+      {titleHint ? <p className="text-sm text-muted-foreground">{t("Suggested from the page title.")}</p> : null}
+      {titleError ? <p className="text-sm text-destructive">{t(titleError)}</p> : null}
+    </>
+  );
+  return (
+    <>
+      <Field label="Destination" info={destinationInfo}>
+        <Input value={destinationUrl} onChange={(event) => onDestination(event.target.value)} required />
+      </Field>
+      {titleFirst ? titleFields : slugFields}
+      {titleFirst ? slugFields : children}
+      {titleFirst ? children : titleFields}
+    </>
   );
 }
 
@@ -585,6 +749,7 @@ export function LinkDetailPage() {
   const [savingQr, setSavingQr] = useState(false);
   const [copied, setCopied] = useState(false);
   const logoRequest = useRef(0);
+  const aiAvailable = useAiAvailable();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const copiedTimer = useRef<number | null>(null);
@@ -927,39 +1092,28 @@ export function LinkDetailPage() {
               disabled={locked}
               className="m-0 grid min-w-0 gap-3 border-0 p-0"
             >
-              <Field
-                label="Destination"
-                info={
+              <LinkSuggestFields
+                aiAvailable={aiAvailable}
+                linkId={id}
+                destinationUrl={destinationUrl}
+                slug={slug}
+                title={title}
+                destinationInfo={
                   conflicts.length > 0
                     ? t("This will replace {fields} on the destination.", {
                         fields: conflicts.join(", "),
                       })
                     : undefined
                 }
+                onDestination={setDestinationUrl}
+                onSlug={setSlug}
+                onTitle={setTitle}
               >
-                <Input
-                  value={destinationUrl}
-                  onChange={(event) => setDestinationUrl(event.target.value)}
-                  required
+                <RedirectDomainField
+                  value={redirectDomainId}
+                  onValueChange={setRedirectDomainId}
                 />
-              </Field>
-              <Field label="Slug">
-                <Input
-                  value={slug}
-                  onChange={(event) => setSlug(event.target.value)}
-                  placeholder="Leave blank for a random slug"
-                />
-              </Field>
-              <RedirectDomainField
-                value={redirectDomainId}
-                onValueChange={setRedirectDomainId}
-              />
-              <Field label="Title">
-                <Input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </Field>
+              </LinkSuggestFields>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Redirect">
                   <Select

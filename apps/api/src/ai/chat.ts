@@ -39,17 +39,19 @@ const newChatTitle = 'New chat'
 
 export function registerAiRoutes(app: FastifyInstance): void {
   /**
-   * Suggest a free custom slug from a destination page. Nothing is created.
+   * Suggest a free custom slug and the page title from a destination page. Nothing is created.
    * @route POST /api/ai/suggest-slug
    * @tag AI
    * @auth api-key or session
-   * @body JSON { destinationUrl }
-   * @response 200 { slug, fromTitle }
+   * @body JSON { destinationUrl, linkId? }
+   * @response 200 { slug, title, fromTitle }
    */
   app.post('/api/ai/suggest-slug', async (request) => {
     await requireUser(app, request, ['full'])
+    const settings = await getSettings(app.db, app.env)
+    if (!configured(settings)) throw new AppError(503, 'AI is not available.', 'ai_unavailable')
     const body = parseBody(suggestSlugSchema, request.body ?? {})
-    const suggested = await suggestFreeSlug(app.db, body.destinationUrl)
+    const suggested = await suggestFreeSlug(app.db, body.destinationUrl, { exceptLinkId: body.linkId })
     if (!suggested) throw new AppError(422, 'Could not suggest a slug for that page.')
     return suggested
   })

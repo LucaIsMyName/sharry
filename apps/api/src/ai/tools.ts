@@ -241,7 +241,7 @@ export async function formBlockFromCall(
     if (parsed.success && parsed.data.slug?.trim()) prefill.slug = parsed.data.slug.trim()
     if (prefill.destinationUrl && !prefill.slug) {
       const suggested = await suggestFreeSlug(db, prefill.destinationUrl).catch(() => null)
-      if (suggested) {
+      if (suggested?.slug) {
         prefill.slug = suggested.slug
         prefill.suggested = true
         prefill.fromTitle = suggested.fromTitle

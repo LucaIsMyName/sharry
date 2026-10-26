@@ -111,6 +111,13 @@ describe("chat conversation", () => {
     expect(screen.getByRole("option", { name: "Spring (spring)" })).toBeTruthy();
   });
 
+  it("hides the slug suggestion when AI is off", () => {
+    const linkForm: ChatBlock = { type: "form", id: "form-1", form: "link", status: "pending" };
+    renderConversation(false, [{ id: "m1", role: "assistant", content: "", proposal: null, blocks: [linkForm] }]);
+    expect(screen.queryByRole("button", { name: "Suggest a slug" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Custom slug" })).toBeTruthy();
+  });
+
   it("renders a heading and a table in the answer", () => {
     const table: ChatBlock = {
       type: "table",

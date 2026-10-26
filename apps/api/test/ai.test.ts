@@ -255,6 +255,24 @@ describe('AI settings and chat', () => {
     expect(await ctx.db.select().from(links)).toHaveLength(2)
   })
 
+  it('does not read a page when AI is off', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const fetched: string[] = []
+    vi.stubGlobal('fetch', async (url: string) => {
+      fetched.push(String(url))
+      return new Response('no')
+    })
+    const suggested = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/ai/suggest-slug',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/pricing/' },
+    })
+    expect(suggested.statusCode).toBe(503)
+    expect(fetched).toEqual([])
+  })
+
   it('suggests a free slug from the destination page and keeps a typed slug', async () => {
     const ctx = await getContext()
     const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
@@ -296,7 +314,7 @@ describe('AI settings and chat', () => {
         payload: { destinationUrl: 'https://example.com/pricing/' },
       })
       expect(suggested.statusCode).toBe(200)
-      expect(suggested.json()).toEqual({ slug: 'pricing-ipstack', fromTitle: true })
+      expect(suggested.json()).toEqual({ slug: 'pricing-ipstack', title: 'Pricing | ipstack', fromTitle: true })
       expect(await ctx.db.select().from(links)).toHaveLength(0)
 
       const created = await ctx.app.inject({
@@ -312,7 +330,14 @@ describe('AI settings and chat', () => {
         headers: { cookie: user.cookie },
         payload: { destinationUrl: 'https://example.com/pricing/' },
       })
-      expect(next.json()).toEqual({ slug: 'example-pricing', fromTitle: false })
+      expect(next.json()).toEqual({ slug: 'example-pricing', title: 'Pricing | ipstack', fromTitle: false })
+      const own = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-slug',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'https://example.com/pricing/', linkId: created.json().id },
+      })
+      expect(own.json()).toEqual({ slug: 'pricing-ipstack', title: 'Pricing | ipstack', fromTitle: true })
 
       const local = await ctx.app.inject({
         method: 'POST',

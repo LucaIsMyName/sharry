@@ -179,11 +179,11 @@ function Item({
       end={end}
       className={({ isActive }) =>
         cn(
-          "flex min-w-0 items-center rounded-md border-l-2 border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
+          "flex min-w-0 items-center  border rounded-md border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
           compact
             ? "gap-2 px-2.5 py-1.5 text-xs"
             : "gap-2.5 px-2.5 py-2 text-sm",
-          isActive && "border-primary bg-sidebar-accent text-white",
+          isActive && "border-muted-foreground bg-sidebar-accent text-white",
           className,
         )
       }

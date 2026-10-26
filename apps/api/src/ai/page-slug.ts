@@ -76,19 +76,27 @@ export function titleFromHtml(html: string): string {
   return decodeHtml((title?.[1] ?? '').replace(/\s+/g, ' ').trim())
 }
 
+const titleLimit = 200
+
+export function clipPageTitle(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().slice(0, titleLimit)
+}
+
 export async function suggestFreeSlug(
   db: Database,
   destinationUrl: string,
-  io: PageIo = pageIo,
-): Promise<{ slug: string; fromTitle: boolean } | null> {
-  const page = await readPublicPage(destinationUrl, io)
+  options: { io?: PageIo; exceptLinkId?: string } = {},
+): Promise<{ slug: string | null; title: string; fromTitle: boolean } | null> {
+  const page = await readPublicPage(destinationUrl, options.io ?? pageIo)
   if (!page) return null
+  const title = clipPageTitle(page.title)
   const titleSlug = slugify(page.title)
   for (const slug of slugCandidates(page.finalUrl, page.title)) {
-    if (await findBySlug(db, slug)) continue
-    return { slug, fromTitle: slug === titleSlug }
+    const taken = await findBySlug(db, slug)
+    if (taken && taken.id !== options.exceptLinkId) continue
+    return { slug, title, fromTitle: slug === titleSlug }
   }
-  return null
+  return { slug: null, title, fromTitle: false }
 }
 
 export async function readPublicPage(
