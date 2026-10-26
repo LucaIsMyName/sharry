@@ -84,7 +84,7 @@ function ResultsTable({ report }: { report: TestRunReport }) {
                   : "bg-green-600/20 hover:bg-green-600/30 dark:bg-green-400/20 dark:hover:bg-green-400/30"
               }
             >
-              <TableCell className="whitespace-normal font-mono text-xs">
+              <TableCell className="font-mono text-xs">
                 {file.file}
               </TableCell>
               <TableCell>{file.passed}</TableCell>

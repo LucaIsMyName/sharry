@@ -123,12 +123,14 @@ function ClickableTableRow({
           <Link
             aria-label={label}
             className="pointer-events-none absolute inset-0 z-0 focus-visible:outline-2 focus-visible:outline-ring"
+            data-row-hit
             to={to}
           />
         ) : (
           <button
             aria-label={label}
             className="pointer-events-none absolute inset-0 z-0 focus-visible:outline-2 focus-visible:outline-ring"
+            data-row-hit
             type="button"
             onClick={(event) => {
               event.stopPropagation();
@@ -154,16 +156,39 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   );
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function cellText(children: React.ReactNode): string | undefined {
+  const items = React.Children.toArray(children).filter(
+    (item): item is string => typeof item === "string",
+  );
+  const text = items.map((item) => item.trim()).filter(Boolean);
+  return text.length === 1 ? text[0] : undefined;
+}
+
+function TableCell({
+  className,
+  title,
+  children,
+  ...props
+}: React.ComponentProps<"td">) {
+  const text = cellText(children);
   return (
     <td
       data-slot="table-cell"
+      title={title ?? text}
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "max-w-64 truncate p-2 align-middle [&:has([role=checkbox])]:pr-0",
+        "not-data-row-action:not-has-[button:not([data-row-hit])]:not-has-[[data-slot=button]]:not-has-[[data-slot=button-group]]:not-has-[[data-slot=select-trigger]]:[&>*:not([data-row-hit])]:truncate",
+        "has-[button:not([data-row-hit])]:max-w-none has-[button:not([data-row-hit])]:overflow-visible has-[button:not([data-row-hit])]:text-clip",
+        "has-[[data-slot=button]]:max-w-none has-[[data-slot=button]]:overflow-visible has-[[data-slot=button]]:text-clip",
+        "has-[[data-slot=button-group]]:max-w-none has-[[data-slot=button-group]]:overflow-visible has-[[data-slot=button-group]]:text-clip",
+        "has-[[data-slot=select-trigger]]:max-w-none has-[[data-slot=select-trigger]]:overflow-visible has-[[data-slot=select-trigger]]:text-clip",
+        "data-row-action:max-w-none data-row-action:overflow-visible data-row-action:text-clip",
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </td>
   );
 }
 

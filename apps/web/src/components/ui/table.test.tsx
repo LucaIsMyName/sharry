@@ -77,3 +77,48 @@ describe("ClickableTableRow", () => {
     expect(onSelect).toHaveBeenCalledOnce();
   });
 });
+
+describe("TableCell", () => {
+  it("caps text and leaves the full string on the cell", () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell>Summer sale</TableCell>
+            <TableCell title="Kept">Short</TableCell>
+          </tr>
+        </tbody>
+      </table>,
+    );
+
+    const text = screen.getByRole("cell", { name: "Summer sale" });
+    expect(text.className).toContain("max-w-64");
+    expect(text.className).toContain("truncate");
+    expect(text.getAttribute("title")).toBe("Summer sale");
+    expect(screen.getByRole("cell", { name: "Short" }).getAttribute("title")).toBe("Kept");
+  });
+
+  it("keeps buttons and row actions from taking the text cap", () => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <TableCell>
+              <button type="button">Revoke</button>
+            </TableCell>
+            <TableCell data-row-action>
+              <a href="https://example.com">Test</a>
+            </TableCell>
+          </tr>
+        </tbody>
+      </table>,
+    );
+
+    const buttonCell = screen.getByRole("button", { name: "Revoke" }).closest("td");
+    const actionCell = screen.getByRole("link", { name: "Test" }).closest("td");
+    expect(buttonCell?.className).toContain("has-[button:not([data-row-hit])]:max-w-none");
+    expect(buttonCell?.className).toContain("has-[[data-slot=button]]:max-w-none");
+    expect(buttonCell?.className).toContain("has-[[data-slot=button-group]]:max-w-none");
+    expect(actionCell?.className).toContain("data-row-action:max-w-none");
+  });
+});

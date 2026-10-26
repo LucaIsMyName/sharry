@@ -284,7 +284,7 @@ export function AdminUsersPage() {
                   id={focusRowId(user.id)}
                   className={rowFocusClass(user.id, focus)}
                 >
-                  <TableCell className="whitespace-normal">
+                  <TableCell>
                     {user.username}
                     <div className="text-sm text-muted-foreground">
                       {user.email}
@@ -300,7 +300,7 @@ export function AdminUsersPage() {
                       onValueChange={(role) => void update(user.id, { role })}
                     />
                   </TableCell>
-                  <TableCell className="whitespace-normal">
+                  <TableCell>
                     <span className="inline-flex flex-wrap items-center gap-2">
                       <Badge variant={user.isActive ? "secondary" : "outline"}>
                         {user.isActive ? t("Active") : t("Disabled")}
@@ -871,7 +871,7 @@ export function AdminAuditPage() {
       ) : entries.length === 0 ? (
         <EmptyState>{t("No audit events yet.")}</EmptyState>
       ) : (
-        <Table className="min-w-full w-max">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead>{t("When")}</TableHead>
@@ -893,7 +893,7 @@ export function AdminAuditPage() {
                     <RelativeTime value={entry.createdAt} />
                   </TableCell>
                   <TableCell>{entry.actorUsername ?? "—"}</TableCell>
-                  <TableCell className="whitespace-normal" title={entry.action}>
+                  <TableCell title={entry.action}>
                     {sentence ? (
                       <div>
                         <div>{t(sentence)}</div>

@@ -14,9 +14,9 @@ Lass den Slug leer, um einen zu erzeugen. Die Länge kommt aus den Einstellungen
 
 ## Die Linkliste
 
-Die Linkseite lädt 50 auf einmal. Mehr laden zeigt den Rest. Die Suche trifft Slug, Titel oder Ziel. Jede Zeile zeigt die Klickzahl. Auf einem schmalen Bildschirm scrollt die Tabelle seitlich, damit die Spalten lesbar bleiben. Der Status ist Aktiv oder Pausiert. Das Test-Symbol öffnet die Kurz-URL in einem neuen Tab.
+Die Linkseite lädt 50 auf einmal. Mehr laden zeigt den Rest. Die Suche trifft Slug, Titel oder Ziel. Jede Zeile zeigt die Klickzahl. Text, der länger als die Zelle ist, endet mit einer Auslassung. Auf einem schmalen Bildschirm scrollt die Tabelle seitlich, damit die Spalten lesbar bleiben. Der Status ist Aktiv oder Pausiert. Das Test-Symbol öffnet die Kurz-URL in einem neuen Tab.
 
-Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht und bearbeitet jeden Link. Die Einstellungen können Benutzer die Links der anderen sehen lassen, sie nur ansehen oder bearbeiten, und optional Admin-Links sehen oder ändern. Ein Link, den du öffnen kannst, zeigt, wer ihn erstellt hat und wer ihn zuletzt geändert hat. Die Linkliste ergänzt Erstellt von, wenn sie den Link einer anderen Person enthalten kann. Zuletzt geändert von ist Unbekannt, wenn Sharry nicht weiß, wer gespeichert hat.
+Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht und bearbeitet jeden Link. Die Einstellungen können Benutzer die Links der anderen sehen lassen, sie nur ansehen oder bearbeiten, und optional Admin-Links sehen oder ändern. Enthält die Liste einen Link, den du ansehen aber nicht ändern kannst, ist jede Zeile mit Bearbeitbar oder Nur ansehen markiert. Der Titel eines solchen Links ist blasser als der eines bearbeitbaren Links. Ein Link, den du öffnen kannst, zeigt, wer ihn erstellt hat und wer ihn zuletzt geändert hat. Die Linkliste ergänzt Erstellt von, wenn sie den Link einer anderen Person enthalten kann. Zuletzt geändert von ist Unbekannt, wenn Sharry nicht weiß, wer gespeichert hat.
 
 ## Anlegen und bearbeiten
 

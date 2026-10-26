@@ -14,9 +14,9 @@ Leave the slug blank to generate one. The length comes from Settings and is betw
 
 ## The links list
 
-The links page loads 50 at a time. Load more shows the rest. Search matches the slug, title, or destination. Each row shows the click total. On a narrow screen the table scrolls sideways so the columns stay readable. Status is Active or Paused. The test icon opens the short URL in a new tab.
+The links page loads 50 at a time. Load more shows the rest. Search matches the slug, title, or destination. Each row shows the click total. Text longer than the cell ends in an ellipsis. On a narrow screen the table scrolls sideways so the columns stay readable. Status is Active or Paused. The test icon opens the short URL in a new tab.
 
-You see your own links. An administrator sees and edits every link. Settings can let users see each other’s links, view or edit them, and optionally see or change links owned by administrators. A link you can open shows who created it and who last changed it. The links list adds Created by when it can include someone else’s link. Last changed by is Unknown when Sharry does not know who saved it.
+You see your own links. An administrator sees and edits every link. Settings can let users see each other’s links, view or edit them, and optionally see or change links owned by administrators. When the list includes a link you can view but not change, each row is marked Editable or View only. A view-only title is quieter than an editable one. A link you can open shows who created it and who last changed it. The links list adds Created by when it can include someone else’s link. Last changed by is Unknown when Sharry does not know who saved it.
 
 ## Creating and editing
 

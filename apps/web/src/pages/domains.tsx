@@ -183,7 +183,7 @@ export function AdminDomainsPage() {
                 id={focusRowId(domain.id)}
                 className={rowFocusClass(domain.id, focus)}
               >
-                <TableCell className="whitespace-normal">
+                <TableCell>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-mono text-sm">
                       {domain.hostname}

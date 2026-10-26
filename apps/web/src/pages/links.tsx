@@ -10,6 +10,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { cn } from "cn";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   appSlug,
@@ -130,17 +131,41 @@ function previewDestination(destination: string, utm: UtmParams): string {
 
 const linkPageSize = 50;
 
-function LinkCards({ links }: { links: LinkSummary[] }) {
+function AccessBadge({ canEdit }: { canEdit?: boolean }) {
+  const { t } = useI18n();
+  const viewOnly = canEdit === false;
+  return (
+    <Badge variant={viewOnly ? "outline" : "secondary"}>
+      {viewOnly ? t("View only") : t("Editable")}
+    </Badge>
+  );
+}
+
+function LinkCards({
+  links,
+  showAccess,
+}: {
+  links: LinkSummary[];
+  showAccess: boolean;
+}) {
   const { t } = useI18n();
   return (
     <ul className="grid gap-2 md:hidden">
       {links.map((link) => {
         const name = link.title?.trim() || link.slug;
+        const viewOnly = link.canEdit === false;
         return (
           <li key={link.id} className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
             <div className="flex items-start justify-between gap-3">
               <Link className="min-w-0 flex-1" to={`/links/${link.id}`}>
-                <span className="block truncate font-medium">{name}</span>
+                <span
+                  className={cn(
+                    "block truncate font-medium",
+                    viewOnly && "text-muted-foreground",
+                  )}
+                >
+                  {name}
+                </span>
                 <span className="mt-1 block text-sm text-muted-foreground">
                   {t("Clicks")} <span className="tabular-nums">{link.clicks}</span>
                 </span>
@@ -150,6 +175,7 @@ function LinkCards({ links }: { links: LinkSummary[] }) {
                 <Badge variant={link.status === "active" ? "secondary" : "outline"}>
                   {link.status === "active" ? t("Active") : t("Paused")}
                 </Badge>
+                {showAccess ? <AccessBadge canEdit={link.canEdit} /> : null}
                 <a
                   className={buttonVariants({ variant: "outline", size: "icon-sm" })}
                   href={link.shortUrl}
@@ -225,6 +251,8 @@ export function LinksPage() {
     }
   }
 
+  const showAccess = links.some((link) => link.canEdit === false);
+
   return (
     <section>
       <PageHeader
@@ -267,9 +295,9 @@ export function LinksPage() {
           </EmptyState>
         ) : (
           <>
-          <LinkCards links={links} />
+          <LinkCards links={links} showAccess={showAccess} />
           <div className="hidden md:block">
-          <Table className="min-w-full w-max">
+          <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("Title")}</TableHead>
@@ -279,6 +307,7 @@ export function LinksPage() {
                 <TableHead>{t("Short URL")}</TableHead>
                 <TableHead>{t("Destination")}</TableHead>
                 <TableHead>{t("Status")}</TableHead>
+                {showAccess ? <TableHead>{t("Access")}</TableHead> : null}
                 <TableHead>{t("Clicks")}</TableHead>
                 <TableHead>
                   <span className="sr-only">{t("Test")}</span>
@@ -288,28 +317,34 @@ export function LinksPage() {
             <TableBody>
               {links.map((link) => {
                 const name = link.title?.trim() || link.slug;
+                const viewOnly = link.canEdit === false;
                 return (
                   <ClickableTableRow
                     key={link.id}
                     to={`/links/${link.id}`}
                     label={name}
                   >
-                    <TableCell className="truncate font-medium">
+                    <TableCell
+                      className={cn(
+                        "font-medium",
+                        viewOnly && "text-muted-foreground",
+                      )}
+                    >
                       {name}
                     </TableCell>
                     {links.some((item) => "owner" in item) ? (
-                      <TableCell className="truncate">
+                      <TableCell>
                         {link.owner?.username ?? t("Unknown")}
                       </TableCell>
                     ) : null}
                     <TableCell
-                      className="truncate font-mono text-sm text-muted-foreground"
+                      className="font-mono text-sm text-muted-foreground"
                       title={link.shortUrl}
                     >
                       {link.shortUrl}
                     </TableCell>
                     <TableCell
-                      className="truncate text-muted-foreground"
+                      className="text-muted-foreground"
                       title={link.destinationUrl}
                     >
                       {link.destinationUrl}
@@ -323,6 +358,11 @@ export function LinksPage() {
                         {link.status === "active" ? t("Active") : t("Paused")}
                       </Badge>
                     </TableCell>
+                    {showAccess ? (
+                      <TableCell>
+                        <AccessBadge canEdit={link.canEdit} />
+                      </TableCell>
+                    ) : null}
                     <TableCell className="tabular-nums">
                       {link.clicks}
                     </TableCell>

@@ -134,11 +134,11 @@ export function DashboardPage() {
                   const name = link.title?.trim() || link.slug;
                   return (
                   <ClickableTableRow key={link.id} to={`/links/${link.id}`} label={name}>
-                    <TableCell className="truncate font-medium">
+                    <TableCell className="font-medium">
                       {name}
                     </TableCell>
                     <TableCell
-                      className="truncate text-muted-foreground"
+                      className="text-muted-foreground"
                       title={link.destinationUrl}
                     >
                       {link.destinationUrl}

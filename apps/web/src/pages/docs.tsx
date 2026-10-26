@@ -226,7 +226,9 @@ const markdownComponents: Components = {
     </blockquote>
   ),
   table: ({ children }) => (
-    <table className="mt-3 w-full text-left text-sm">{children}</table>
+    <div className="mt-3 min-w-0 max-w-full overflow-x-auto">
+      <table className="w-full text-left text-sm">{children}</table>
+    </div>
   ),
   th: ({ children }) => (
     <th className="border-b px-2 py-1 font-medium">{children}</th>

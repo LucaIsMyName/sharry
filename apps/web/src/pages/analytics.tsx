@@ -157,7 +157,7 @@ export function AnalyticsPage() {
               {t("No links yet.")}
             </EmptyState>
           ) : (
-            <Table className="min-w-full w-max">
+            <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("Link")}</TableHead>

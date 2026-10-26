@@ -1,7 +1,9 @@
 import path from 'node:path'
 import { defineConfig } from 'vitest/config'
+import { apiDocsPlugin } from './apps/web/api-docs-plugin.ts'
 
 export default defineConfig({
+  plugins: [apiDocsPlugin(path.join(import.meta.dirname, 'apps/api/src'))],
   resolve: {
     alias: {
       '@': path.join(import.meta.dirname, 'apps/web/src'),

@@ -195,14 +195,14 @@ export function ApiKeysPage() {
                   id={focusRowId(key.id)}
                   className={rowFocusClass(key.id, focus)}
                 >
-                  <TableCell className="whitespace-normal">
+                  <TableCell>
                     {key.name}
                   </TableCell>
                   <TableCell>{key.username}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {key.tokenPrefix}
                   </TableCell>
-                  <TableCell className="whitespace-normal">
+                  <TableCell>
                     {key.revokedAt ? (
                       <Badge variant="outline">{t("Revoked")}</Badge>
                     ) : key.lastUsedAt ? (
