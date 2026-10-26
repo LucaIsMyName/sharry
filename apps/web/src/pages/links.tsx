@@ -205,25 +205,28 @@ export function LinksPage() {
         />
       </Field>
       <div className="mt-4 min-w-0">
-          {loading ? (
-            <EmptyState>{t("Loading links…")}</EmptyState>
-          ) : links.length === 0 ? (
-            <EmptyState
-              action={
-                failed || query.trim() ? null : (
-                  <Link className={buttonVariants({ size: "sm" })} to="/links/new">
-                    <Plus /> {t("New link")}
-                  </Link>
-                )
-              }
-            >
-              {failed
-                ? t("Could not load links.")
-                : query.trim()
-                  ? t("No links match.")
-                  : t("No links yet.")}
-            </EmptyState>
-          ) : (
+        {loading ? (
+          <EmptyState>{t("Loading links…")}</EmptyState>
+        ) : links.length === 0 ? (
+          <EmptyState
+            action={
+              failed || query.trim() ? null : (
+                <Link
+                  className={buttonVariants({ size: "sm" })}
+                  to="/links/new"
+                >
+                  <Plus /> {t("New link")}
+                </Link>
+              )
+            }
+          >
+            {failed
+              ? t("Could not load links.")
+              : query.trim()
+                ? t("No links match.")
+                : t("No links yet.")}
+          </EmptyState>
+        ) : (
           <Table className="min-w-full w-max">
             <TableHeader>
               <TableRow>
@@ -241,10 +244,14 @@ export function LinksPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-                {links.map((link) => {
-                  const name = link.title?.trim() || link.slug;
-                  return (
-                  <ClickableTableRow key={link.id} to={`/links/${link.id}`} label={name}>
+              {links.map((link) => {
+                const name = link.title?.trim() || link.slug;
+                return (
+                  <ClickableTableRow
+                    key={link.id}
+                    to={`/links/${link.id}`}
+                    label={name}
+                  >
                     <TableCell className="truncate font-medium">
                       {name}
                     </TableCell>
@@ -292,27 +299,27 @@ export function LinksPage() {
                       </a>
                     </TableCell>
                   </ClickableTableRow>
-                  );
-                })}
+                );
+              })}
             </TableBody>
           </Table>
-          )}
-          {!loading && links.length < total ? (
-            <Button
-              className="mt-4"
-              variant="outline"
-              type="button"
-              disabled={loadingMore}
-              onClick={() => void loadMore()}
-            >
-              {loadingMore
-                ? t("Loading…")
-                : t("Load more ({shown} of {total})", {
-                    shown: links.length,
-                    total,
-                  })}
-            </Button>
-          ) : null}
+        )}
+        {!loading && links.length < total ? (
+          <Button
+            className="mt-4"
+            variant="outline"
+            type="button"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+          >
+            {loadingMore
+              ? t("Loading…")
+              : t("Load more ({shown} of {total})", {
+                  shown: links.length,
+                  total,
+                })}
+          </Button>
+        ) : null}
       </div>
     </section>
   );
@@ -332,13 +339,17 @@ function RedirectDomainField({
   onValueChange: (value: string) => void;
 }) {
   const { t } = useI18n();
-  const [domains, setDomains] = useState<{ id: string; hostname: string }[]>([]);
+  const [domains, setDomains] = useState<{ id: string; hostname: string }[]>(
+    [],
+  );
   const [defaultHost, setDefaultHost] = useState("Default");
 
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
-      api<{ domains: { id: string; hostname: string }[] }>("/api/redirect-domains"),
+      api<{ domains: { id: string; hostname: string }[] }>(
+        "/api/redirect-domains",
+      ),
       api<PublicSettings>("/api/settings/public"),
     ])
       .then(([list, settings]) => {
@@ -365,7 +376,10 @@ function RedirectDomainField({
             value: defaultRedirectDomain,
             label: t("{host} (default)", { host: defaultHost }),
           },
-          ...domains.map((domain) => ({ value: domain.id, label: domain.hostname })),
+          ...domains.map((domain) => ({
+            value: domain.id,
+            label: domain.hostname,
+          })),
         ]}
         onValueChange={onValueChange}
       />
@@ -389,7 +403,9 @@ export function LinkFormPage() {
     "301" | "302" | "307" | "308"
   >("302");
   const [utm, setUtm] = useState<UtmParams>(emptyUtm);
-  const [redirectDomainId, setRedirectDomainId] = useState(defaultRedirectDomain);
+  const [redirectDomainId, setRedirectDomainId] = useState(
+    defaultRedirectDomain,
+  );
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -461,7 +477,10 @@ export function LinkFormPage() {
                 placeholder="Leave blank for a random slug"
               />
             </Field>
-            <RedirectDomainField value={redirectDomainId} onValueChange={setRedirectDomainId} />
+            <RedirectDomainField
+              value={redirectDomainId}
+              onValueChange={setRedirectDomainId}
+            />
             <Field label="Redirect">
               <Select
                 value={redirectType}
@@ -504,8 +523,12 @@ export function LinkDetailPage() {
   const [password, setPassword] = useState("");
   const [utm, setUtm] = useState<UtmParams>(emptyUtm);
   const [routes, setRoutes] = useState<RoutingRule[]>([]);
-  const [routingChoices, setRoutingChoices] = useState<RoutingChoices>(emptyRoutingChoices());
-  const [redirectDomainId, setRedirectDomainId] = useState(defaultRedirectDomain);
+  const [routingChoices, setRoutingChoices] = useState<RoutingChoices>(
+    emptyRoutingChoices(),
+  );
+  const [redirectDomainId, setRedirectDomainId] = useState(
+    defaultRedirectDomain,
+  );
   const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
   const [style, setStyle] = useState<QrStyle>(defaultQrStyle);
   const [qrName, setQrName] = useState("Default");
@@ -795,14 +818,14 @@ export function LinkDetailPage() {
               >
                 {link.shortUrl}
               </a>
-              <div
-              className="flex gap-3 items-center mt-2"
-              ><p className="text-sm text-muted-foreground text-xs">
-                {t("Created by")} {link.owner?.username ?? t("Unknown")}
-              </p>
-              <p className="text-sm text-muted-foreground text-xs">
-                {t("Last changed by")} {link.updatedBy?.username ?? t("Unknown")}
-              </p>
+              <div className="flex gap-3 items-center mt-2 sr-only">
+                <p className="text-sm text-muted-foreground text-xs">
+                  {t("Created by")} {link.owner?.username ?? t("Unknown")}
+                </p>
+                <p className="text-sm text-muted-foreground text-xs">
+                  {t("Last changed by")}{" "}
+                  {link.updatedBy?.username ?? t("Unknown")}
+                </p>
               </div>
               {locked ? (
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -857,119 +880,119 @@ export function LinkDetailPage() {
       ) : null}
       <Card>
         <CardContent>
-          <form
-            id="link-editor"
-            onSubmit={(event) => void save(event)}
-          >
+          <form id="link-editor" onSubmit={(event) => void save(event)}>
             <fieldset
               disabled={locked}
               className="m-0 grid min-w-0 gap-3 border-0 p-0"
             >
-            <Field
-              label="Destination"
-              info={
-                conflicts.length > 0
-                  ? t("This will replace {fields} on the destination.", {
-                      fields: conflicts.join(", "),
-                    })
-                  : undefined
-              }
-            >
-              <Input
-                value={destinationUrl}
-                onChange={(event) => setDestinationUrl(event.target.value)}
-                required
-              />
-            </Field>
-            <Field label="Slug">
-              <Input
-                value={slug}
-                onChange={(event) => setSlug(event.target.value)}
-                placeholder="Leave blank for a random slug"
-              />
-            </Field>
-            <RedirectDomainField value={redirectDomainId} onValueChange={setRedirectDomainId} />
-            <Field label="Title">
-              <Input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Redirect">
-                <Select
-                  value={redirectType}
-                  options={redirectOptions.map(({ value, label }) => ({
-                    value,
-                    label,
-                  }))}
-                  onValueChange={setRedirectType}
+              <Field
+                label="Destination"
+                info={
+                  conflicts.length > 0
+                    ? t("This will replace {fields} on the destination.", {
+                        fields: conflicts.join(", "),
+                      })
+                    : undefined
+                }
+              >
+                <Input
+                  value={destinationUrl}
+                  onChange={(event) => setDestinationUrl(event.target.value)}
+                  required
                 />
-                <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">
-                  {t(choiceNote(redirectOptions, redirectType))}
+              </Field>
+              <Field label="Slug">
+                <Input
+                  value={slug}
+                  onChange={(event) => setSlug(event.target.value)}
+                  placeholder="Leave blank for a random slug"
+                />
+              </Field>
+              <RedirectDomainField
+                value={redirectDomainId}
+                onValueChange={setRedirectDomainId}
+              />
+              <Field label="Title">
+                <Input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Redirect">
+                  <Select
+                    value={redirectType}
+                    options={redirectOptions.map(({ value, label }) => ({
+                      value,
+                      label,
+                    }))}
+                    onValueChange={setRedirectType}
+                  />
+                  <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">
+                    {t(choiceNote(redirectOptions, redirectType))}
+                  </p>
+                </Field>
+                <Field label="Status">
+                  <Select
+                    value={status}
+                    options={[...statusOptions]}
+                    onValueChange={setStatus}
+                  />
+                </Field>
+              </div>
+              <Field label="Expires">
+                <Input
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={(event) => setExpiresAt(event.target.value)}
+                />
+              </Field>
+              <Field
+                label={link?.hasPassword ? "Replace password" : "Password"}
+              >
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={
+                    link?.hasPassword ? "Leave blank to keep it." : "Optional"
+                  }
+                  autoComplete="new-password"
+                />
+                <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+                  {t(
+                    "Visitors must enter this password before the short link redirects.",
+                  )}
+                  {link?.hasPassword ? t(" A password is already saved.") : ""}
                 </p>
               </Field>
-              <Field label="Status">
-                <Select
-                  value={status}
-                  options={[...statusOptions]}
-                  onValueChange={setStatus}
-                />
-              </Field>
-            </div>
-            <Field label="Expires">
-              <Input
-                type="datetime-local"
-                value={expiresAt}
-                onChange={(event) => setExpiresAt(event.target.value)}
-              />
-            </Field>
-            <Field label={link?.hasPassword ? "Replace password" : "Password"}>
-              <Input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={
-                  link?.hasPassword ? "Leave blank to keep it." : "Optional"
-                }
-                autoComplete="new-password"
-              />
-              <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                {t(
-                  "Visitors must enter this password before the short link redirects.",
-                )}
-                {link?.hasPassword
-                  ? t(" A password is already saved.")
-                  : ""}
+              {link?.hasPassword && !locked ? (
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => void clearPassword()}
+                >
+                  <Trash2 /> {t("Remove password")}
+                </Button>
+              ) : null}
+              <UtmFields utm={utm} onChange={setUtm} />
+              <p className="text-sm text-muted-foreground truncate">
+                {t("Tracked URL: {url}", {
+                  url: previewDestination(destinationUrl, utm),
+                })}
               </p>
-            </Field>
-            {link?.hasPassword && !locked ? (
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => void clearPassword()}
-              >
-                <Trash2 /> {t("Remove password")}
-              </Button>
-            ) : null}
-            <UtmFields utm={utm} onChange={setUtm} />
-            <p className="text-sm text-muted-foreground truncate">
-              {t("Tracked URL: {url}", {
-                url: previewDestination(destinationUrl, utm),
-              })}
-            </p>
-            <RouteBuilder
-              rules={routes}
-              choices={routingChoices}
-              utm={utm}
-              locale={locale}
-              onChange={setRoutes}
-            />
-            {locked ? null : (
-              <Button type="submit" disabled={saving}>
-                <Save /> {saving ? t("Saving…") : t("Save link")}
-              </Button>
-            )}
+              <RouteBuilder
+                rules={routes}
+                choices={routingChoices}
+                utm={utm}
+                locale={locale}
+                onChange={setRoutes}
+              />
+              {locked ? null : (
+                <Button type="submit" disabled={saving}>
+                  <Save /> {saving ? t("Saving…") : t("Save link")}
+                </Button>
+              )}
             </fieldset>
           </form>
         </CardContent>
@@ -992,155 +1015,165 @@ export function LinkDetailPage() {
                 disabled={locked}
                 className="m-0 grid min-w-0 gap-3 border-0 p-0"
               >
-              <h2 className="text-lg font-medium">{t("QR code")}</h2>
-              <Field label="Name">
-                <Input
-                  value={qrName}
-                  onChange={(event) => setQrName(event.target.value)}
-                  required
-                />
-              </Field>
-              <Field label="Campaign variant">
-                <Select
-                  value={trackingVariantId}
-                  placeholder="No variant"
-                  options={[
-                    { value: noVariant, label: t("No variant") },
-                    ...variants.map((variant) => ({
-                      value: variant.id,
-                      label: variant.name,
-                    })),
-                  ]}
-                  onValueChange={setTrackingVariantId}
-                />
-                <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                  {t(
-                    "The QR code uses this variant’s UTM values when someone scans it.",
-                  )}
-                </p>
-              </Field>
-              <Field label="Modules">
-                <Select
-                  value={style.dotsType}
-                  options={[...moduleOptions]}
-                  onValueChange={(dotsType) => setStyle({ ...style, dotsType })}
-                />
-              </Field>
-              <Field label="Finder">
-                <Select
-                  value={style.cornersSquareType}
-                  options={[...finderOptions]}
-                  onValueChange={(cornersSquareType) =>
-                    setStyle({ ...style, cornersSquareType })
-                  }
-                />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Foreground" info={scanWarning("contrast")}>
+                <h2 className="text-lg font-medium">{t("QR code")}</h2>
+                <Field label="Name">
                   <Input
-                    type="color"
-                    value={style.dotsColor}
+                    value={qrName}
+                    onChange={(event) => setQrName(event.target.value)}
+                    required
+                  />
+                </Field>
+                <Field label="Campaign variant">
+                  <Select
+                    value={trackingVariantId}
+                    placeholder="No variant"
+                    options={[
+                      { value: noVariant, label: t("No variant") },
+                      ...variants.map((variant) => ({
+                        value: variant.id,
+                        label: variant.name,
+                      })),
+                    ]}
+                    onValueChange={setTrackingVariantId}
+                  />
+                  <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+                    {t(
+                      "The QR code uses this variant’s UTM values when someone scans it.",
+                    )}
+                  </p>
+                </Field>
+                <Field label="Modules">
+                  <Select
+                    value={style.dotsType}
+                    options={[...moduleOptions]}
+                    onValueChange={(dotsType) =>
+                      setStyle({ ...style, dotsType })
+                    }
+                  />
+                </Field>
+                <Field label="Finder">
+                  <Select
+                    value={style.cornersSquareType}
+                    options={[...finderOptions]}
+                    onValueChange={(cornersSquareType) =>
+                      setStyle({ ...style, cornersSquareType })
+                    }
+                  />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Foreground" info={scanWarning("contrast")}>
+                    <Input
+                      type="color"
+                      value={style.dotsColor}
+                      onChange={(event) =>
+                        setStyle({
+                          ...style,
+                          dotsColor: event.target.value,
+                          cornersSquareColor: event.target.value,
+                          cornersDotColor: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Background">
+                    <Input
+                      type="color"
+                      value={style.backgroundColor}
+                      onChange={(event) =>
+                        setStyle({
+                          ...style,
+                          backgroundColor: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                </div>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Checkbox
+                    checked={style.backgroundTransparent}
+                    onCheckedChange={(checked) =>
+                      setStyle({
+                        ...style,
+                        backgroundTransparent: checked === true,
+                      })
+                    }
+                  />{" "}
+                  {t("Transparent background")}
+                  {transparentWarning ? (
+                    <FieldMessage tone="info" message={transparentWarning} />
+                  ) : null}
+                </label>
+                <Field
+                  label="Center image scale"
+                  info={scanWarning("imageSize")}
+                >
+                  <Input
+                    type="number"
+                    min="0"
+                    max="0.45"
+                    step="0.01"
+                    value={style.imageSize}
                     onChange={(event) =>
                       setStyle({
                         ...style,
-                        dotsColor: event.target.value,
-                        cornersSquareColor: event.target.value,
-                        cornersDotColor: event.target.value,
+                        imageSize: Number(event.target.value),
                       })
                     }
                   />
                 </Field>
-                <Field label="Background">
+                <Field
+                  label="Error correction"
+                  info={scanWarning("errorCorrection")}
+                >
+                  <Select
+                    value={style.errorCorrectionLevel}
+                    options={[...correctionOptions]}
+                    onValueChange={(errorCorrectionLevel) =>
+                      setStyle({ ...style, errorCorrectionLevel })
+                    }
+                  />
+                  <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+                    {t(
+                      choiceNote(correctionOptions, style.errorCorrectionLevel),
+                    )}
+                  </p>
+                </Field>
+                <Field label="Quiet zone" info={scanWarning("margin")}>
                   <Input
-                    type="color"
-                    value={style.backgroundColor}
+                    type="number"
+                    min="0"
+                    max="16"
+                    value={style.margin}
                     onChange={(event) =>
-                      setStyle({
-                        ...style,
-                        backgroundColor: event.target.value,
-                      })
+                      setStyle({ ...style, margin: Number(event.target.value) })
                     }
                   />
                 </Field>
-              </div>
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <Checkbox
-                  checked={style.backgroundTransparent}
-                  onCheckedChange={(checked) =>
-                    setStyle({
-                      ...style,
-                      backgroundTransparent: checked === true,
-                    })
-                  }
-                />{" "}
-                {t("Transparent background")}
-                {transparentWarning ? (
-                  <FieldMessage tone="info" message={transparentWarning} />
-                ) : null}
-              </label>
-              <Field label="Center image scale" info={scanWarning("imageSize")}>
-                <Input
-                  type="number"
-                  min="0"
-                  max="0.45"
-                  step="0.01"
-                  value={style.imageSize}
-                  onChange={(event) =>
-                    setStyle({
-                      ...style,
-                      imageSize: Number(event.target.value),
-                    })
-                  }
-                />
-              </Field>
-              <Field label="Error correction" info={scanWarning("errorCorrection")}>
-                <Select
-                  value={style.errorCorrectionLevel}
-                  options={[...correctionOptions]}
-                  onValueChange={(errorCorrectionLevel) =>
-                    setStyle({ ...style, errorCorrectionLevel })
-                  }
-                />
-                <p className="text-[13px] leading-snug font-normal text-muted-foreground">
-                  {t(choiceNote(correctionOptions, style.errorCorrectionLevel))}
-                </p>
-              </Field>
-              <Field label="Quiet zone" info={scanWarning("margin")}>
-                <Input
-                  type="number"
-                  min="0"
-                  max="16"
-                  value={style.margin}
-                  onChange={(event) =>
-                    setStyle({ ...style, margin: Number(event.target.value) })
-                  }
-                />
-              </Field>
-              <Field label="Center image">
-                <ImageUpload
-                  key={logoInputKey}
-                  previewUrl={logoUrl}
-                  fileName={logoFile?.name}
-                  onFile={(file) => {
-                    setLogoFile(file);
-                    setLogoUrl(URL.createObjectURL(file));
-                  }}
-                />
-                {logoUrl && !locked ? (
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={() => void removeCenterImage()}
-                  >
-                    <Trash2 /> {t("Remove center image")}
+                <Field label="Center image">
+                  <ImageUpload
+                    key={logoInputKey}
+                    previewUrl={logoUrl}
+                    fileName={logoFile?.name}
+                    onFile={(file) => {
+                      setLogoFile(file);
+                      setLogoUrl(URL.createObjectURL(file));
+                    }}
+                  />
+                  {logoUrl && !locked ? (
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => void removeCenterImage()}
+                    >
+                      <Trash2 /> {t("Remove center image")}
+                    </Button>
+                  ) : null}
+                </Field>
+                {locked ? null : (
+                  <Button type="submit" disabled={savingQr}>
+                    <Save /> {savingQr ? t("Saving…") : t("Save QR style")}
                   </Button>
-                ) : null}
-              </Field>
-              {locked ? null : (
-                <Button type="submit" disabled={savingQr}>
-                  <Save /> {savingQr ? t("Saving…") : t("Save QR style")}
-                </Button>
-              )}
+                )}
               </fieldset>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button
@@ -1155,7 +1188,7 @@ export function LinkDetailPage() {
                       slug || appSlug(appName),
                     )
                   }
-                  >
+                >
                   <Download /> SVG
                 </Button>
                 <Button
@@ -1170,7 +1203,7 @@ export function LinkDetailPage() {
                       slug || appSlug(appName),
                     )
                   }
-                  >
+                >
                   <Download /> PNG
                 </Button>
                 <Button
@@ -1185,7 +1218,7 @@ export function LinkDetailPage() {
                       slug || appSlug(appName),
                     )
                   }
-                  >
+                >
                   <Download /> JPEG
                 </Button>
               </div>
