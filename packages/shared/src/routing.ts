@@ -192,6 +192,10 @@ export function routingCatalog(field: RoutingField, locale = 'en'): RoutingOptio
   }
 }
 
+export function allowsCustomRoutingValue(field: string): boolean {
+  return field === 'referrer' || field === 'utm_source' || field === 'utm_medium' || isOpenRoutingField(field)
+}
+
 export function canonicalRoutingValue(field: string, value: string): string | null {
   if (!isRoutingField(field)) return null
   const trimmed = value.trim()
@@ -202,7 +206,10 @@ export function canonicalRoutingValue(field: string, value: string): string | nu
   }
   if (isOpenRoutingField(field)) return trimmed
   const match = routingCatalog(field).find((option) => option.id.toLowerCase() === trimmed.toLowerCase())
-  return match?.id ?? null
+  if (match) return match.id
+  if (field === 'utm_source' || field === 'utm_medium') return trimmed
+  if (field === 'referrer') return customReferrerHost(trimmed)
+  return null
 }
 
 export function routeHasUnrecognizedValue(rule: RoutingRule): boolean {
@@ -336,11 +343,18 @@ function actualValue(field: RoutingField, context: RoutingContext): string {
 
 function referrerMatches(presetId: string, host: string | null): boolean {
   const preset = REFERRER_PRESETS.find((item) => item.id === presetId)
-  if (!preset) return false
-  if (preset.id === 'none') return !clean(host)
+  if (preset?.id === 'none') return !clean(host)
   const value = clean(host)
   if (!value) return false
-  return preset.hosts.some((suffix) => value === suffix || value.endsWith(`.${suffix}`))
+  const suffixes = preset ? preset.hosts : [clean(presetId)]
+  return suffixes.some((suffix) => suffix && (value === suffix || value.endsWith(`.${suffix}`)))
+}
+
+function customReferrerHost(value: string): string | null {
+  const host = value.trim().toLowerCase().replace(/\.+$/, '')
+  if (!host || host.length > 200) return null
+  if (/[\s/\\?#@:"]/.test(host) || host.startsWith('.') || host.includes('..')) return null
+  return host
 }
 
 function clean(value: string | null | undefined): string {

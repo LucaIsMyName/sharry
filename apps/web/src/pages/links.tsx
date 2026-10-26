@@ -878,7 +878,7 @@ export function LinkDetailPage() {
       {loading ? (
         <p className="text-sm text-muted-foreground">{t("Loading link…")}</p>
       ) : null}
-      <Card>
+      <Card className="overflow-visible">
         <CardContent>
           <form id="link-editor" onSubmit={(event) => void save(event)}>
             <fieldset
@@ -997,18 +997,18 @@ export function LinkDetailPage() {
           </form>
         </CardContent>
       </Card>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="lg:col-start-2 lg:row-start-1">
-          <QrPreview
-            url={previewUrl || "https://example.com"}
-            style={style}
-            logoUrl={logoUrl}
-          />
-        </div>
-        <Card className="lg:col-start-1 lg:row-start-1">
-          <CardContent>
+      <Card className="overflow-visible">
+        <CardContent>
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="lg:sticky lg:top-5 lg:col-start-2 lg:row-start-1">
+              <QrPreview
+                url={previewUrl || "https://example.com"}
+                style={style}
+                logoUrl={logoUrl}
+              />
+            </div>
             <form
-              className="grid gap-3"
+              className="grid min-w-0 gap-3 lg:col-start-1 lg:row-start-1"
               onSubmit={(event) => void createQr(event)}
             >
               <fieldset
@@ -1223,9 +1223,9 @@ export function LinkDetailPage() {
                 </Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
       {qrCodes.length > 0 ? (
         <Card>
           <CardContent>

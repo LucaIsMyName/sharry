@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { emptyRoutingChoices, type RoutingRule } from "@sharry/shared";
 import { setActiveLocale } from "../i18n/index.tsx";
@@ -44,6 +44,8 @@ describe("RouteBuilder", () => {
     render(<Harness />);
     expect(screen.queryByText("is any of")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Chrome, Firefox" }));
+    expect(screen.getByRole("textbox", { name: "Search" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "Custom…" })).toBeNull();
     fireEvent.click(screen.getByRole("option", { name: "Safari" }));
     expect(screen.getByRole("button", { name: "Chrome, Firefox, Safari" })).toBeTruthy();
     expect(screen.getByRole("option", { name: "Safari" })).toBeTruthy();
@@ -52,6 +54,37 @@ describe("RouteBuilder", () => {
     const last = screen.getByRole("button", { name: "Chrome" });
     fireEvent.click(screen.getByRole("option", { name: "Chrome" }));
     expect(last).toBe(screen.getByRole("button", { name: "Chrome" }));
+  });
+
+  it("filters the value list after search settles and adds several custom values", async () => {
+    const source: RoutingRule = {
+      id: "33333333-3333-4333-8333-333333333333",
+      destinationUrl: "https://example.com/source",
+      conditions: [{ field: "utm_source", operator: "is", values: ["newsletter"] }],
+    };
+    function Harness() {
+      const [rules, setRules] = useState([source]);
+      return <RouteBuilder rules={rules} choices={emptyRoutingChoices()} utm={{}} locale="en" onChange={setRules} />;
+    }
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "newsletter" }));
+    expect(screen.queryByRole("option", { name: "email" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search" }), { target: { value: "news" } });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+    expect(screen.getByRole("option", { name: "newsletter" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "email" })).toBeNull();
+    const custom = screen.getByRole("textbox", { name: "Custom…" });
+    fireEvent.change(custom, { target: { value: "partner" } });
+    fireEvent.keyDown(custom, { key: "Enter" });
+    fireEvent.change(custom, { target: { value: "podcast" } });
+    fireEvent.keyDown(custom, { key: "Enter" });
+    expect(screen.getByRole("button", { name: "newsletter, partner, podcast" })).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Search" }), { target: { value: "" } });
+    await act(async () => {});
+    expect(screen.getByRole("option", { name: "partner" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "podcast" })).toBeTruthy();
   });
 
   it("warns when a saved value is no longer recognized", () => {

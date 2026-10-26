@@ -4,6 +4,7 @@ import {
   conditionForField,
   countryOptions,
   emptyRoutingChoices,
+  canonicalRoutingValue,
   matchRoute,
   normalizeRoutingRules,
   routeHasUnrecognizedValue,
@@ -113,6 +114,44 @@ describe('matchRoute', () => {
         { ...context, utm: { utm_campaign: 'spring sale' } },
       ),
     ).toBe('https://example.com/spring')
+  })
+
+  it('matches a custom utm source beside a preset and a custom referrer host beside Google', () => {
+    expect(
+      matchRoute(
+        [rule({ destinationUrl: 'https://example.com/partner', conditions: [{ field: 'utm_source', operator: 'is', values: ['newsletter', 'Partner'] }] })],
+        { ...context, utm: { utm_source: 'partner' } },
+      ),
+    ).toBe('https://example.com/partner')
+    const referrers = [
+      rule({
+        destinationUrl: 'https://example.com/from',
+        conditions: [{ field: 'referrer', operator: 'is', values: ['google', 'news.ycombinator.com'] }],
+      }),
+    ]
+    expect(matchRoute(referrers, { ...context, referrerHost: 'www.news.ycombinator.com' })).toBe('https://example.com/from')
+    expect(matchRoute(referrers, { ...context, referrerHost: 'news.google.com' })).toBe('https://example.com/from')
+    expect(
+      routeHasUnrecognizedValue(
+        rule({ destinationUrl: 'https://example.com/partner', conditions: [{ field: 'utm_source', operator: 'is', values: ['Partner'] }] }),
+      ),
+    ).toBe(false)
+    expect(canonicalRoutingValue('utm_source', 'Newsletter')).toBe('newsletter')
+    expect(canonicalRoutingValue('utm_medium', 'Poster')).toBe('Poster')
+    expect(canonicalRoutingValue('referrer', 'NEWS.YCOMBINATOR.COM')).toBe('news.ycombinator.com')
+    expect(
+      normalizeRoutingRules([
+        rule({
+          destinationUrl: 'https://example.com/from',
+          conditions: [{ field: 'referrer', operator: 'is', values: ['NEWS.YCOMBINATOR.COM'] }],
+        }),
+      ]),
+    ).toEqual([
+      rule({
+        destinationUrl: 'https://example.com/from',
+        conditions: [{ field: 'referrer', operator: 'is', values: ['news.ycombinator.com'] }],
+      }),
+    ])
   })
 
   it('skips a stale, unknown, country-less, or invalid route and keeps checking', () => {

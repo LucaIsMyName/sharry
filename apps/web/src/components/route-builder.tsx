@@ -8,6 +8,8 @@ import {
   ROUTING_FIELD_LABELS,
   ROUTING_OPERATORS,
   ROUTING_OPERATOR_LABELS,
+  allowsCustomRoutingValue,
+  canonicalRoutingValue,
   conditionForField,
   emptyRoutingChoices,
   firstRoutingValue,
@@ -242,10 +244,13 @@ function MultiValue({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState("");
   const [draft, setDraft] = useState("");
   const draftRef = useRef("");
   const rootRef = useRef<HTMLDivElement>(null);
   const options = field ? valueOptions(field, values, choices, locale) : values.map((value) => ({ value, label: value }));
+  const shown = options.filter((option) => t(option.label).toLowerCase().includes(filter.trim().toLowerCase()));
   const summary = values
     .map((value) => {
       const option = options.find((item) => item.value.toLowerCase() === value.toLowerCase());
@@ -254,13 +259,28 @@ function MultiValue({
     .join(", ");
 
   useEffect(() => {
+    if (!query.trim()) {
+      setFilter("");
+      return;
+    }
+    const timer = setTimeout(() => setFilter(query), 150);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) closeMenu();
     }
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
+
+  function closeMenu() {
+    setOpen(false);
+    setQuery("");
+    setFilter("");
+  }
 
   function toggle(value: string) {
     const selected = values.some((item) => item.toLowerCase() === value.toLowerCase());
@@ -279,54 +299,64 @@ function MultiValue({
   }
 
   function addCustom() {
-    const value = draftRef.current.trim();
+    const raw = draftRef.current.trim();
     setDraftValue("");
+    if (!field || !raw || values.length >= MAX_ROUTING_VALUES) return;
+    const value = canonicalRoutingValue(field, raw);
     if (!value || values.some((item) => item.toLowerCase() === value.toLowerCase())) return;
-    if (values.length >= MAX_ROUTING_VALUES) return;
     onChange([...values, value]);
   }
 
   return (
-    <div ref={rootRef} className="relative" onKeyDown={(event) => event.key === "Escape" && setOpen(false)}>
+    <div ref={rootRef} className="relative" onKeyDown={(event) => event.key === "Escape" && closeMenu()}>
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="listbox"
         className="flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => (open ? closeMenu() : setOpen(true))}
       >
         <span className="truncate">{summary || t("Choose")}</span>
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </button>
       {open ? (
-        <div
-          role="listbox"
-          aria-multiselectable="true"
-          className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
-        >
-          {options.map((option) => {
-            const selected = values.some((value) => value.toLowerCase() === option.value.toLowerCase());
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-                onClick={() => toggle(option.value)}
-              >
-                <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input">
-                  {selected ? <Check className="size-3.5" /> : null}
-                </span>
-                {t(option.label)}
-              </button>
-            );
-          })}
-          {field && isOpenRoutingField(field) ? (
+        <div className="absolute z-50 mt-1 w-full rounded-md bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
+          <Input
+            value={query}
+            placeholder="Search"
+            aria-label={t("Search")}
+            autoFocus
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+            }}
+          />
+          <div role="listbox" aria-multiselectable="true" className="mt-1 max-h-48 overflow-auto">
+            {shown.map((option) => {
+              const selected = values.some((value) => value.toLowerCase() === option.value.toLowerCase());
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                  onClick={() => toggle(option.value)}
+                >
+                  <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input">
+                    {selected ? <Check className="size-3.5" /> : null}
+                  </span>
+                  {t(option.label)}
+                </button>
+              );
+            })}
+          </div>
+          {field && allowsCustomRoutingValue(field) ? (
             <Input
               value={draft}
               placeholder="Custom…"
-              aria-label="Custom…"
+              aria-label={t("Custom…")}
               className="mt-1"
               onChange={(event) => setDraftValue(event.target.value)}
               onKeyDown={(event) => {
@@ -334,7 +364,6 @@ function MultiValue({
                 event.preventDefault();
                 addCustom();
               }}
-              onBlur={addCustom}
             />
           ) : null}
         </div>
