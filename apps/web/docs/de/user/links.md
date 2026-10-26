@@ -28,7 +28,19 @@ Pausieren setzt den Status auf deaktiviert. Ein pausierter Link leitet nicht wei
 
 Ein Link kann ein Passwort verlangen, bevor er weiterleitet. Besucher müssen dieses Passwort eingeben, bevor der Kurzlink weiterleitet. Das Passwort wird als Hash gespeichert. Lass das Feld bei einer späteren Bearbeitung leer, um das gespeicherte Passwort zu behalten. Leeren entfernt die Pflicht.
 
-Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formulars. Beide Schaltflächen speichern Ziel, Slug, Titel, Beschreibung, Weiterleitungsdomain, Weiterleitungstyp, Ablauf, Passwort und UTM-Felder zusammen. Der QR-Code hat sein eigenes Speichern.
+Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formulars. Beide Schaltflächen speichern Ziel, Slug, Titel, Beschreibung, Weiterleitungsdomain, Weiterleitungstyp, Ablauf, Passwort, UTM-Felder und Routen zusammen. Der QR-Code hat sein eigenes Speichern.
+
+## Routen
+
+Routen sind optional. Lass die Liste leer, dann nutzt jeder Besuch das Ziel.
+
+Füge eine Route hinzu, um manche Besuche an eine andere `http`- oder `https`-URL zu schicken. Jede Route kann so viele Bedingungen haben, wie du brauchst, und jede Bedingung dieser Route muss passen. Routen laufen von oben nach unten. Die erste passende Route wird verwendet. Schiebe eine Route nach oben oder unten, um die Reihenfolge zu ändern.
+
+Wähle jeden Wert aus der Liste: Browser, Gerät, Betriebssystem, Land, Verweis und UTM-Quelle, Medium, Kampagne, ID, Begriff und Inhalt. Kampagne, ID, Begriff und Inhalt bieten Werte, die schon am Link, an seinen Varianten oder an seinen Klicks gespeichert sind. Eigener Wert ist da, wenn du für eines dieser vier Felder einen neuen Wert brauchst. Verweis-Auswahl wie Google umfasst diese Website und ihre Subdomains. Länder brauchen die Geo-Datenbank; ohne sie wird eine Länder-Route übersprungen.
+
+UTM-Bedingungen lesen die Query-Zeichenfolge am Kurzlink, zum Beispiel `?utm_source=newsletter`. Die am Link gespeicherten UTM-Werte werden trotzdem an die gewählte URL gehängt.
+
+Wenn nichts passt, ein gespeicherter Wert nicht mehr erkannt wird, die Routen-URL ungültig ist oder das Land nicht ermittelt werden kann, wird diese Route übersprungen. Besucher nutzen dann eine spätere passende Route oder das Ziel. Die Linkseite behält einen veralteten Wert und sagt, dass Besucher das Ziel nutzen, bis du die Route aktualisierst. Die Weiterleitung selbst gelingt weiter.
 
 ## Weiterleitungen
 

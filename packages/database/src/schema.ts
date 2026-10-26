@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import type { QrStyle } from '@sharry/shared'
+import type { QrStyle, RoutingRule } from '@sharry/shared'
 
 export const users = pgTable(
   'users',
@@ -69,6 +69,7 @@ export const links = pgTable(
     status: text('status').notNull().default('active'),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     passwordHash: text('password_hash'),
+    routingRules: jsonb('routing_rules').$type<RoutingRule[]>().notNull().default(sql`'[]'::jsonb`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),

@@ -14,10 +14,13 @@ import {
   appSlug,
   applyUtm,
   defaultQrStyle,
+  emptyRoutingChoices,
   qrWarnings,
   utmConflicts,
   type QrStyle,
   type QrWarning,
+  type RoutingChoices,
+  type RoutingRule,
   type UtmParams,
 } from "@sharry/shared";
 import {
@@ -34,6 +37,7 @@ import { PageTitle } from "../components/page-title.tsx";
 import { choiceNote, correctionOptions, redirectOptions } from "../choices.ts";
 import { downloadQr, QrPreview } from "../components/qr-preview.tsx";
 import { UtmFields } from "../components/utm-fields.tsx";
+import { RouteBuilder } from "../components/route-builder.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
@@ -485,7 +489,7 @@ export function LinkFormPage() {
 }
 
 export function LinkDetailPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const appName = useAppName();
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -499,6 +503,8 @@ export function LinkDetailPage() {
   const [expiresAt, setExpiresAt] = useState("");
   const [password, setPassword] = useState("");
   const [utm, setUtm] = useState<UtmParams>(emptyUtm);
+  const [routes, setRoutes] = useState<RoutingRule[]>([]);
+  const [routingChoices, setRoutingChoices] = useState<RoutingChoices>(emptyRoutingChoices());
   const [redirectDomainId, setRedirectDomainId] = useState(defaultRedirectDomain);
   const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
   const [style, setStyle] = useState<QrStyle>(defaultQrStyle);
@@ -529,6 +535,8 @@ export function LinkDetailPage() {
     setExpiresAt("");
     setPassword("");
     setUtm(emptyUtm);
+    setRoutes([]);
+    setRoutingChoices(emptyRoutingChoices());
     setRedirectDomainId(defaultRedirectDomain);
     setQrCodes([]);
     setActiveQr(null);
@@ -554,6 +562,8 @@ export function LinkDetailPage() {
         setStatus(next.status);
         setExpiresAt(toDatetimeLocal(next.expiresAt));
         setUtm(next.utm);
+        setRoutes(next.routingRules ?? []);
+        setRoutingChoices(next.routingChoices ?? emptyRoutingChoices());
         setRedirectDomainId(next.redirectDomainId ?? defaultRedirectDomain);
         setQrCodes(codes.qrCodes);
         setAnalytics(stats);
@@ -602,10 +612,13 @@ export function LinkDetailPage() {
           password: password ? password : undefined,
           redirectDomainId: redirectDomainPayload(redirectDomainId),
           utm,
+          routingRules: routes,
         }),
       });
       setLink(updated);
       setSlug(updated.slug);
+      setRoutes(updated.routingRules ?? []);
+      setRoutingChoices(updated.routingChoices ?? emptyRoutingChoices());
       setRedirectDomainId(updated.redirectDomainId ?? defaultRedirectDomain);
       setPassword("");
       toast.success(
@@ -945,6 +958,13 @@ export function LinkDetailPage() {
                 url: previewDestination(destinationUrl, utm),
               })}
             </p>
+            <RouteBuilder
+              rules={routes}
+              choices={routingChoices}
+              utm={utm}
+              locale={locale}
+              onChange={setRoutes}
+            />
             {locked ? null : (
               <Button type="submit" disabled={saving}>
                 <Save /> {saving ? t("Saving…") : t("Save link")}

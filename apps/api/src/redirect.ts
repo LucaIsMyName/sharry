@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { and, eq, gt, lt } from 'drizzle-orm'
 import { linkPasswordAttempts, qrCodes, trackingConfigs, trackingVariants, type Database, type LinkRecord } from '@sharry/database'
-import { applyUtm, cleanUtm, mergeUtm, unlockCookieName, validatePrefix, type UtmParams } from '@sharry/shared'
+import { applyUtm, cleanUtm, matchRoute, mergeUtm, unlockCookieName, validatePrefix, UTM_KEYS, type RoutingContext, type UtmParams } from '@sharry/shared'
 import { recordClick, type ClickDraft } from './analytics.ts'
 import { lookupGeo } from './geo.ts'
 import { findBySlug } from './links.ts'
@@ -90,9 +90,10 @@ export async function tryShortLink(
     reply.code(404).type('text/plain').send('Not found')
     return true
   }
-  const destination = await buildDestination(app, link, url.searchParams)
+  const signals = await visitSignals(app, request)
+  const destination = await buildDestination(app, link, url.searchParams, signals)
   if (request.method === 'GET' || justUnlocked) {
-    const draft = await clickDraft(app, request, link, destination)
+    const draft = clickDraft(request, link, destination, signals, app.env.ENCRYPTION_KEY)
     reply.recordClick = draft
     rememberClick(reply, draft)
   }
@@ -102,6 +103,13 @@ export async function tryShortLink(
   return true
 }
 
+type VisitSignals = {
+  context: RoutingContext
+  region: string | null
+  isBot: boolean
+  userAgent: string
+}
+
 type ResolvedDestination = {
   url: string
   utm: UtmParams
@@ -109,7 +117,31 @@ type ResolvedDestination = {
   trackingVariantId: string | null
 }
 
-async function buildDestination(app: FastifyInstance, link: LinkRecord, query: URLSearchParams): Promise<ResolvedDestination> {
+async function visitSignals(app: FastifyInstance, request: FastifyRequest): Promise<VisitSignals> {
+  const userAgent = typeof request.headers['user-agent'] === 'string' ? request.headers['user-agent'] : ''
+  const parsed = parseUserAgent(userAgent || undefined)
+  const geo = await lookupGeo(request.ip, app.env.GEOIP_DB_PATH)
+  return {
+    context: {
+      browser: parsed.browser,
+      device: parsed.deviceType,
+      operatingSystem: parsed.operatingSystem,
+      countryCode: geo.countryCode,
+      referrerHost: referrerHost(typeof request.headers.referer === 'string' ? request.headers.referer : undefined),
+      utm: {},
+    },
+    region: geo.region,
+    isBot: parsed.isBot,
+    userAgent,
+  }
+}
+
+async function buildDestination(
+  app: FastifyInstance,
+  link: LinkRecord,
+  query: URLSearchParams,
+  signals: VisitSignals,
+): Promise<ResolvedDestination> {
   const configs = await app.db.select().from(trackingConfigs).where(eq(trackingConfigs.linkId, link.id)).limit(1)
   const base = cleanUtm({
     utm_source: configs[0]?.utmSource,
@@ -121,11 +153,39 @@ async function buildDestination(app: FastifyInstance, link: LinkRecord, query: U
   })
   const tracking = await resolveTracking(app, link.id, query)
   const utm = mergeUtm(base, tracking.variant ? variantUtm(tracking.variant) : {})
+  const context: RoutingContext = { ...signals.context, utm: queryUtm(query) }
+  let baseUrl = link.destinationUrl
+  try {
+    baseUrl = matchRoute(link.routingRules, context) ?? link.destinationUrl
+  } catch {
+    baseUrl = link.destinationUrl
+  }
   return {
-    url: applyUtm(link.destinationUrl, utm),
+    url: applyTrackedUrl(baseUrl, link.destinationUrl, utm),
     utm,
     qrCodeId: tracking.qrCodeId,
     trackingVariantId: tracking.variant?.id ?? null,
+  }
+}
+
+function queryUtm(query: URLSearchParams): RoutingContext['utm'] {
+  const utm: RoutingContext['utm'] = {}
+  for (const key of UTM_KEYS) {
+    const value = query.get(key)
+    if (value) utm[key] = value
+  }
+  return utm
+}
+
+function applyTrackedUrl(chosen: string, fallback: string, utm: UtmParams): string {
+  try {
+    return applyUtm(chosen, utm)
+  } catch {
+    try {
+      return applyUtm(fallback, utm)
+    } catch {
+      return fallback
+    }
   }
 }
 
@@ -151,28 +211,26 @@ async function variantOwnedByLink(app: FastifyInstance, linkId: string, variantI
   return found[0] ?? null
 }
 
-async function clickDraft(
-  app: FastifyInstance,
+function clickDraft(
   request: FastifyRequest,
   link: LinkRecord,
   destination: ResolvedDestination,
-): Promise<ClickDraft> {
-  const userAgent = request.headers['user-agent']
-  const parsed = parseUserAgent(typeof userAgent === 'string' ? userAgent : undefined)
-  const geo = await lookupGeo(request.ip, app.env.GEOIP_DB_PATH)
+  signals: VisitSignals,
+  encryptionKey: string,
+): ClickDraft {
   const { utm } = destination
   return {
     linkId: link.id,
     trackingVariantId: destination.trackingVariantId,
     qrCodeId: destination.qrCodeId,
-    referrer: referrerHost(typeof request.headers.referer === 'string' ? request.headers.referer : undefined),
-    countryCode: geo.countryCode,
-    region: geo.region,
-    browser: parsed.browser,
-    operatingSystem: parsed.operatingSystem,
-    deviceType: parsed.deviceType,
-    isBot: parsed.isBot,
-    anonymousVisitorId: anonymousVisitorId(request.ip, typeof userAgent === 'string' ? userAgent : '', app.env.ENCRYPTION_KEY),
+    referrer: signals.context.referrerHost,
+    countryCode: signals.context.countryCode,
+    region: signals.region,
+    browser: signals.context.browser,
+    operatingSystem: signals.context.operatingSystem,
+    deviceType: signals.context.device,
+    isBot: signals.isBot,
+    anonymousVisitorId: anonymousVisitorId(request.ip, signals.userAgent, encryptionKey),
     utmSource: utm.utm_source ?? null,
     utmMedium: utm.utm_medium ?? null,
     utmCampaign: utm.utm_campaign ?? null,

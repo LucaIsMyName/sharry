@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { qrStyleSchema } from './qr.ts'
+import { MAX_ROUTING_CONDITIONS, MAX_ROUTING_RULES, MAX_ROUTING_VALUES, ROUTING_FIELDS, ROUTING_OPERATORS } from './routing.ts'
 import { UTM_KEYS } from './utm.ts'
 
 export const locales = ['en', 'de'] as const
@@ -35,6 +36,33 @@ export const utmSchema = z.object(
 
 export const redirectTypeSchema = z.enum(['301', '302', '307', '308'])
 
+const routingValueSchema = z.string().trim().min(1).max(200)
+
+export const routingConditionSchema = z
+  .object({
+    field: z.enum(ROUTING_FIELDS),
+    operator: z.enum(ROUTING_OPERATORS),
+    values: z.array(routingValueSchema).min(1, 'Choose a value').max(MAX_ROUTING_VALUES, 'Choose at most 30 values'),
+  })
+  .superRefine((condition, ctx) => {
+    if (condition.operator !== 'any_of' && condition.values.length !== 1) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Choose one value' })
+    }
+  })
+
+export const routingRulesSchema = z
+  .array(
+    z.object({
+      id: z.string().uuid(),
+      destinationUrl: destinationSchema,
+      conditions: z
+        .array(routingConditionSchema)
+        .min(1, 'Add at least one condition')
+        .max(MAX_ROUTING_CONDITIONS, 'A route can have at most 30 conditions'),
+    }),
+  )
+  .max(MAX_ROUTING_RULES, 'A link can have at most 50 routes')
+
 const redirectDomainId = z.string().uuid().nullable().optional()
 
 export const createLinkSchema = z.object({
@@ -60,6 +88,7 @@ export const updateLinkSchema = z.object({
   expiresAt: z.string().datetime().nullable().optional(),
   password: z.string().min(1).max(200).nullable().optional(),
   utm: utmSchema.optional(),
+  routingRules: routingRulesSchema.optional(),
 })
 
 export const createRedirectDomainSchema = z.object({

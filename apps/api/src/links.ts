@@ -1,14 +1,18 @@
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { clickEvents, links, qrCodes, redirectDomains, trackingConfigs, users, type Database, type LinkRecord } from '@sharry/database'
+import { clickEvents, links, qrCodes, redirectDomains, trackingConfigs, trackingVariants, users, type Database, type LinkRecord } from '@sharry/database'
 import {
   SLUG_TAKEN_MESSAGE,
   buildShortUrl,
   cleanUtm,
   createLinkSchema,
   generateRandomSlug,
+  normalizeRoutingRules,
+  sameRoutingRules,
   updateLinkSchema,
   validateSlug,
+  type RoutingChoices,
+  type RoutingRule,
   type UtmParams,
 } from '@sharry/shared'
 import { requireUser, type Actor } from './auth.ts'
@@ -106,7 +110,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @tag Links
    * @auth api-key or session
    * @param id string Link id
-   * @response 200 Link with owner, updatedBy, and canEdit
+   * @response 200 Link with owner, updatedBy, canEdit, routingRules, and routingChoices
    * @response 404 Link not found
    */
   app.get('/api/links/:id', async (request) => {
@@ -124,7 +128,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
       await loadVerifiedHosts(app.db, [link.redirectDomainId]),
       true,
     )
-    return presented
+    return { ...presented, routingChoices: await loadRoutingChoices(app.db, link.id, config) }
   })
 
   /**
@@ -133,8 +137,8 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @tag Links
    * @auth api-key or session
    * @param id string Link id
-   * @body JSON { destinationUrl?, title?, description?, slug?, redirectType?, redirectDomainId?, status?, expiresAt?, password?, utm? }
-   * @response 200 Link with owner, updatedBy, and canEdit
+   * @body JSON { destinationUrl?, title?, description?, slug?, redirectType?, redirectDomainId?, status?, expiresAt?, password?, utm?, routingRules? }
+   * @response 200 Link with owner, updatedBy, canEdit, routingRules, and routingChoices
    * @response 403 You can view this link but not change it.
    */
   app.patch('/api/links/:id', async (request) => {
@@ -153,7 +157,7 @@ export function registerLinkRoutes(app: FastifyInstance): void {
       await loadVerifiedHosts(app.db, [link.redirectDomainId]),
       true,
     )
-    return presented
+    return { ...presented, routingChoices: await loadRoutingChoices(app.db, link.id, config) }
   })
 
   /**
@@ -272,6 +276,7 @@ export async function updateLink(
     password?: string | null
     redirectDomainId?: string | null
     utm?: UtmParams
+    routingRules?: RoutingRule[]
   },
   settings: AppSettings,
 ): Promise<LinkRecord> {
@@ -298,6 +303,8 @@ export async function updateLink(
     if (passwordHash !== undefined) patch.passwordHash = passwordHash
     if (input.redirectDomainId !== undefined) patch.redirectDomainId = await requireVerifiedDomain(database, input.redirectDomainId)
     if (requestedSlug && requestedSlug.toLowerCase() !== current.slug.toLowerCase()) patch.slug = requestedSlug
+    const rulesChanged = input.routingRules !== undefined && !sameRoutingRules(current.routingRules, input.routingRules)
+    if (rulesChanged && input.routingRules) patch.routingRules = normalizeRoutingRules(input.routingRules)
     let updated = current
     if (assignRandomSlug) {
       let assigned = false
@@ -338,6 +345,15 @@ export async function updateLink(
         entityType: 'link',
         entityId: id,
         metadata: { from: current.slug, to: patch.slug },
+      })
+    }
+    if (rulesChanged) {
+      await writeAudit(database, {
+        actorUserId: actor.id,
+        action: 'link.routing_changed',
+        entityType: 'link',
+        entityId: id,
+        metadata: { from: normalizeRoutingRules(current.routingRules), to: patch.routingRules ?? [] },
       })
     }
     return updated
@@ -497,6 +513,7 @@ export function serializeLink(
     createdAt: link.createdAt.toISOString(),
     updatedAt: link.updatedAt.toISOString(),
     utm: utm ?? {},
+    routingRules: normalizeRoutingRules(link.routingRules),
     userId: link.userId,
   }
 }
@@ -511,6 +528,58 @@ async function loadClickCounts(db: Database, ids: string[]): Promise<Map<string,
     .groupBy(clickEvents.linkId)
   for (const row of rows) counts.set(row.linkId, row.clicks)
   return counts
+}
+
+async function loadRoutingChoices(db: Database, linkId: string, utm?: UtmParams): Promise<RoutingChoices> {
+  const [variants, campaign, id, term, content] = await Promise.all([
+    db
+      .select({
+        utmCampaign: trackingVariants.utmCampaign,
+        utmId: trackingVariants.utmId,
+        utmTerm: trackingVariants.utmTerm,
+        utmContent: trackingVariants.utmContent,
+      })
+      .from(trackingVariants)
+      .where(eq(trackingVariants.linkId, linkId)),
+    distinctUtm(db, linkId, clickEvents.utmCampaign),
+    distinctUtm(db, linkId, clickEvents.utmId),
+    distinctUtm(db, linkId, clickEvents.utmTerm),
+    distinctUtm(db, linkId, clickEvents.utmContent),
+  ])
+  return {
+    utm_campaign: uniqueRoutingValues([utm?.utm_campaign, ...variants.map((row) => row.utmCampaign), ...campaign]),
+    utm_id: uniqueRoutingValues([utm?.utm_id, ...variants.map((row) => row.utmId), ...id]),
+    utm_term: uniqueRoutingValues([utm?.utm_term, ...variants.map((row) => row.utmTerm), ...term]),
+    utm_content: uniqueRoutingValues([utm?.utm_content, ...variants.map((row) => row.utmContent), ...content]),
+  }
+}
+
+async function distinctUtm(
+  db: Database,
+  linkId: string,
+  column:
+    | typeof clickEvents.utmCampaign
+    | typeof clickEvents.utmId
+    | typeof clickEvents.utmTerm
+    | typeof clickEvents.utmContent,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ value: column })
+    .from(clickEvents)
+    .where(and(eq(clickEvents.linkId, linkId), sql`${column} is not null`, sql`${column} <> ''`))
+  return rows.flatMap((row) => (row.value ? [row.value] : []))
+}
+
+function uniqueRoutingValues(values: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (!trimmed || seen.has(trimmed.toLowerCase())) continue
+    seen.add(trimmed.toLowerCase())
+    result.push(trimmed)
+  }
+  return result.sort((left, right) => left.localeCompare(right)).slice(0, 100)
 }
 
 async function loadConfigs(db: Database, ids: string[]): Promise<Map<string, UtmParams>> {

@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
-import { clickEvents, linkPasswordAttempts, links } from '@sharry/database'
+import { auditLogs, clickEvents, linkPasswordAttempts, links } from '@sharry/database'
 import { defaultQrStyle } from '@sharry/shared'
 import { createLink } from '../src/links.ts'
 import { purgeLinkPasswordAttempts } from '../src/redirect.ts'
@@ -783,6 +783,97 @@ describe('short links', () => {
     expect(open.statusCode).toBe(302)
     expect(open.headers.location).toBe('https://example.com/open')
   })
+
+  it('sends a visit to the first matching route and falls back when routing is stale', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: {
+        destinationUrl: 'https://example.com/fallback',
+        slug: 'routed',
+        utm: { utm_medium: 'email' },
+      },
+    })
+    const id = created.json().id as string
+    const chrome = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    const firefox = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0'
+    const saved = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: user.cookie },
+      payload: {
+        routingRules: [
+          route('11111111-1111-4111-8111-111111111111', 'https://example.com/phone', [{ field: 'browser', operator: 'is', values: ['chrome'] }]),
+          route('22222222-2222-4222-8222-222222222222', 'https://example.com/search', [{ field: 'referrer', operator: 'is', values: ['google'] }]),
+          route('33333333-3333-4333-8333-333333333333', 'https://example.com/newsletter', [{ field: 'utm_source', operator: 'is', values: ['newsletter'] }]),
+        ],
+      },
+    })
+    expect(saved.statusCode).toBe(200)
+    expect(saved.json().routingRules).toHaveLength(3)
+    const phone = await ctx.app.inject({ method: 'GET', url: '/s/routed', headers: { 'user-agent': chrome } })
+    expect(phone.headers.location).toBe('https://example.com/phone?utm_medium=email')
+    const search = await ctx.app.inject({
+      method: 'GET',
+      url: '/s/routed',
+      headers: { 'user-agent': firefox, referer: 'https://news.google.com/search?q=sharry' },
+    })
+    expect(search.headers.location).toBe('https://example.com/search?utm_medium=email')
+    const partner = await ctx.app.inject({ method: 'GET', url: '/s/routed?utm_source=newsletter', headers: { 'user-agent': firefox } })
+    expect(partner.headers.location).toBe('https://example.com/newsletter?utm_medium=email')
+    const missed = await ctx.app.inject({ method: 'GET', url: '/s/routed', headers: { 'user-agent': firefox } })
+    expect(missed.headers.location).toBe('https://example.com/fallback?utm_medium=email')
+
+    const stale = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${id}`,
+      headers: { cookie: user.cookie },
+      payload: {
+        routingRules: [
+          route('44444444-4444-4444-8444-444444444444', 'https://example.com/old', [{ field: 'browser', operator: 'is', values: ['netscape'] }]),
+        ],
+      },
+    })
+    expect(stale.statusCode).toBe(200)
+    const retired = await ctx.app.inject({ method: 'GET', url: '/s/routed', headers: { 'user-agent': chrome } })
+    expect(retired.statusCode).toBe(302)
+    expect(retired.headers.location).toBe('https://example.com/fallback?utm_medium=email')
+
+    await ctx.db.update(links).set({
+      routingRules: [
+        { id: '55555555-5555-4555-8555-555555555555', destinationUrl: 'not a url', conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }] },
+        route('66666666-6666-4666-8666-666666666666', 'https://example.com/second', [{ field: 'browser', operator: 'is', values: ['chrome'] }]),
+      ],
+    }).where(eq(links.id, id))
+    const skipped = await ctx.app.inject({ method: 'GET', url: '/s/routed', headers: { 'user-agent': chrome } })
+    expect(skipped.headers.location).toBe('https://example.com/second?utm_medium=email')
+    await ctx.db.update(links).set({ routingRules: { broken: true } as never }).where(eq(links.id, id))
+    const broken = await ctx.app.inject({ method: 'GET', url: '/s/routed', headers: { 'user-agent': chrome } })
+    expect(broken.statusCode).toBe(302)
+    expect(broken.headers.location).toBe('https://example.com/fallback?utm_medium=email')
+
+    const campaign = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/campaigns',
+      headers: { cookie: user.cookie },
+      payload: { name: 'Spring' },
+    })
+    await ctx.app.inject({
+      method: 'POST',
+      url: `/api/campaigns/${campaign.json().id}/variants`,
+      headers: { cookie: user.cookie },
+      payload: { linkId: id, name: 'Poster', utm: { utm_campaign: 'spring' } },
+    })
+    await ctx.db.insert(clickEvents).values({ ...clickAt(id, '2026-10-20T12:00:00.000Z'), utmId: 'promo-1' })
+    const detail = await ctx.app.inject({ method: 'GET', url: `/api/links/${id}`, headers: { cookie: user.cookie } })
+    expect(detail.json().routingChoices.utm_campaign).toEqual(['spring'])
+    expect(detail.json().routingChoices.utm_id).toEqual(['promo-1'])
+    const audits = await ctx.db.select().from(auditLogs).where(eq(auditLogs.entityId, id))
+    expect(audits.filter((row) => row.action === 'link.routing_changed')).toHaveLength(2)
+  })
 })
 
 async function waitForClicks(db: Awaited<ReturnType<typeof getContext>>['db'], count: number) {
@@ -805,6 +896,14 @@ function clickAt(linkId: string, occurredAt: string) {
     isBot: false,
     anonymousVisitorId: 'visitor',
   }
+}
+
+function route(
+  id: string,
+  destinationUrl: string,
+  conditions: { field: string; operator: string; values: string[] }[],
+) {
+  return { id, destinationUrl, conditions }
 }
 
 function cookieHeader(header: unknown): string {

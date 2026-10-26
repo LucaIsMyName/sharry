@@ -28,7 +28,19 @@ Pause sets the status to disabled. A paused link does not redirect. Switch it ba
 
 A link can require a password before it redirects. Visitors must enter this password before the short link redirects. The password is stored as a hash. Leave the field blank on a later edit to keep the saved password. Clearing it removes the requirement.
 
-Save link is in the page header and again at the end of the form. Both buttons store the destination, slug, title, description, redirect domain, redirect type, expiry, password, and UTM fields together. The QR code has its own save.
+Save link is in the page header and again at the end of the form. Both buttons store the destination, slug, title, description, redirect domain, redirect type, expiry, password, UTM fields, and routes together. The QR code has its own save.
+
+## Routes
+
+Routes are optional. Leave the list empty and every visit uses the destination.
+
+Add a route to send some visits to a different `http` or `https` URL. Each route can have as many conditions as you need, and every condition on that route has to match. Routes run from top to bottom. The first matching route is used. Move a route up or down to change which one is checked first.
+
+Choose each value from the list: browser, device, operating system, country, referrer, and UTM source, medium, campaign, id, term, and content. Campaign, id, term, and content offer values already saved on the link, on its variants, and on its clicks. Custom is there when you need a new value for one of those four. Referrer choices such as Google cover that site and its subdomains. Country choices need the geo database; without it, a country route is skipped.
+
+UTM conditions read the query string on the short link, for example `?utm_source=newsletter`. The UTM values stored on the link are still added to whichever URL is chosen.
+
+If nothing matches, a saved value is no longer recognized, the route URL is not valid, or the country cannot be looked up, that route is skipped. Visitors then use a later matching route, or the destination. The link page keeps an outdated value and says that visitors use the destination until you update the route. The redirect itself still succeeds.
 
 ## Redirects
 

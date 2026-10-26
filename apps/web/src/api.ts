@@ -1,4 +1,4 @@
-import type { Locale, QrStyle, UtmParams } from "@sharry/shared";
+import type { Locale, QrStyle, RoutingChoices, RoutingRule, UtmParams } from "@sharry/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -76,6 +76,8 @@ export type ShortLink = {
   createdAt: string;
   updatedAt: string;
   utm: UtmParams;
+  routingRules: RoutingRule[];
+  routingChoices?: RoutingChoices;
   userId: string;
   redirectDomainId: string | null;
   canEdit?: boolean;

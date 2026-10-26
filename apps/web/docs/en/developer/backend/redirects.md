@@ -31,3 +31,11 @@ Clicks are recorded after the response, from an `onResponse` hook. A paused, mis
 ## UTM merge
 
 UTM values from the link, and from a `v` variant or a `qr` code when it belongs to that link, are resolved once and merged onto the destination. A variant or QR id from another link is ignored. Blank variant fields keep the link’s values. Query parameters on the destination that are not being replaced, and the URL fragment, are kept.
+
+## Routing
+
+Before that merge, `matchRoute` in `packages/shared` reads `links.routing_rules`. The visit is the parsed user agent, the referrer hostname, the geo country when `GEOIP_DB_PATH` is set, and `utm_*` parameters on the short link. Rules run in array order. A rule matches only when every condition matches. The first match replaces the destination. Link and variant UTM values are then applied to that URL.
+
+Closed values come from shared catalogs: browser, device, operating system, country, referrer presets, and UTM source and medium. Campaign, id, term, and content are free strings. Comparison is case-insensitive. A referrer preset matches the hostname or a subdomain, so Google matches `news.google.com`.
+
+An empty list uses the link destination. A rule is skipped when its URL is not `http` or `https`, a field or operator is unknown, a saved value is no longer in the catalog, an “is any of” list has no recognized values left, or a country condition has no geo result. Matching is limited to 50 rules and 30 conditions. Any throw uses the link destination, and the redirect still completes.

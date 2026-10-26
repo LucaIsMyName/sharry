@@ -31,3 +31,11 @@ Klicks werden nach der Antwort aufgezeichnet, aus einem `onResponse`-Hook. Ein p
 ## UTM zusammenführen
 
 UTM-Werte vom Link und von einer `v`-Variante oder einem `qr`-Code, wenn sie zu diesem Link gehören, werden einmal aufgelöst und auf das Ziel gelegt. Eine Varianten- oder QR-ID von einem anderen Link wird ignoriert. Leere Variantenfelder behalten die Werte des Links. Query-Parameter am Ziel, die nicht ersetzt werden, und das URL-Fragment bleiben.
+
+## Routing
+
+Vor diesem Zusammenführen liest `matchRoute` in `packages/shared` `links.routing_rules`. Der Besuch besteht aus dem ausgewerteten User-Agent, dem Referrer-Hostnamen, dem Geo-Land wenn `GEOIP_DB_PATH` gesetzt ist, und den `utm_*`-Parametern am Kurzlink. Regeln laufen in der Reihenfolge des Arrays. Eine Regel passt nur, wenn jede Bedingung passt. Der erste Treffer ersetzt das Ziel. UTM-Werte von Link und Variante werden danach auf diese URL gelegt.
+
+Geschlossene Werte kommen aus gemeinsamen Katalogen: Browser, Gerät, Betriebssystem, Land, Referrer-Vorgaben sowie UTM-Quelle und Medium. Kampagne, ID, Begriff und Inhalt sind freie Zeichenfolgen. Der Vergleich ignoriert die Großschreibung. Eine Referrer-Vorgabe trifft den Hostnamen oder eine Subdomain, deshalb trifft Google `news.google.com`.
+
+Eine leere Liste nutzt das Linkziel. Eine Regel wird übersprungen, wenn ihre URL nicht `http` oder `https` ist, ein Feld oder Operator unbekannt ist, ein gespeicherter Wert nicht mehr im Katalog steht, eine „ist einer von“-Liste keine erkannten Werte mehr hat oder eine Länderbedingung kein Geo-Ergebnis hat. Die Auswertung ist auf 50 Regeln und 30 Bedingungen begrenzt. Jeder Fehler nutzt das Linkziel, und die Weiterleitung wird trotzdem abgeschlossen.
