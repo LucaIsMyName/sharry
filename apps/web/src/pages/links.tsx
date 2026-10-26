@@ -38,7 +38,7 @@ import {
 import { useAppName } from "../brand.ts";
 import { EmptyState } from "../components/empty-state.tsx";
 import { AnalyticsSummary, useReportRange } from "../components/analytics-summary.tsx";
-import { BulkLinks } from "../components/bulk-links.tsx";
+import { BulkLinksDialog } from "../components/bulk-links.tsx";
 import { RouteSuggest } from "../components/route-suggest.tsx";
 import { SuggestButton } from "../components/suggest-button.tsx";
 import { useAiAvailable } from "../components/use-ai.ts";
@@ -270,8 +270,8 @@ export function LinksPage() {
         action={
           <div className="flex flex-wrap gap-2">
             {aiAvailable ? (
-              <Button variant="outline" size="sm" type="button" onClick={() => setBulkOpen((open) => !open)}>
-                {bulkOpen ? t("Close") : t("Add several")}
+              <Button variant="outline" size="sm" type="button" onClick={() => setBulkOpen(true)}>
+                {t("Add several")}
               </Button>
             ) : null}
             <Link className={buttonVariants({ size: "sm" })} to="/links/new">
@@ -280,7 +280,13 @@ export function LinksPage() {
           </div>
         }
       />
-      {aiAvailable && bulkOpen ? <BulkLinks onCreated={() => setReload((value) => value + 1)} /> : null}
+      {aiAvailable ? (
+        <BulkLinksDialog
+          open={bulkOpen}
+          onOpenChange={setBulkOpen}
+          onCreated={() => setReload((value) => value + 1)}
+        />
+      ) : null}
       <Field label="Search">
         <Input
           value={query}
@@ -631,7 +637,6 @@ export function LinkSuggestFields({
   onTitle: (value: string) => void;
   children?: ReactNode;
 }) {
-  const { t } = useI18n();
   const [suggesting, setSuggesting] = useState<"slug" | "title" | null>(null);
   const [slugHint, setSlugHint] = useState<"title" | "page" | null>(null);
   const [titleHint, setTitleHint] = useState(false);
@@ -689,19 +694,20 @@ export function LinkSuggestFields({
             onChange={(event) => {
               onSlug(event.target.value);
               setSlugHint(null);
+              setSlugError("");
             }}
           />
           {aiAvailable ? (
             <SuggestButton
               label="Suggest a slug"
               hint={slugHint === "title" ? "Suggested from the page title." : slugHint === "page" ? "Suggested from the page." : null}
+              error={slugError}
               disabled={!ready || suggesting === "slug"}
               onClick={() => void suggest("slug")}
             />
           ) : null}
         </div>
       </Field>
-      {slugError ? <p className="text-sm text-destructive">{t(slugError)}</p> : null}
     </>
   );
   const titleFields = (
@@ -714,19 +720,20 @@ export function LinkSuggestFields({
             onChange={(event) => {
               onTitle(event.target.value);
               setTitleHint(false);
+              setTitleError("");
             }}
           />
           {aiAvailable ? (
             <SuggestButton
               label="Suggest a title"
               hint={titleHint ? "Suggested from the page title." : null}
+              error={titleError}
               disabled={!ready || suggesting === "title"}
               onClick={() => void suggest("title")}
             />
           ) : null}
         </div>
       </Field>
-      {titleError ? <p className="text-sm text-destructive">{t(titleError)}</p> : null}
     </>
   );
   return (

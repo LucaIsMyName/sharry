@@ -23,13 +23,17 @@ export const pageIo: PageIo = {
   },
 }
 
+const suggestionWords = 3
+
 export function slugify(value: string): string {
   const slug = value
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .slice(0, suggestionWords)
+    .join('-')
     .slice(0, 64)
     .replace(/-+$/g, '')
   if (!slug || validateSlug(slug)) return ''

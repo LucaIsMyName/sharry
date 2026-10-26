@@ -7,7 +7,7 @@ import type { RoutingRule, UtmParams } from "@sharry/shared";
 import { api } from "../api.ts";
 import { setActiveLocale } from "../i18n/index.tsx";
 import { AnalyticsSummary } from "./analytics-summary.tsx";
-import { BulkLinks } from "./bulk-links.tsx";
+import { BulkLinksDialog } from "./bulk-links.tsx";
 import { RouteSuggest } from "./route-suggest.tsx";
 import { UtmSuggest } from "./utm-suggest.tsx";
 import { VariantDrafts } from "./variant-drafts.tsx";
@@ -144,7 +144,7 @@ describe("AI assists", () => {
     expect(onSaved).toHaveBeenCalled();
   });
 
-  it("reviews pasted URLs and creates only the kept rows", async () => {
+  it("reviews pasted URLs in a dialog and clears them after creating or closing", async () => {
     const onCreated = vi.fn();
     vi.mocked(api).mockImplementation(async (path: string) => {
       if (path === "/api/ai/suggest-links") {
@@ -157,7 +157,30 @@ describe("AI assists", () => {
       }
       return { id: "link" };
     });
-    render(<BulkLinks onCreated={onCreated} />);
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Add several
+          </button>
+          <BulkLinksDialog open={open} onOpenChange={setOpen} onCreated={onCreated} />
+        </>
+      );
+    }
+    render(<Harness />);
+    expect(screen.queryByRole("textbox", { name: "Destinations" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add several" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Destinations" }), {
+      target: { value: "https://example.com/pricing\nhttps://example.com/guide" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    expect(await screen.findByDisplayValue("October pricing")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("textbox", { name: "Destinations" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add several" }));
+    expect((screen.getByRole("textbox", { name: "Destinations" }) as HTMLTextAreaElement).value).toBe("");
+    expect(screen.queryByDisplayValue("October pricing")).toBeNull();
     fireEvent.change(screen.getByRole("textbox", { name: "Destinations" }), {
       target: { value: "https://example.com/pricing\nhttps://example.com/guide" },
     });
@@ -165,8 +188,8 @@ describe("AI assists", () => {
     expect(await screen.findByDisplayValue("October pricing")).toBeTruthy();
     fireEvent.click(screen.getByRole("checkbox", { name: "Keep https://example.com/guide" }));
     fireEvent.click(screen.getByRole("button", { name: "Create links" }));
-    expect(await screen.findByText("Created 1 links.")).toBeTruthy();
-    expect(onCreated).toHaveBeenCalled();
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+    expect(screen.queryByRole("textbox", { name: "Destinations" })).toBeNull();
     expect(api).toHaveBeenCalledWith("/api/links", {
       method: "POST",
       body: JSON.stringify({

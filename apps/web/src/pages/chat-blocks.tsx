@@ -286,19 +286,20 @@ function LinkForm({
                   onChange={(event) => {
                     setTitle(event.target.value);
                     setTitleSuggested(false);
+                    setTitleError("");
                   }}
                 />
                 {aiAvailable ? (
                   <SuggestButton
                     label="Suggest a title"
                     hint={titleSuggested ? "Suggested from the page title." : null}
+                    error={titleError}
                     disabled={suggesting !== null || !destinationUrl.trim()}
                     onClick={() => void suggest("title")}
                   />
                 ) : null}
               </div>
             </Field>
-            {titleError ? <p className="text-sm text-destructive">{t(titleError)}</p> : null}
             <Field label="Custom slug">
               <div className="relative">
                 <Input
@@ -307,12 +308,14 @@ function LinkForm({
                   onChange={(event) => {
                     setSlug(event.target.value);
                     setSuggested(false);
+                    setSuggestError("");
                   }}
                 />
                 {aiAvailable ? (
                   <SuggestButton
                     label="Suggest a slug"
                     hint={suggested ? (fromTitle ? "Suggested from the page title." : "Suggested from the page.") : null}
+                    error={suggestError}
                     disabled={suggesting !== null || !destinationUrl.trim()}
                     onClick={() => void suggest("slug")}
                   />
@@ -339,7 +342,6 @@ function LinkForm({
               <Input value={utmCampaign} onChange={(event) => setUtmCampaign(event.target.value)} />
             </Field>
             <p className="text-sm text-muted-foreground">{t("The title and UTM fields can be skipped.")}</p>
-            {suggestError ? <p className="text-sm text-destructive">{t(suggestError)}</p> : null}
             <Label className="w-fit font-normal">
               <Checkbox
                 checked={createQr}

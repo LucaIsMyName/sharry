@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { bulkLinkLimit } from "@sharry/shared";
 import { ApiError, api, type ShortLink } from "../api.ts";
 import { useI18n } from "../i18n/index.tsx";
 import { Button } from "./ui/button.tsx";
 import { Checkbox } from "./ui/checkbox.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog.tsx";
 import { Field } from "./ui/field.tsx";
 import { Input } from "./ui/input.tsx";
 import { Textarea } from "./ui/textarea.tsx";
+import { toast } from "./ui/toast.tsx";
 
 type DraftRow = {
   destinationUrl: string;
@@ -16,14 +18,45 @@ type DraftRow = {
   error: string;
 };
 
-export function BulkLinks({ onCreated }: { onCreated: () => void }) {
+export function BulkLinksDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: () => void;
+}) {
   const { t } = useI18n();
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle className="font-heading text-2xl">{t("Add several")}</DialogTitle>
+          <DialogDescription>{t("One destination URL per line")}</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[min(32rem,calc(100vh-8rem))] overflow-y-auto">
+          {open ? <BulkLinks onCreated={onCreated} onDone={() => onOpenChange(false)} /> : null}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkLinks({ onCreated, onDone }: { onCreated: () => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const alive = useRef(true);
   const [text, setText] = useState("");
   const [rows, setRows] = useState<DraftRow[] | null>(null);
   const [pending, setPending] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
-  const [created, setCreated] = useState(0);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   function parseLines(): string[] | null {
     const urls = text
       .split(/\r?\n/)
@@ -44,7 +77,6 @@ export function BulkLinks({ onCreated }: { onCreated: () => void }) {
     if (!urls || pending) return;
     setPending(true);
     setError("");
-    setCreated(0);
     try {
       const result = await api<{ rows: { destinationUrl: string; title: string; slug: string; error?: string }[] }>(
         "/api/ai/suggest-links",
@@ -98,13 +130,16 @@ export function BulkLinks({ onCreated }: { onCreated: () => void }) {
         };
       }
     }
-    setRows(next);
-    setCreated(made);
-    setCreating(false);
-    if (made > 0) onCreated();
+    if (alive.current) setCreating(false);
+    if (made > 0) {
+      onCreated();
+      toast.success(t("Created {count} links.", { count: made }));
+    }
+    if (made === kept.length) onDone();
+    else if (alive.current) setRows(next);
   }
   return (
-    <div className="mt-4 grid gap-3">
+    <div className="grid gap-3">
       <Field label="Destinations">
         <Textarea
           value={text}
@@ -122,7 +157,6 @@ export function BulkLinks({ onCreated }: { onCreated: () => void }) {
           </Button>
         ) : null}
       </div>
-      {created > 0 ? <p className="text-sm text-muted-foreground">{t("Created {count} links.", { count: created })}</p> : null}
       {error ? <p className="text-sm text-destructive">{t(error)}</p> : null}
       {rows ? (
         <ul className="grid gap-3">

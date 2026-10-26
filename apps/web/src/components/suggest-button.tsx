@@ -9,19 +9,22 @@ const suggestButtonClass =
 export function SuggestButton({
   label,
   hint,
+  error,
   disabled,
   onClick,
 }: {
   label: string;
   hint: string | null;
+  error?: string;
   disabled: boolean;
   onClick: () => void;
 }) {
   const { t } = useI18n();
+  const message = error || hint;
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    setOpen(Boolean(hint));
-  }, [hint]);
+    setOpen(Boolean(message));
+  }, [message]);
   return (
     <TooltipProvider>
       <Tooltip open={open} onOpenChange={setOpen}>
@@ -38,7 +41,7 @@ export function SuggestButton({
         >
           <Sparkles size={16} />
         </TooltipTrigger>
-        {hint ? <TooltipContent>{t(hint)}</TooltipContent> : null}
+        {message ? <TooltipContent className={error ? "text-destructive" : undefined}>{t(message)}</TooltipContent> : null}
       </Tooltip>
     </TooltipProvider>
   );

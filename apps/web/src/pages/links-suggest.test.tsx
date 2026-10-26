@@ -88,6 +88,20 @@ describe("link editor suggestions", () => {
     expect(await screen.findByText("Suggested from the page title.")).toBeTruthy();
   });
 
+  it("shows a failed slug suggestion in the field tooltip", async () => {
+    vi.mocked(api).mockResolvedValue({ slug: null, title: "Example", fromTitle: false });
+    render(<Harness aiAvailable />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Destination" }), {
+      target: { value: "https://example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest a slug" }));
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip.textContent).toBe("Could not suggest a slug for that page.");
+    expect(document.body.querySelector("p")?.textContent ?? "").not.toContain("Could not suggest a slug for that page.");
+    fireEvent.change(screen.getByRole("textbox", { name: "Slug" }), { target: { value: "mine" } });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
   it("suggests from a new link once the destination is a URL", async () => {
     vi.mocked(api).mockResolvedValue({
       slug: "example-domain",

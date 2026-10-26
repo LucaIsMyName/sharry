@@ -152,6 +152,23 @@ describe("chat conversation", () => {
     });
   });
 
+  it("shows a failed slug suggestion in the slug tooltip", async () => {
+    vi.mocked(api).mockResolvedValue({ slug: null, title: "", fromTitle: false });
+    const linkForm: ChatBlock = { type: "form", id: "form-1", form: "link", status: "pending" };
+    renderConversation(true, [{ id: "m1", role: "assistant", content: "", proposal: null, blocks: [linkForm] }]);
+    fireEvent.change(screen.getByRole("textbox", { name: "Destination" }), {
+      target: { value: "https://example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest a slug" }));
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip.textContent).toBe("Could not suggest a slug for that page.");
+    expect([...document.body.querySelectorAll("p")].some((node) => node.textContent === "Could not suggest a slug for that page.")).toBe(false);
+    expect(api).toHaveBeenCalledWith("/api/ai/suggest-slug", {
+      method: "POST",
+      body: JSON.stringify({ destinationUrl: "https://example.com" }),
+    });
+  });
+
   it("renders a heading and a table in the answer", () => {
     const table: ChatBlock = {
       type: "table",

@@ -11,6 +11,7 @@ function io(fetchImpl: PageIo['fetch'], records: { address: string; family: numb
 describe('page slug', () => {
   it('turns a page title into a slug and falls back to the address', () => {
     expect(slugify('Pricing | ipstack')).toBe('pricing-ipstack')
+    expect(slugify('Niederlage für Vucic Serbien nach Wahl')).toBe('niederlage-fur-vucic')
     expect(slugify('Docs')).toBe('')
     expect(slugCandidates('https://ipstack.com/pricing/', 'Docs')).toEqual(['ipstack-pricing'])
     expect(titleFromHtml(html)).toBe('Pricing | ipstack')
@@ -49,7 +50,7 @@ describe('page slug', () => {
       io: io(vi.fn(async () => new Response(`<title>${long}</title>`, { status: 200, headers: { 'content-type': 'text/html' } }))),
     })
     expect(wide?.title).toBe(clipPageTitle(long))
-    expect(wide?.slug).toBeTruthy()
+    expect(wide?.slug).toBe('pricing-pricing-pricing')
     taken.mockRestore()
   })
 })

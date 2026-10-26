@@ -22,11 +22,11 @@ You see your own links. An administrator sees and edits every link. Settings can
 
 A new link needs an `http` or `https` destination, up to 4096 characters. Title and description are optional. Choose a redirect type or leave the account default from Settings. The default for a new install is 302. The other choices are 301, 307, and 308.
 
-When AI is turned on in Settings, the slug and title fields on a new link and on a saved link each show a button. It reads the destination page and suggests a free slug or the page title once that destination is a valid URL. A tooltip says where the suggestion came from. You can change either value. Nothing is stored until you save the link. The buttons stay hidden when AI is off.
+When AI is turned on in Settings, the slug and title fields on a new link and on a saved link each show a button. It reads the destination page and suggests a free slug or the page title once that destination is a valid URL. A suggested slug is the first three words of that title, or of the address when the title does not make a slug. A tooltip on the field says where the suggestion came from. If Sharry cannot suggest a slug, that message stays in the same tooltip. You can change either value. Nothing is stored until you save the link. The buttons stay hidden when AI is off.
 
 The same switch shows Suggest UTM above the UTM fields on a new link, a saved link, and the short-link form in Chat. An optional line says where you will share the link, such as “October newsletter” or “Instagram bio”. Suggest UTM fills source, medium, and campaign. The other UTM fields stay as they are. Nothing is stored until you save.
 
-On the links list, Add several accepts up to 20 destination URLs, one per line. Review shows a title and a free slug for each page. A title that is missing or is only the site name is rewritten. Uncheck a row to leave it out. Create links stores the rows you keep.
+On the links list, Add several opens a dialog. The list underneath does not move. The dialog accepts up to 20 destination URLs, one per line. Review shows a title and a free slug for each page. A title that is missing or is only the site name is rewritten. Uncheck a row to leave it out. Create links stores the rows you keep, then closes the dialog and clears it. Closing the dialog without creating clears it too.
 
 Expiry is entered in your local time and stored in UTC. A blank expiry never expires. An expired link stops redirecting.
 
