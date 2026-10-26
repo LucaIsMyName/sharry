@@ -5,7 +5,9 @@ import { Link, useNavigate, useParams } from "react-router";
 import type { UtmParams } from "@sharry/shared";
 import { api, type ShortLink } from "../api.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
+import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { UtmFields, utmSummary } from "../components/utm-fields.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
@@ -34,6 +36,7 @@ export function CampaignsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState(false);
 
   async function load() {
@@ -59,6 +62,7 @@ export function CampaignsPage() {
       });
       setName("");
       setDescription("");
+      setCreating(false);
       await load();
     } catch (caught) {
       toastCaught(caught, t("Could not create the campaign"));
@@ -69,16 +73,24 @@ export function CampaignsPage() {
 
   return (
     <section className="grid gap-4">
-      <div>
-        <h1 className="font-heading text-2xl font-medium tracking-tight">
-          {t("Campaigns")}
-        </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {t(
-            "A campaign groups tracked copies of your short links. Each variant keeps the same slug and adds its own UTM values. Share it with ?v= or attach it to a QR code.",
-          )}
-        </p>
-      </div>
+      <PageHeader
+        title={t("Campaigns")}
+        lede={t(
+          "A campaign groups tracked copies of your short links. Each variant keeps the same slug and adds its own UTM values. Share it with ?v= or attach it to a QR code.",
+        )}
+        action={
+          !loading && campaigns.length > 0 ? (
+            <Button type="button" size="sm" variant={creating ? "outline" : "default"} onClick={() => setCreating((open) => !open)}>
+              {creating ? t("Cancel") : (
+                <>
+                  <Plus /> {t("New campaign")}
+                </>
+              )}
+            </Button>
+          ) : null
+        }
+      />
+      {!loading && (campaigns.length === 0 || creating) ? (
       <Card>
         <CardContent>
           <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
@@ -101,8 +113,9 @@ export function CampaignsPage() {
           </form>
         </CardContent>
       </Card>
+      ) : null}
       {loading ? (
-        <EmptyState>{t("Loading campaigns…")}</EmptyState>
+        <RowSkeleton label="Loading campaigns…" />
       ) : campaigns.length === 0 ? (
         <EmptyState>
           {t("No campaigns yet. Create one in the form above.")}
@@ -334,9 +347,7 @@ export function CampaignDetailPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-medium tracking-tight">
-            {loading
-              ? t("Loading campaign…")
-              : (campaign?.name ?? t("Campaign"))}
+            {campaign?.name ?? t("Campaign")}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {t(
@@ -363,6 +374,10 @@ export function CampaignDetailPage() {
           </Button>
         </div>
       </div>
+      {loading ? (
+        <DetailSkeleton label="Loading campaign…" />
+      ) : (
+      <>
       <Card>
         <CardContent>
           <form
@@ -528,6 +543,8 @@ export function CampaignDetailPage() {
           )}
         </CardContent>
       </Card>
+      </>
+      )}
       <ConfirmDialog
         open={confirmDelete}
         title="Delete this campaign?"

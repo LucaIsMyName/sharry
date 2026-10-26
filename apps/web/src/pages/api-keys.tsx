@@ -7,6 +7,7 @@ import { copyText } from "../components/ui/copy.ts";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
+import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import {
@@ -60,6 +61,7 @@ export function ApiKeysPage() {
   const [created, setCreated] = useState<CreatedKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [revokeId, setRevokeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     const [userResult, keyResult] = await Promise.all([
@@ -80,9 +82,9 @@ export function ApiKeysPage() {
   }
 
   useEffect(() => {
-    void load().catch((caught: unknown) =>
-      toastCaught(caught, t("Could not load API keys")),
-    );
+    void load()
+      .catch((caught: unknown) => toastCaught(caught, t("Could not load API keys")))
+      .finally(() => setLoading(false));
   }, []);
 
   async function create(event: FormEvent) {
@@ -168,6 +170,9 @@ export function ApiKeysPage() {
           </form>
         </CardContent>
       </Card>
+      {loading ? (
+        <RowSkeleton label="Loading API keys…" />
+      ) : (
       <Table>
             <TableHeader>
               <TableRow>
@@ -213,6 +218,7 @@ export function ApiKeysPage() {
               ))}
             </TableBody>
       </Table>
+      )}
       <Dialog
         open={Boolean(created)}
         onOpenChange={(open) => {

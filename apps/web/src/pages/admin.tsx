@@ -23,6 +23,7 @@ import { AiSettingsCard } from "./ai-settings-card.tsx";
 import { api } from "../api.ts";
 import { auditActionSentence } from "../audit-actions.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Badge } from "../components/ui/badge.tsx";
@@ -114,14 +115,15 @@ export function AdminUsersPage() {
   const [nextPassword, setNextPassword] = useState("");
   const [copied, setCopied] = useState(false);
   const [deleteFor, setDeleteFor] = useState<AdminUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     setUsers((await api<{ users: AdminUser[] }>("/api/admin/users")).users);
   }
   useEffect(() => {
-    void load().catch((caught: unknown) =>
-      toastCaught(caught, t("Could not load users")),
-    );
+    void load()
+      .catch((caught: unknown) => toastCaught(caught, t("Could not load users")))
+      .finally(() => setLoading(false));
   }, []);
 
   async function create(event: FormEvent) {
@@ -258,6 +260,9 @@ export function AdminUsersPage() {
           </form>
         </CardContent>
       </Card>
+      {loading ? (
+        <RowSkeleton label="Loading users…" />
+      ) : (
       <Table>
             <TableHeader>
               <TableRow>
@@ -330,6 +335,7 @@ export function AdminUsersPage() {
               ))}
             </TableBody>
           </Table>
+      )}
       <Dialog
         open={Boolean(passwordFor)}
         onOpenChange={(open) => {
@@ -523,9 +529,7 @@ export function AdminSettingsPage() {
         <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Settings")}
         </h1>
-        {loaded ? null : (
-          <p className="text-sm text-muted-foreground">{t("Loading settings…")}</p>
-        )}
+          {loaded ? null : <DetailSkeleton label="Loading settings…" />}
       </section>
     );
   return (
@@ -847,7 +851,7 @@ export function AdminAuditPage() {
         {t("Audit")}
       </h1>
       {loading ? (
-        <EmptyState>{t("Loading audit log…")}</EmptyState>
+        <RowSkeleton label="Loading audit log…" />
       ) : entries.length === 0 ? (
         <EmptyState>{t("No audit events yet.")}</EmptyState>
       ) : (

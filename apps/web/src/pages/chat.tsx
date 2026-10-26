@@ -1,19 +1,23 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { Menu, MessageSquarePlus, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router";
+import { Link, NavLink, useLocation, useNavigate, useOutletContext, useParams } from "react-router";
 import { chatStarters, type AiProposal, type ChatBlock } from "@sharry/shared";
 import { cn } from "cn";
 import { ApiError, api } from "../api.ts";
+import { RelativeTime } from "../components/relative-time.tsx";
 import { useI18n } from "../i18n/index.tsx";
-import { Button } from "../components/ui/button.tsx";
+import { PageTitle } from "../components/page-title.tsx";
+import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
+import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
+import { ChatListSkeleton, ChatThreadSkeleton, WritingSkeleton } from "../components/ui/skeleton.tsx";
 import { Textarea } from "../components/ui/textarea.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
-import { ChatBlocks } from "./chat-blocks.tsx";
+import { ChatBlocks, CopyableUrl } from "./chat-blocks.tsx";
 
 export const lastChatStorageKey = "sharry.lastChat";
 
@@ -34,6 +38,18 @@ type ChatSummary = {
   updatedAt: string;
 };
 
+const starterHints: Record<(typeof chatStarters)[number]["id"], string> = {
+  link: "Destination, optional slug, and a QR code.",
+  campaign: "A name, a link, and an optional variant.",
+  analytics: "All links, or one link, for the last 30 days.",
+};
+
+type PendingProposal = { id: string; action: "confirm" | "dismiss" };
+
+function isAbort(caught: unknown): boolean {
+  return caught instanceof Error && caught.name === "AbortError";
+}
+
 export type ChatMessage = {
   id: string;
   role: string;
@@ -46,16 +62,22 @@ export function ChatPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { admin } = useOutletContext<{ admin: boolean }>() ?? { admin: false };
   const { t } = useI18n();
   const [available, setAvailable] = useState<boolean | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [chatsLoaded, setChatsLoaded] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesFor, setMessagesFor] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [failedSend, setFailedSend] = useState<{ id: string; content: string } | null>(null);
   const [submittingForm, setSubmittingForm] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [pendingProposal, setPendingProposal] = useState<PendingProposal | null>(null);
   const skipLoad = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const fresh = isNewChat(location.state);
 
   useEffect(() => {
@@ -85,15 +107,32 @@ export function ChatPage() {
   useEffect(() => {
     if (!id) {
       setMessages([]);
+      setMessagesFor(null);
       return;
     }
     if (skipLoad.current === id) {
       skipLoad.current = null;
+      setMessagesFor(id);
       return;
     }
+    let cancelled = false;
+    setMessages([]);
+    setMessagesFor(null);
     void api<{ messages: ChatMessage[] }>(`/api/chats/${id}`)
-      .then((result) => setMessages(result.messages))
-      .catch((caught: unknown) => toastCaught(caught, t("Could not load chat")));
+      .then((result) => {
+        if (cancelled) return;
+        setMessages(result.messages);
+        setMessagesFor(id);
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) toastCaught(caught, t("Could not load chat"));
+      })
+      .finally(() => {
+        if (!cancelled) setMessagesFor(id);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [id, t]);
 
   async function startChat(): Promise<string> {
@@ -102,31 +141,49 @@ export function ChatPage() {
     return created.id;
   }
 
-  async function send(content: string) {
+  function stopReply() {
+    abortRef.current?.abort();
+  }
+
+  async function send(content: string, retryId?: string) {
     const text = content.trim();
     if (!text || available !== true || sending) return;
     setSending(true);
-    setDraft("");
+    if (!retryId) setDraft("");
+    setFailedSend(null);
     let chatId = id;
+    const userId = retryId ?? `user-${Date.now()}`;
+    const pendingId = `pending-${Date.now()}`;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let posted = Boolean(retryId);
     try {
       if (!chatId) {
         chatId = await startChat();
         skipLoad.current = chatId;
         await navigate(`/chat/${chatId}`);
       }
-      setMessages((current) => [
-        ...current,
-        { id: `user-${Date.now()}`, role: "user", content: text, proposal: null, blocks: null },
-      ]);
+      if (!retryId) {
+        setMessages((current) => [
+          ...current,
+          { id: userId, role: "user", content: text, proposal: null, blocks: null },
+        ]);
+        posted = true;
+      }
       setChats((current) =>
         current.map((chat) =>
           chat.id === chatId && chat.title === "New chat" ? { ...chat, title: text.slice(0, 80) } : chat,
         ),
       );
-      await streamReply(chatId, text, setMessages);
+      await streamReply(chatId, text, setMessages, controller.signal, pendingId);
     } catch (caught) {
-      toastCaught(caught, t("Could not send the message"));
+      if (!isAbort(caught)) {
+        setMessages((current) => current.filter((message) => message.id !== pendingId));
+        if (posted) setFailedSend({ id: userId, content: text });
+        toastCaught(caught, t("Could not send the message"));
+      }
     } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setSending(false);
     }
   }
@@ -173,7 +230,8 @@ export function ChatPage() {
   }
 
   async function settle(proposalId: string, action: "confirm" | "dismiss") {
-    if (!id) return;
+    if (!id || pendingProposal) return;
+    setPendingProposal({ id: proposalId, action });
     try {
       const result = await api<{ proposal: AiProposal }>(`/api/chats/${id}/proposals/${proposalId}/${action}`, {
         method: "POST",
@@ -185,70 +243,117 @@ export function ChatPage() {
       );
     } catch (caught) {
       toastCaught(caught, t("Could not update the card"));
+    } finally {
+      setPendingProposal(null);
     }
   }
 
+  const current = chats.find((chat) => chat.id === id);
+  const heading = current
+    ? current.title === "New chat"
+      ? t("New chat")
+      : current.title
+    : t(!id && (fresh || (chatsLoaded && chats.length === 0)) ? "New chat" : "Chat");
+  const nextId =
+    !id && chatsLoaded ? chatToOpen(chats.map((chat) => chat.id), localStorage.getItem(lastChatStorageKey), fresh) : null;
+  const loadingThread =
+    !fresh && (!chatsLoaded || Boolean(nextId) || Boolean(id && messagesFor !== id) || (available === null && !id));
+
   return (
-    <section className="grid items-stretch gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="hidden min-w-0 md:sticky md:top-7 md:flex md:h-[calc(100svh-3.5rem)] md:max-h-[calc(100svh-3.5rem)] md:flex-col md:self-start md:border-r md:border-border md:pr-4">
+    <>
+    <PageTitle title={current && current.title !== "New chat" ? current.title : heading} literal={Boolean(current && current.title !== "New chat")} />
+    <section className="grid h-full min-h-0 flex-1 md:grid-cols-[16rem_minmax(0,1fr)]">
+      <aside className="hidden h-full min-h-0 flex-col border-r border-border px-4 py-4 md:flex">
         <ChatList
           chats={chats}
+          loading={!chatsLoaded}
           tone="page"
           onNew={openNewChat}
           onPick={() => setListOpen(false)}
-          onDelete={(chatId) => void removeChat(chatId)}
+          onDelete={setDeleteId}
         />
       </aside>
-      <ChatConversation
-        available={available}
-        messages={messages}
-        draft={draft}
-        sending={sending}
-        menu={
-          <div className="md:hidden">
-            <Sheet open={listOpen} onOpenChange={setListOpen}>
-              <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
-                <Menu /> {t("Chats")}
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
-              >
-                <SheetTitle className="pr-8 text-sidebar-foreground">{t("Chats")}</SheetTitle>
-                <ChatList
-                  chats={chats}
-                  tone="sidebar"
-                  onNew={openNewChat}
-                  onPick={() => setListOpen(false)}
-                  onDelete={(chatId) => void removeChat(chatId)}
-                />
-              </SheetContent>
-            </Sheet>
-          </div>
-        }
-        onDraft={setDraft}
-        onSubmit={(event) => {
-          event.preventDefault();
-          void send(draft);
-        }}
-        onStarter={(prompt) => void send(prompt)}
-        submittingForm={submittingForm}
-        onConfirm={(proposalId) => void settle(proposalId, "confirm")}
-        onDismiss={(proposalId) => void settle(proposalId, "dismiss")}
-        onSubmitForm={(formId, body) => void submitForm(formId, body)}
-      />
+      <div className="flex h-full min-h-0 flex-col px-5 py-4 md:px-7">
+        <ChatConversation
+          title={heading}
+          admin={admin}
+          available={available}
+          loading={loadingThread}
+          messages={messages}
+          draft={draft}
+          sending={sending}
+          failedId={failedSend?.id ?? null}
+          pendingProposal={pendingProposal}
+          menu={
+            <div className="flex items-center gap-2 md:hidden">
+              <Button variant="outline" size="sm" type="button" onClick={openNewChat}>
+                <MessageSquarePlus /> {t("New chat")}
+              </Button>
+              <Sheet open={listOpen} onOpenChange={setListOpen}>
+                <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
+                  <Menu /> {t("Chats")}
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
+                >
+                  <SheetTitle className="pr-8 text-sidebar-foreground">{t("Chats")}</SheetTitle>
+                  <ChatList
+                    chats={chats}
+                    loading={!chatsLoaded}
+                    tone="sidebar"
+                    onNew={openNewChat}
+                    onPick={() => setListOpen(false)}
+                    onDelete={setDeleteId}
+                  />
+                </SheetContent>
+              </Sheet>
+            </div>
+          }
+          onDraft={setDraft}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void send(draft);
+          }}
+          onStarter={(prompt) => void send(prompt)}
+          onStop={stopReply}
+          onRetry={(content, messageId) => void send(content, messageId)}
+          submittingForm={submittingForm}
+          onConfirm={(proposalId) => void settle(proposalId, "confirm")}
+          onDismiss={(proposalId) => void settle(proposalId, "dismiss")}
+          onSubmitForm={(formId, body) => void submitForm(formId, body)}
+        />
+      </div>
     </section>
+      <ConfirmDialog
+        open={deleteId !== null}
+        title="Delete chat"
+        description="The transcript is removed."
+        confirmLabel="Delete chat"
+        destructive
+        onOpenChange={(open) => {
+          if (!open) setDeleteId(null);
+        }}
+        onConfirm={() => {
+          const chatId = deleteId;
+          setDeleteId(null);
+          if (chatId) void removeChat(chatId);
+        }}
+      />
+    </>
   );
 }
 
 function ChatList({
   chats,
+  loading,
   tone,
   onNew,
   onPick,
   onDelete,
 }: {
   chats: ChatSummary[];
+  loading: boolean;
   tone: "page" | "sidebar";
   onNew: () => void;
   onPick: () => void;
@@ -259,39 +364,9 @@ function ChatList({
   const sidebar = tone === "sidebar";
   return (
     <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2">
-      <div className="grid min-h-0 w-full min-w-0 flex-1 content-start gap-1 overflow-x-hidden overflow-y-auto">
-        {chats.map((chat) => {
-          const active = pathname === `/chat/${chat.id}`;
-          return (
-            <div
-              key={chat.id}
-              className={cn(
-                "flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
-                sidebar
-                  ? "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
-                  : "hover:bg-primary/10",
-                active &&
-                  (sidebar ? "bg-sidebar-accent font-medium text-white" : "bg-primary hover:bg-primary font-medium text-primary-foreground"),
-              )}
-            >
-              <NavLink to={`/chat/${chat.id}`} onClick={onPick} className="min-w-0 flex-1 truncate">
-                {chat.title === "New chat" ? t("New chat") : chat.title}
-              </NavLink>
-              <button
-                type="button"
-                className="shrink-0 rounded-md p-1"
-                aria-label={t("Delete chat")}
-                onClick={() => onDelete(chat.id)}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          );
-        })}
-      </div>
       <Button
         className={cn(
-          "w-full min-w-0 shrink",
+          "w-full min-w-0 shrink-0",
           sidebar && "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
         )}
         type="button"
@@ -300,41 +375,102 @@ function ChatList({
       >
         <MessageSquarePlus /> {t("New chat")}
       </Button>
+      <div className="grid min-h-0 w-full min-w-0 flex-1 content-start gap-1 overflow-x-hidden overflow-y-auto">
+        {loading ? <ChatListSkeleton /> : null}
+        {loading
+          ? null
+          : chats.map((chat) => {
+              const active = pathname === `/chat/${chat.id}`;
+              return (
+                <div
+                  key={chat.id}
+                  className={cn(
+                    "flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
+                    sidebar
+                      ? "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
+                      : "hover:bg-muted",
+                    active && (sidebar ? "bg-sidebar-accent font-medium text-white" : "bg-muted font-medium"),
+                  )}
+                >
+                  <NavLink to={`/chat/${chat.id}`} onClick={onPick} className="min-w-0 flex-1">
+                    <span className="block truncate">{chat.title === "New chat" ? t("New chat") : chat.title}</span>
+                    <span className={cn("block truncate text-xs", sidebar ? "text-sidebar-foreground/60" : "text-muted-foreground")}>
+                      <RelativeTime value={chat.updatedAt} />
+                    </span>
+                  </NavLink>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-md p-1"
+                    aria-label={t("Delete chat")}
+                    onClick={() => onDelete(chat.id)}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
+      </div>
     </div>
   );
 }
 
 export function ChatConversation({
+  title,
+  admin = false,
   available,
+  loading = false,
   messages,
   draft,
   sending,
+  failedId = null,
+  pendingProposal = null,
   submittingForm,
   menu,
   onDraft,
   onSubmit,
   onStarter,
+  onStop,
+  onRetry,
   onConfirm,
   onDismiss,
   onSubmitForm,
 }: {
+  title?: string;
+  admin?: boolean;
   available: boolean | null;
+  loading?: boolean;
   messages: ChatMessage[];
   draft: string;
   sending: boolean;
+  failedId?: string | null;
+  pendingProposal?: PendingProposal | null;
   submittingForm: string | null;
   menu?: ReactNode;
   onDraft: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStarter: (prompt: string) => void;
+  onStop?: () => void;
+  onRetry?: (content: string, messageId: string) => void;
   onConfirm: (proposalId: string) => void;
   onDismiss: (proposalId: string) => void;
   onSubmitForm: (formId: string, body: Record<string, unknown>) => void;
 }) {
   const { t } = useI18n();
   const box = useRef<HTMLTextAreaElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const pinned = useRef(true);
+  const wasSending = useRef(false);
+  const [away, setAway] = useState(false);
   const visible = messages.filter((message) => message.role === "user" || message.role === "assistant");
-  const showStarters = available === true && visible.length === 0;
+  const showStarters = !loading && available === true && visible.length === 0;
+  const writing =
+    sending &&
+    !visible.some(
+      (message) =>
+        message.role === "assistant" &&
+        message.id.startsWith("pending-") &&
+        (message.content || message.blocks?.length || message.proposal),
+    );
   useEffect(() => {
     const node = box.current;
     if (!node) return;
@@ -342,6 +478,33 @@ export function ChatConversation({
     const next = Math.min(Math.max(node.scrollHeight, 40), 40 + 24 * 7);
     node.style.height = `${next}px`;
   }, [draft]);
+  useEffect(() => {
+    if (wasSending.current && !sending) box.current?.focus();
+    wasSending.current = sending;
+    if (sending) {
+      pinned.current = true;
+      setAway(false);
+    }
+  }, [sending]);
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (!node || !pinned.current) return;
+    node.scrollTop = node.scrollHeight;
+  }, [messages, sending, loading]);
+  function onScroll() {
+    const node = scroller.current;
+    if (!node) return;
+    const near = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+    pinned.current = near;
+    setAway(!near);
+  }
+  function jump() {
+    const node = scroller.current;
+    if (!node) return;
+    pinned.current = true;
+    setAway(false);
+    node.scrollTop = node.scrollHeight;
+  }
   function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
     event.preventDefault();
@@ -349,71 +512,129 @@ export function ChatConversation({
     event.currentTarget.form?.requestSubmit();
   }
   return (
-    <div className="flex min-h-[calc(100svh-5.5rem)] min-w-0 flex-col md:min-h-[calc(100svh-3.5rem)]">
-      <div className="grid content-start gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="font-heading text-2xl font-medium tracking-tight">{t("Chat")}</h1>
-          {menu}
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">{title ?? t("Chat")}</h1>
+          {showStarters ? (
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {t("Ask about links, campaigns, or the last 30 days")}
+            </p>
+          ) : null}
         </div>
-        {available === false ? (
-          <Card>
-            <CardContent className="grid gap-1">
-              <h2 className="text-lg font-medium">{t("AI not available")}</h2>
-              <p className="text-sm text-muted-foreground">
-                {t("An administrator has not saved a provider, model, and API key.")}
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
-        {showStarters ? (
-          <div className="grid gap-2 sm:grid-cols-3">
-            {chatStarters.map((starter) => (
-              <button
-                key={starter.id}
-                type="button"
-                className="rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted"
-                onClick={() => onStarter(t(starter.prompt))}
-              >
-                {t(starter.label)}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        <div className="grid gap-3 pb-4">
-          {visible.map((message) => (
-            <article key={message.id} className={cn("grid", message.role === "user" && "justify-items-end")}>
-              {message.role === "user" ? (
-                <div className="max-w-[40rem] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">
-                  <p className="whitespace-pre-wrap">{message.content}</p>
-                </div>
-              ) : (
-                <AssistantReply
-                  message={message}
-                  submittingForm={submittingForm}
-                  onConfirm={onConfirm}
-                  onDismiss={onDismiss}
-                  onSubmitForm={onSubmitForm}
-                />
-              )}
-            </article>
-          ))}
-        </div>
+        {menu}
       </div>
-      <form className="sticky bottom-0 z-10 mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-t border-border bg-background pt-3" onSubmit={onSubmit}>
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scroller}
+          className="h-full overflow-y-auto"
+          aria-live="polite"
+          aria-relevant="additions text"
+          onScroll={onScroll}
+        >
+          <div className="grid content-start gap-4 py-4">
+            {loading ? <ChatThreadSkeleton /> : null}
+            {!loading && available === false ? (
+              <Card>
+                <CardContent className="grid gap-3">
+                  <div className="grid gap-1">
+                    <h2 className="text-lg font-medium">{t("AI not available")}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {t("An administrator has not saved a provider, model, and API key.")}
+                    </p>
+                  </div>
+                  {admin ? (
+                    <Link className={buttonVariants({ variant: "outline", size: "sm" })} to="/admin/settings">
+                      {t("Open settings")}
+                    </Link>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
+            {showStarters ? (
+              <div className="grid gap-2 sm:grid-cols-3">
+                {chatStarters.map((starter) => (
+                  <button
+                    key={starter.id}
+                    type="button"
+                    aria-label={t(starter.label)}
+                    className="rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted"
+                    onClick={() => onStarter(t(starter.prompt))}
+                  >
+                    <span className="block">{t(starter.label)}</span>
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">{t(starterHints[starter.id])}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {!loading ? (
+              <div className="grid gap-3">
+                {visible.map((message) => (
+                  <article key={message.id} className={cn("grid", message.role === "user" && "justify-items-end")}>
+                    {message.role === "user" ? (
+                      <div className="grid justify-items-end gap-2">
+                        <div className="max-w-[40rem] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                        {failedId === message.id ? (
+                          <Button type="button" size="sm" variant="outline" onClick={() => onRetry?.(message.content, message.id)}>
+                            {t("Retry")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <AssistantReply
+                        message={message}
+                        submittingForm={submittingForm}
+                        pendingProposal={pendingProposal}
+                        onConfirm={onConfirm}
+                        onDismiss={onDismiss}
+                        onSubmitForm={onSubmitForm}
+                      />
+                    )}
+                  </article>
+                ))}
+                {writing ? <WritingSkeleton /> : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {away && visible.length > 0 ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="absolute bottom-3 left-1/2 -translate-x-1/2"
+            onClick={jump}
+          >
+            {t("Jump to latest")}
+          </Button>
+        ) : null}
+      </div>
+      <form
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-t border-border bg-background pt-3"
+        onSubmit={onSubmit}
+      >
         <Textarea
           ref={box}
           rows={1}
           aria-label={t("Message")}
-          placeholder="Ask about links, campaigns, or analytics"
+          placeholder={t("Ask about links, campaigns, or analytics")}
           value={draft}
           disabled={available !== true || sending}
           className="min-h-10 resize-none overflow-y-auto py-2"
           onChange={(event) => onDraft(event.target.value)}
           onKeyDown={onComposerKeyDown}
         />
-        <Button type="submit" disabled={available !== true || sending || !draft.trim()}>
-          {sending ? t("Sending…") : t("Send")}
-        </Button>
+        {sending ? (
+          <Button type="button" variant="outline" onClick={onStop}>
+            {t("Stop")}
+          </Button>
+        ) : (
+          <Button type="submit" disabled={available !== true || !draft.trim()}>
+            {t("Send")}
+          </Button>
+        )}
       </form>
     </div>
   );
@@ -422,18 +643,21 @@ export function ChatConversation({
 function AssistantReply({
   message,
   submittingForm,
+  pendingProposal,
   onConfirm,
   onDismiss,
   onSubmitForm,
 }: {
   message: ChatMessage;
   submittingForm: string | null;
+  pendingProposal: PendingProposal | null;
   onConfirm: (proposalId: string) => void;
   onDismiss: (proposalId: string) => void;
   onSubmitForm: (formId: string, body: Record<string, unknown>) => void;
 }) {
   const hasBlocks = Boolean(message.blocks && message.blocks.length > 0);
   if (!message.content && !hasBlocks && !message.proposal) return null;
+  const pending = message.proposal && pendingProposal?.id === message.proposal.id ? pendingProposal.action : null;
   return (
     <Card className="w-full max-w-[40rem]">
       <CardContent className="grid gap-3">
@@ -442,7 +666,7 @@ function AssistantReply({
           <ChatBlocks blocks={message.blocks ?? []} submitting={submittingForm} onSubmit={onSubmitForm} />
         ) : null}
         {message.proposal ? (
-          <ProposalCard proposal={message.proposal} onConfirm={onConfirm} onDismiss={onDismiss} />
+          <ProposalCard proposal={message.proposal} pending={pending} onConfirm={onConfirm} onDismiss={onDismiss} />
         ) : null}
       </CardContent>
     </Card>
@@ -476,10 +700,12 @@ function AssistantText({ text }: { text: string }) {
 
 export function ProposalCard({
   proposal,
+  pending = null,
   onConfirm,
   onDismiss,
 }: {
   proposal: AiProposal;
+  pending?: "confirm" | "dismiss" | null;
   onConfirm: (proposalId: string) => void;
   onDismiss: (proposalId: string) => void;
 }) {
@@ -500,10 +726,10 @@ export function ProposalCard({
         <p className="text-sm text-muted-foreground">{t("Nothing is created until you confirm.")}</p>
       ) : null}
       {proposal.status === "confirmed" && proposal.result?.shortUrl ? (
-        <p className="text-sm break-all">{proposal.result.shortUrl}</p>
+        <CopyableUrl url={proposal.result.shortUrl} />
       ) : null}
       {proposal.status === "confirmed" && proposal.result?.path ? (
-        <Link className="text-sm underline" to={proposal.result.path}>
+        <Link className={buttonVariants({ size: "sm" })} to={proposal.result.path}>
           {t(openLabel)}
         </Link>
       ) : null}
@@ -518,11 +744,11 @@ export function ProposalCard({
       ))}
       {proposal.status === "pending" ? (
         <div className="flex gap-2">
-          <Button type="button" onClick={() => onConfirm(proposal.id)}>
-            {t("Confirm")}
+          <Button type="button" disabled={pending !== null} onClick={() => onConfirm(proposal.id)}>
+            {pending === "confirm" ? t("Confirming…") : t("Confirm")}
           </Button>
-          <Button type="button" variant="outline" onClick={() => onDismiss(proposal.id)}>
-            {t("Dismiss")}
+          <Button type="button" variant="outline" disabled={pending !== null} onClick={() => onDismiss(proposal.id)}>
+            {pending === "dismiss" ? t("Dismissing…") : t("Dismiss")}
           </Button>
         </div>
       ) : null}
@@ -534,12 +760,15 @@ async function streamReply(
   chatId: string,
   content: string,
   setMessages: (update: (current: ChatMessage[]) => ChatMessage[]) => void,
+  signal: AbortSignal,
+  pendingId: string,
 ): Promise<void> {
   const response = await fetch(`/api/chats/${chatId}/messages`, {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ content }),
+    signal,
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
@@ -549,7 +778,6 @@ async function streamReply(
   if (!reader) return;
   const decoder = new TextDecoder();
   let buffer = "";
-  const pendingId = `pending-${Date.now()}`;
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;

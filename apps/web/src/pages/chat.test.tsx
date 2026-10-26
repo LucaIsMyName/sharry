@@ -101,9 +101,14 @@ describe("chat conversation", () => {
     fireEvent.change(destination, { target: { value: "https://ipstack.com/pricing/" } });
     expect(suggest.hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("checkbox", { name: "Create a QR code" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: "One link" }));
+    fireEvent.click(screen.getByRole("combobox", { name: "Report" }));
+    const oneLink = screen.getByRole("option", { name: "One link" });
+    fireEvent.pointerDown(oneLink, { button: 0 });
+    fireEvent.pointerUp(oneLink, { button: 0 });
+    fireEvent.click(oneLink);
     const list = screen.getByRole("combobox", { name: "Link" });
-    expect(list.textContent).toContain("Spring");
+    fireEvent.click(list);
+    expect(screen.getByRole("option", { name: "Spring (spring)" })).toBeTruthy();
   });
 
   it("renders a heading and a table in the answer", () => {
@@ -130,6 +135,83 @@ describe("chat conversation", () => {
     expect(card?.textContent).toContain("Spring");
     expect(document.querySelectorAll("[data-slot=card]")).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Open analytics" }).getAttribute("href")).toBe("/analytics");
+  });
+
+  it("shows a hint under each starter and a translated placeholder", () => {
+    renderConversation(true);
+    expect(screen.getByText("Destination, optional slug, and a QR code.")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Message" }).getAttribute("placeholder")).toBe(
+      "Ask about links, campaigns, or analytics",
+    );
+    expect(screen.getByText("Ask about links, campaigns, or the last 30 days")).toBeTruthy();
+  });
+
+  it("links an administrator to settings when AI is off", () => {
+    render(
+      <MemoryRouter>
+        <ChatConversation
+          admin
+          available={false}
+          messages={[]}
+          draft=""
+          sending={false}
+          submittingForm={null}
+          onDraft={() => {}}
+          onSubmit={(event) => event.preventDefault()}
+          onStarter={() => {}}
+          onConfirm={() => {}}
+          onDismiss={() => {}}
+          onSubmitForm={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Open settings" }).getAttribute("href")).toBe("/admin/settings");
+  });
+
+  it("shows a writing placeholder and Stop while a reply is in progress", () => {
+    render(
+      <MemoryRouter>
+        <ChatConversation
+          available
+          messages={[{ id: "user-1", role: "user", content: "Hello", proposal: null }]}
+          draft=""
+          sending
+          submittingForm={null}
+          onDraft={() => {}}
+          onSubmit={(event) => event.preventDefault()}
+          onStop={() => {}}
+          onStarter={() => {}}
+          onConfirm={() => {}}
+          onDismiss={() => {}}
+          onSubmitForm={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
+    expect(screen.getByText("Writing…")).toBeTruthy();
+  });
+
+  it("shows a transcript placeholder while a chat is loading", () => {
+    render(
+      <MemoryRouter>
+        <ChatConversation
+          available
+          loading
+          messages={[]}
+          draft=""
+          sending={false}
+          submittingForm={null}
+          onDraft={() => {}}
+          onSubmit={(event) => event.preventDefault()}
+          onStarter={() => {}}
+          onConfirm={() => {}}
+          onDismiss={() => {}}
+          onSubmitForm={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Loading chat")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Create a short link" })).toBeNull();
   });
 
   it("sends on Enter and keeps Shift+Enter in the composer", () => {

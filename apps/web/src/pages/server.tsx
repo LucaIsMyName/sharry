@@ -4,6 +4,7 @@ import { api } from "../api.ts";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
+import { DetailSkeleton } from "../components/ui/skeleton.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { useI18n } from "../i18n/index.tsx";
 
@@ -80,9 +81,7 @@ export function ServerPage() {
               : t("Refresh")}
         </Button>
       </div>
-      {!snapshot && pending ? (
-        <p className="text-sm text-muted-foreground">{t("Loading server status…")}</p>
-      ) : null}
+      {!snapshot && pending ? <DetailSkeleton label="Loading server status…" /> : null}
       {snapshot ? <SnapshotView snapshot={snapshot} /> : null}
     </section>
   );

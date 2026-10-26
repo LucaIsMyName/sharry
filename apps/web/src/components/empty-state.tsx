@@ -8,7 +8,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="grid justify-items-start gap-3 py-3">
+    <div className="grid justify-items-start gap-3 py-10">
       <p className="text-sm text-muted-foreground">{children}</p>
       {action}
     </div>

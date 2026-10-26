@@ -1,16 +1,51 @@
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Check, Copy, Sparkles } from "lucide-react";
 import { Link } from "react-router";
 import type { ChatBlock, ChatFormLink } from "@sharry/shared";
 import { ApiError, api } from "../api.ts";
 import { ClickChart } from "./analytics.tsx";
-import { Button } from "../components/ui/button.tsx";
+import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
+import { Select } from "../components/ui/choice-select.tsx";
+import { copyText } from "../components/ui/copy.ts";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { Label } from "../components/ui/label.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table.tsx";
 import { useI18n } from "../i18n/index.tsx";
+
+const noLink = "__none__";
+
+export function CopyableUrl({ url }: { url: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-start gap-2">
+      <p className="min-w-0 flex-1 font-mono text-sm break-all">{url}</p>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          void copyText(url).then(() => {
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 2000);
+          });
+        }}
+      >
+        {copied ? (
+          <>
+            <Check /> {t("Copied")}
+          </>
+        ) : (
+          <>
+            <Copy /> {t("Copy")}
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
 
 export function ChatBlocks({
   blocks,
@@ -213,41 +248,24 @@ function AnalyticsForm({
               onSubmit(block.id, { scope, linkId: scope === "link" ? linkId : undefined });
             }}
           >
-            <div className="grid gap-2">
-              <Label className="w-fit font-normal">
-                <input
-                  type="radio"
-                  name={`scope-${block.id}`}
-                  checked={scope === "all"}
-                  onChange={() => setScope("all")}
-                />
-                <span>{t("All links")}</span>
-              </Label>
-              <Label className="w-fit font-normal">
-                <input
-                  type="radio"
-                  name={`scope-${block.id}`}
-                  checked={scope === "link"}
-                  onChange={() => setScope("link")}
-                />
-                <span>{t("One link")}</span>
-              </Label>
-            </div>
+            <Field label="Report">
+              <Select
+                value={scope}
+                options={[
+                  { value: "all", label: "All links" },
+                  { value: "link", label: "One link" },
+                ]}
+                onValueChange={setScope}
+              />
+            </Field>
             {scope === "link" ? (
               <Field label="Link">
-                <select
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-2.5 text-sm"
+                <Select
                   value={linkId}
-                  onChange={(event) => setLinkId(event.target.value)}
-                  required
-                >
-                  <option value="">{t("Choose a link")}</option>
-                  {(block.links ?? []).map((link) => (
-                    <option key={link.id} value={link.id}>
-                      {linkLabel(link)}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Choose a link"
+                  options={(block.links ?? []).map((link) => ({ value: link.id, label: linkLabel(link) }))}
+                  onValueChange={setLinkId}
+                />
               </Field>
             ) : null}
             {block.result?.error ? <p className="text-sm text-destructive">{t(block.result.error)}</p> : null}
@@ -296,18 +314,14 @@ function CampaignForm({
               <Input value={name} onChange={(event) => setName(event.target.value)} required />
             </Field>
             <Field label="Link">
-              <select
-                className="h-10 w-full rounded-md border border-input bg-transparent px-2.5 text-sm"
-                value={linkId}
-                onChange={(event) => setLinkId(event.target.value)}
-              >
-                <option value="">{t("No link")}</option>
-                {(block.links ?? []).map((link) => (
-                  <option key={link.id} value={link.id}>
-                    {linkLabel(link)}
-                  </option>
-                ))}
-              </select>
+              <Select
+                value={linkId || noLink}
+                options={[
+                  { value: noLink, label: "No link" },
+                  ...(block.links ?? []).map((link) => ({ value: link.id, label: linkLabel(link) })),
+                ]}
+                onValueChange={(value) => setLinkId(value === noLink ? "" : value)}
+              />
             </Field>
             <Field label="Variant name">
               <Input value={variantName} onChange={(event) => setVariantName(event.target.value)} />
@@ -334,11 +348,11 @@ function FormResult({ block }: { block: Extract<ChatBlock, { type: "form" }> }) 
   return (
     <div className="grid gap-2">
       {block.result?.name ? <p className="text-sm">{block.result.name}</p> : null}
-      {block.result?.shortUrl ? <p className="text-sm break-all">{block.result.shortUrl}</p> : null}
+      {block.result?.shortUrl ? <CopyableUrl url={block.result.shortUrl} /> : null}
       {block.result?.qrCreated ? <p className="text-sm text-muted-foreground">{t("QR code saved")}</p> : null}
       {block.result?.error ? <p className="text-sm text-destructive">{t(block.result.error)}</p> : null}
       {block.result?.path ? (
-        <Link className="text-sm underline" to={block.result.path}>
+        <Link className={buttonVariants({ size: "sm" })} to={block.result.path}>
           {t(openLabel)}
         </Link>
       ) : null}

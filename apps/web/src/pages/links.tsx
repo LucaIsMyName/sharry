@@ -33,7 +33,9 @@ import {
 } from "../api.ts";
 import { useAppName } from "../brand.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
+import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { choiceNote, correctionOptions, redirectOptions } from "../choices.ts";
 import { downloadQr, QrPreview } from "../components/qr-preview.tsx";
 import { UtmFields } from "../components/utm-fields.tsx";
@@ -125,6 +127,44 @@ function previewDestination(destination: string, utm: UtmParams): string {
 
 const linkPageSize = 50;
 
+function LinkCards({ links }: { links: LinkSummary[] }) {
+  const { t } = useI18n();
+  return (
+    <ul className="grid gap-2 md:hidden">
+      {links.map((link) => {
+        const name = link.title?.trim() || link.slug;
+        return (
+          <li key={link.id} className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+            <div className="flex items-start justify-between gap-3">
+              <Link className="min-w-0 flex-1" to={`/links/${link.id}`}>
+                <span className="block truncate font-medium">{name}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">
+                  {t("Clicks")} <span className="tabular-nums">{link.clicks}</span>
+                </span>
+                <span className="mt-1 block truncate font-mono text-sm text-muted-foreground">{link.shortUrl}</span>
+              </Link>
+              <div className="grid justify-items-end gap-2">
+                <Badge variant={link.status === "active" ? "secondary" : "outline"}>
+                  {link.status === "active" ? t("Active") : t("Paused")}
+                </Badge>
+                <a
+                  className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+                  href={link.shortUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={t("Test {name}", { name })}
+                >
+                  <ExternalLink />
+                </a>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function LinksPage() {
   const { t } = useI18n();
   const [links, setLinks] = useState<LinkSummary[]>([]);
@@ -184,19 +224,15 @@ export function LinksPage() {
 
   return (
     <section>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-medium tracking-tight">
-            {t("Links")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("The slug stays put when you edit where it goes.")}
-          </p>
-        </div>
-        <Link className={buttonVariants({ size: "sm" })} to="/links/new">
-          <Plus /> {t("New link")}
-        </Link>
-      </div>
+      <PageHeader
+        title={t("Links")}
+        lede={t("The slug stays put when you edit where it goes.")}
+        action={
+          <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+            <Plus /> {t("New link")}
+          </Link>
+        }
+      />
       <Field label="Search">
         <Input
           value={query}
@@ -206,7 +242,7 @@ export function LinksPage() {
       </Field>
       <div className="mt-4 min-w-0">
         {loading ? (
-          <EmptyState>{t("Loading links…")}</EmptyState>
+          <RowSkeleton label="Loading links…" />
         ) : links.length === 0 ? (
           <EmptyState
             action={
@@ -227,6 +263,9 @@ export function LinksPage() {
                 : t("No links yet.")}
           </EmptyState>
         ) : (
+          <>
+          <LinkCards links={links} />
+          <div className="hidden md:block">
           <Table className="min-w-full w-max">
             <TableHeader>
               <TableRow>
@@ -303,6 +342,8 @@ export function LinksPage() {
               })}
             </TableBody>
           </Table>
+          </div>
+          </>
         )}
         {!loading && links.length < total ? (
           <Button
@@ -876,8 +917,9 @@ export function LinkDetailPage() {
         </div>
       </div>
       {loading ? (
-        <p className="text-sm text-muted-foreground">{t("Loading link…")}</p>
-      ) : null}
+        <DetailSkeleton label="Loading link…" />
+      ) : (
+      <>
       <Card className="overflow-visible">
         <CardContent>
           <form id="link-editor" onSubmit={(event) => void save(event)}>
@@ -1269,6 +1311,8 @@ export function LinkDetailPage() {
           </div>
         </div>
       ) : null}
+      </>
+      )}
       <ConfirmDialog
         open={confirmDelete}
         title="Delete this short link?"

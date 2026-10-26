@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { api } from "../api.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
@@ -59,6 +60,7 @@ export function AdminDomainsPage() {
   const [setup, setSetup] = useState<RedirectDomain | null>(null);
   const [deleteFor, setDeleteFor] = useState<RedirectDomain | null>(null);
   const [pending, setPending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [verifyingId, setVerifyingId] = useState("");
 
   async function load() {
@@ -69,9 +71,9 @@ export function AdminDomainsPage() {
   }
 
   useEffect(() => {
-    void load().catch((caught: unknown) =>
-      toastCaught(caught, t("Could not load domains")),
-    );
+    void load()
+      .catch((caught: unknown) => toastCaught(caught, t("Could not load domains")))
+      .finally(() => setLoading(false));
   }, []);
 
   async function create(event: FormEvent) {
@@ -154,7 +156,9 @@ export function AdminDomainsPage() {
           </form>
         </CardContent>
       </Card>
-      {domains.length === 0 ? (
+      {loading ? (
+        <RowSkeleton label="Loading domains…" />
+      ) : domains.length === 0 ? (
         <EmptyState>
           {t("No redirect domains yet. Add one in the form above.")}
         </EmptyState>

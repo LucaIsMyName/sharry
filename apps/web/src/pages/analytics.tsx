@@ -12,7 +12,9 @@ import {
 } from "recharts";
 import { api, type Analytics, type LinkStat } from "../api.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
+import { RowSkeleton, Skeleton, StatSkeleton } from "../components/ui/skeleton.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import {
@@ -73,36 +75,30 @@ export function AnalyticsPage() {
 
   return (
     <section>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-medium tracking-tight">
-            {selected ? (
-              <Link to={`/links/${selected.id}`}>
-                {selected.title?.trim() || selected.slug}
-              </Link>
-            ) : (
-              t("Analytics")
-            )}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "Visitor addresses are not stored. Country appears only when a local GeoIP database is configured.",
-            )}
-          </p>
-        </div>
-        {linkId ? (
-          <Button
-            variant="outline"
-            size="sm"
-            type="button"
-            onClick={() => setParams({})}
-          >
-            <ArrowLeft /> {t("All links")}
-          </Button>
-        ) : null}
-      </div>
+      <PageHeader
+        title={
+          selected ? (
+            <Link to={`/links/${selected.id}`}>{selected.title?.trim() || selected.slug}</Link>
+          ) : (
+            t("Analytics")
+          )
+        }
+        lede={t(
+          "Visitor addresses are not stored. Country appears only when a local GeoIP database is configured.",
+        )}
+        action={
+          linkId ? (
+            <Button variant="outline" size="sm" type="button" onClick={() => setParams({})}>
+              <ArrowLeft /> {t("All links")}
+            </Button>
+          ) : null
+        }
+      />
       {loading && !analytics ? (
-        <EmptyState>{t("Loading analytics…")}</EmptyState>
+        <div className="grid gap-4">
+          <StatSkeleton />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
       ) : null}
       {analytics ? (
         <div className="grid gap-4">
@@ -149,7 +145,7 @@ export function AnalyticsPage() {
       <div className="mt-4 min-w-0">
           <h2 className="mb-3 text-lg font-medium">{t("Links")}</h2>
           {loading && links.length === 0 ? (
-            <EmptyState>{t("Loading links…")}</EmptyState>
+            <RowSkeleton label="Loading links…" />
           ) : links.length === 0 ? (
             <EmptyState
               action={
@@ -249,6 +245,12 @@ export function UtmBreakdowns({ analytics }: { analytics: Analytics }) {
   ));
 }
 
+const barTones = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4"] as const;
+
+function barTone(index: number): string {
+  return barTones[index % barTones.length] ?? "bg-chart-1";
+}
+
 export function Breakdown({
   title,
   rows,
@@ -274,7 +276,7 @@ export function Breakdown({
                 <span className="truncate">{row.name}</span>
                 <div className="h-2 overflow-hidden rounded-full bg-muted">
                   <span
-                    className="block h-full bg-primary"
+                    className={cn("block h-full", barTone(index))}
                     style={{ width: `${(row.clicks / max) * 100}%` }}
                   />
                 </div>

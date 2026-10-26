@@ -3,7 +3,9 @@ import { Plus } from "lucide-react";
 import { Link } from "react-router";
 import { api, type Analytics, type LinkSummary } from "../api.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { buttonVariants } from "../components/ui/button.tsx";
+import { RowSkeleton, Skeleton, StatSkeleton } from "../components/ui/skeleton.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import {
@@ -43,21 +45,22 @@ export function DashboardPage() {
 
   return (
     <section>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-medium tracking-tight">
-            {t("Overview")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "Clicks stay attached to the short link when the destination changes.",
-            )}
-          </p>
+      <PageHeader
+        title={t("Overview")}
+        lede={t("Clicks stay attached to the short link when the destination changes.")}
+        action={
+          <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+            <Plus /> {t("New link")}
+          </Link>
+        }
+      />
+      {loading && !analytics && !failed ? (
+        <div className="grid gap-4">
+          <StatSkeleton />
+          <Skeleton className="h-64 w-full rounded-xl" />
         </div>
-        <Link className={buttonVariants({ size: "sm" })} to="/links/new">
-          <Plus /> {t("New link")}
-        </Link>
-      </div>
+      ) : (
+      <>
       <div className="grid gap-3.5 sm:grid-cols-3">
         <Card>
           <CardContent>
@@ -93,18 +96,16 @@ export function DashboardPage() {
           <CardContent>
             {analytics ? (
               <ClickChart series={analytics.series} />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                {t("Loading analytics…")}
-              </p>
-            )}
+            ) : null}
           </CardContent>
         </Card>
+      )}
+      </>
       )}
       <div className="mt-4">
           <h2 className="mb-2 text-lg font-medium">{t("Recent links")}</h2>
           {loading ? (
-            <EmptyState>{t("Loading links…")}</EmptyState>
+            <RowSkeleton label="Loading links…" />
           ) : failed ? (
             <EmptyState>{t("Could not load links.")}</EmptyState>
           ) : links.length === 0 ? (

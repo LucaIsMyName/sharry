@@ -19,13 +19,12 @@ import {
   Moon,
   Monitor,
 } from "lucide-react";
-import { NavLink, Outlet, useLoaderData, useNavigate } from "react-router";
+import { NavLink, Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import { cn } from "cn";
 import { api, type Me } from "../api.ts";
 import { useAppName } from "../brand.ts";
 import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { setTheme, useTheme, type ThemeChoice } from "../theme.ts";
-import { useRouteTitle } from "./page-title.tsx";
 import { Button } from "./ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
@@ -35,8 +34,9 @@ export function Shell() {
   const appName = useAppName();
   useAccountLocale(me.user.locale);
   const { t } = useI18n();
-  const title = useRouteTitle();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const chat = pathname === "/chat" || pathname.startsWith("/chat/");
   const [open, setOpen] = useState(false);
   const admin = me.user.role === "admin";
 
@@ -52,7 +52,7 @@ export function Shell() {
   return (
     <div className="min-h-svh">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
-        <p className="font-heading text-3xl font-medium tracking-tight">
+        <p className="font-heading text-2xl font-medium tracking-tight">
           {appName}
         </p>
         {navigation}
@@ -62,8 +62,8 @@ export function Shell() {
           onNavigate={() => setOpen(false)}
         />
       </aside>
-      <main className="min-h-svh md:ml-60">
-        <div className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border bg-background px-3 md:hidden">
+      <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
+        <div className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-3 md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
               <Menu /> {t("Menu")}
@@ -72,7 +72,7 @@ export function Shell() {
               side="left"
               className="p-4 w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs"
             >
-              <p className="font-heading px-1 pt-2 text-3xl font-medium tracking-tight">
+              <p className="font-heading px-1 pt-2 text-2xl font-medium tracking-tight">
                 {appName}
               </p>
               {navigation}
@@ -83,10 +83,9 @@ export function Shell() {
               />
             </SheetContent>
           </Sheet>
-          <p className="min-w-0 truncate text-sm font-medium">{title}</p>
         </div>
-        <div className="page px-5 py-5 md:px-7 md:py-7">
-          <Outlet />
+        <div className={cn(chat ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "page px-5 py-5 md:px-7 md:py-7")}>
+          <Outlet context={{ admin }} />
         </div>
       </main>
     </div>
@@ -180,11 +179,11 @@ function Item({
       end={end}
       className={({ isActive }) =>
         cn(
-          "flex min-w-0 items-center rounded-md text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
+          "flex min-w-0 items-center rounded-md border-l-2 border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
           compact
             ? "gap-2 px-2.5 py-1.5 text-xs"
             : "gap-2.5 px-2.5 py-2 text-sm",
-          isActive && "bg-sidebar-accent text-white",
+          isActive && "border-primary bg-sidebar-accent text-white",
           className,
         )
       }
@@ -204,26 +203,24 @@ const themeOptions: { value: ThemeChoice; label: string | ReactNode }[] = [
 function ThemeSwitch() {
   const { t } = useI18n();
   const choice = useTheme();
+  const current = themeOptions.find((option) => option.value === choice) ?? themeOptions[2];
+  const order: ThemeChoice[] = ["light", "dark", "system"];
+  const mode = choice === "light" ? "Light" : choice === "dark" ? "Dark" : "System";
   return (
-    <div className="flex shrink-0 items-center gap-1" role="group" aria-label={t("Appearance")}>
-      {themeOptions.map((option) => (
-        <Button
-          key={option.value}
-          type="button"
-          size="icon-sm"
-          variant="outline"
-          aria-pressed={choice === option.value}
-          aria-label={t(option.value === "light" ? "Light" : option.value === "dark" ? "Dark" : "System")}
-          className={cn(
-            "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
-            choice === option.value && "bg-sidebar-accent text-white",
-          )}
-          onClick={() => setTheme(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
+    <Button
+      type="button"
+      size="icon-sm"
+      variant="outline"
+      aria-label={`${t("Appearance")}, ${t(mode)}`}
+      className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+      onClick={() => {
+        const index = order.indexOf(choice);
+        const next = order[(index + 1) % order.length] ?? "system";
+        setTheme(next);
+      }}
+    >
+      {current?.label}
+    </Button>
   );
 }
 
