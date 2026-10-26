@@ -50,4 +50,4 @@ The AI card configures the assistant for every signed-in person. Choose a provid
 
 The API key is encrypted with the same key as the SMTP password. It is not an environment variable, and Settings never shows it again. Leave the field blank to keep the saved key. Clear saved key removes it on the next save. AI is available only when a provider, a model, and a key are saved, plus a base URL for the compatible provider.
 
-Save settings, then Test connection. That asks the provider for a short reply and does not store a chat. Chat at `/chat` uses this provider. Old chats stay readable when the provider is cleared. New replies stop until a provider, model, and key are saved again.
+Test connection checks the provider, model, and key in the form, including a key you have not saved yet. It asks the provider for a short reply and does not store a chat or the key. Save settings for Chat at `/chat` to use them. Old chats stay readable when the provider is cleared. New replies stop until a provider, model, and key are saved again.

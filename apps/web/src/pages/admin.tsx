@@ -13,14 +13,13 @@ import {
   UserX,
 } from "lucide-react";
 import {
-  aiModelCatalog,
-  customAiModel,
   defaultQrStyle,
   generatePassword,
   validatePrefix,
   type AiProvider,
   type QrStyle,
 } from "@sharry/shared";
+import { AiSettingsCard } from "./ai-settings-card.tsx";
 import { api } from "../api.ts";
 import { auditActionSentence } from "../audit-actions.ts";
 import { EmptyState } from "../components/empty-state.tsx";
@@ -444,9 +443,18 @@ export function AdminSettingsPage() {
   }, []);
 
   async function testAi() {
+    if (!settings) return;
     setTestingAi(true);
     try {
-      await api("/api/admin/ai/test", { method: "POST" });
+      await api("/api/admin/ai/test", {
+        method: "POST",
+        body: JSON.stringify({
+          aiProvider: settings.aiProvider,
+          aiModel: settings.aiModel,
+          aiBaseUrl: settings.aiBaseUrl,
+          ...(aiApiKey.trim() ? { aiApiKey: aiApiKey.trim() } : {}),
+        }),
+      });
       toast.success(t("The connection works."));
     } catch (caught) {
       toastCaught(caught, t("Could not reach the AI provider"));
@@ -806,149 +814,6 @@ export function AdminSettingsPage() {
         />
       </ConfirmDialog>
     </section>
-  );
-}
-
-function AiSettingsCard({
-  settings,
-  apiKey,
-  clearKey,
-  testing,
-  onChange,
-  onApiKey,
-  onClearKey,
-  onTest,
-}: {
-  settings: Settings;
-  apiKey: string;
-  clearKey: boolean;
-  testing: boolean;
-  onChange: (settings: Settings) => void;
-  onApiKey: (value: string) => void;
-  onClearKey: (value: boolean) => void;
-  onTest: () => void;
-}) {
-  const { t } = useI18n();
-  const provider = settings.aiProvider;
-  const catalog =
-    provider === "openai" || provider === "anthropic" || provider === "google"
-      ? aiModelCatalog[provider]
-      : [];
-  const modelIsKnown = catalog.some((item) => item.id === settings.aiModel);
-  const modelChoice = modelIsKnown ? settings.aiModel : customAiModel;
-  const canTest =
-    Boolean(provider && settings.aiModel && settings.aiApiKeySet) &&
-    !apiKey &&
-    !clearKey &&
-    (provider !== "openai_compatible" || Boolean(settings.aiBaseUrl));
-  return (
-    <Card>
-      <CardContent className="grid gap-3">
-        <h2 className="text-lg font-medium">{t("AI")}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "The assistant uses this provider for every signed-in user. The API key is encrypted and is not shown again. Save settings, then test the connection.",
-          )}
-        </p>
-        <Field label="Provider">
-          <Select
-            value={provider || "off"}
-            onValueChange={(value) => {
-              const aiProvider = value === "off" ? "" : (value as AiProvider);
-              const aiModel =
-                aiProvider === "openai" ||
-                aiProvider === "anthropic" ||
-                aiProvider === "google"
-                  ? (aiModelCatalog[aiProvider][0]?.id ?? "")
-                  : "";
-              onChange({ ...settings, aiProvider, aiModel, aiBaseUrl: aiProvider === "openai_compatible" ? settings.aiBaseUrl : "" });
-              onApiKey("");
-              onClearKey(false);
-            }}
-            options={[
-              { value: "off", label: "Off" },
-              { value: "openai", label: "OpenAI" },
-              { value: "anthropic", label: "Anthropic" },
-              { value: "google", label: "Google Gemini" },
-              { value: "openai_compatible", label: "OpenAI-compatible" },
-            ]}
-          />
-        </Field>
-        {provider === "openai_compatible" ? (
-          <Field label="Base URL">
-            <Input
-              value={settings.aiBaseUrl}
-              onChange={(event) => onChange({ ...settings, aiBaseUrl: event.target.value })}
-              placeholder="https://example.com/v1"
-              autoComplete="off"
-            />
-          </Field>
-        ) : null}
-        {catalog.length > 0 ? (
-          <Field label="Model">
-            <Select
-              value={modelChoice}
-              onValueChange={(value) =>
-                onChange({
-                  ...settings,
-                  aiModel: value === customAiModel ? (modelIsKnown ? "" : settings.aiModel) : value,
-                })
-              }
-              options={[
-                ...catalog.map((item) => ({ value: item.id, label: item.label })),
-                { value: customAiModel, label: "Custom model" },
-              ]}
-            />
-          </Field>
-        ) : null}
-        {provider && (provider === "openai_compatible" || modelChoice === customAiModel) ? (
-          <Field label="Model id">
-            <Input
-              value={settings.aiModel}
-              onChange={(event) => onChange({ ...settings, aiModel: event.target.value })}
-              autoComplete="off"
-            />
-          </Field>
-        ) : null}
-        {provider ? (
-          <Field label="API key">
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={(event) => {
-                onApiKey(event.target.value);
-                onClearKey(false);
-              }}
-              autoComplete="new-password"
-              placeholder={
-                clearKey
-                  ? t("The saved key will be removed.")
-                  : settings.aiApiKeySet
-                    ? t("Saved. Leave blank to keep it.")
-                    : t("Required")
-              }
-            />
-          </Field>
-        ) : null}
-        {provider && settings.aiApiKeySet ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              onClearKey(!clearKey);
-              onApiKey("");
-            }}
-          >
-            {clearKey ? t("Keep saved key") : t("Clear saved key")}
-          </Button>
-        ) : null}
-        {provider ? (
-          <Button type="button" variant="outline" disabled={!canTest || testing} onClick={onTest}>
-            {testing ? t("Testing…") : t("Test connection")}
-          </Button>
-        ) : null}
-      </CardContent>
-    </Card>
   );
 }
 

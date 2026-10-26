@@ -2,7 +2,14 @@ import { Readable } from 'node:stream'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { aiChats, aiMessages, users, type AiMessageRecord, type Database } from '@sharry/database'
-import { aiIsAvailable, sendChatMessageSchema, type AiProposal } from '@sharry/shared'
+import {
+  aiBaseUrlError,
+  aiConnectionTestSchema,
+  aiIsAvailable,
+  sendChatMessageSchema,
+  type AiConnectionTestInput,
+  type AiProposal,
+} from '@sharry/shared'
 import type { Actor } from '../auth.ts'
 import { requireAdmin, requireUser } from '../auth.ts'
 import { getSettings, rowsOf, type AppSettings } from '../settings-store.ts'
@@ -31,17 +38,18 @@ export function registerAiRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * Ask the saved provider for a short reply. Nothing is stored.
+   * Try the provider, model, and API key in this request. Omitted fields use the saved settings. Nothing is stored.
    * @route POST /api/admin/ai/test
    * @tag AI
    * @auth admin api-key or admin session
+   * @body JSON { aiProvider?, aiModel?, aiBaseUrl?, aiApiKey? }
    * @response 200 { ok: true }
    */
   app.post('/api/admin/ai/test', async (request) => {
     await requireAdmin(app, request)
+    const input = parseBody(aiConnectionTestSchema, request.body ?? {})
     const settings = await getSettings(app.db, app.env)
-    const config = providerConfig(settings, app.env.ENCRYPTION_KEY)
-    if (!config) throw new AppError(400, 'Save a provider, model, and API key before testing the connection.')
+    const config = connectionConfig(settings, app.env.ENCRYPTION_KEY, input)
     for await (const _event of streamCompletion(config, [{ role: 'user', content: 'Reply with ok.' }], [])) {
       // A successful stream is enough. The reply is not stored.
     }
@@ -362,6 +370,35 @@ async function userLocale(db: Database, userId: string): Promise<string> {
 
 async function touchChat(db: Database, chatId: string): Promise<void> {
   await db.update(aiChats).set({ updatedAt: new Date() }).where(eq(aiChats.id, chatId))
+}
+
+function connectionConfig(settings: AppSettings, encryptionKey: string, input: AiConnectionTestInput): ProviderConfig {
+  const provider = input.aiProvider ?? settings.aiProvider
+  const model = (input.aiModel !== undefined ? input.aiModel : settings.aiModel).trim()
+  const baseUrl = (input.aiBaseUrl !== undefined ? input.aiBaseUrl : settings.aiBaseUrl).trim()
+  const apiKey = input.aiApiKey?.trim() || savedApiKey(settings, encryptionKey)
+  if (!aiIsAvailable({ provider, model, baseUrl, apiKeySet: Boolean(apiKey) })) {
+    const urlError = provider === 'openai_compatible' ? aiBaseUrlError(baseUrl) : null
+    throw new AppError(400, urlError ?? 'Enter a provider, model, and API key before testing the connection.')
+  }
+  if (provider !== 'openai' && provider !== 'anthropic' && provider !== 'google' && provider !== 'openai_compatible') {
+    throw new AppError(400, 'Enter a provider, model, and API key before testing the connection.')
+  }
+  return {
+    provider,
+    model,
+    apiKey,
+    baseUrl: provider === 'openai_compatible' ? baseUrl : 'https://api.openai.com/v1',
+  }
+}
+
+function savedApiKey(settings: AppSettings, encryptionKey: string): string {
+  if (!settings.aiApiKeyEncrypted) return ''
+  try {
+    return decryptString(settings.aiApiKeyEncrypted, encryptionKey)
+  } catch {
+    return ''
+  }
 }
 
 function providerConfig(settings: AppSettings, encryptionKey: string): ProviderConfig | null {

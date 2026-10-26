@@ -1,0 +1,163 @@
+import { aiIsAvailable, aiModelCatalog, customAiModel, type AiProvider } from "@sharry/shared";
+import { Button } from "../components/ui/button.tsx";
+import { Card, CardContent } from "../components/ui/card.tsx";
+import { Select } from "../components/ui/choice-select.tsx";
+import { Field } from "../components/ui/field.tsx";
+import { Input } from "../components/ui/input.tsx";
+import { useI18n } from "../i18n/index.tsx";
+
+export type AiFormSettings = {
+  aiProvider: "" | AiProvider;
+  aiModel: string;
+  aiBaseUrl: string;
+  aiApiKeySet: boolean;
+};
+
+export function AiSettingsCard<T extends AiFormSettings>({
+  settings,
+  apiKey,
+  clearKey,
+  testing,
+  onChange,
+  onApiKey,
+  onClearKey,
+  onTest,
+}: {
+  settings: T;
+  apiKey: string;
+  clearKey: boolean;
+  testing: boolean;
+  onChange: (settings: T) => void;
+  onApiKey: (value: string) => void;
+  onClearKey: (value: boolean) => void;
+  onTest: () => void;
+}) {
+  const { t } = useI18n();
+  const provider = settings.aiProvider;
+  const catalog =
+    provider === "openai" || provider === "anthropic" || provider === "google"
+      ? aiModelCatalog[provider]
+      : [];
+  const modelIsKnown = catalog.some((item) => item.id === settings.aiModel);
+  const modelChoice = modelIsKnown ? settings.aiModel : customAiModel;
+  const canTest = aiIsAvailable({
+    provider,
+    model: settings.aiModel,
+    baseUrl: settings.aiBaseUrl,
+    apiKeySet: Boolean(apiKey.trim()) || (settings.aiApiKeySet && !clearKey),
+  });
+  return (
+    <Card>
+      <CardContent className="grid gap-3">
+        <h2 className="text-lg font-medium">{t("AI")}</h2>
+        <p className="text-sm text-muted-foreground">
+          {t(
+            "The assistant uses this provider for every signed-in user. The API key is encrypted and is not shown again. Test connection checks the values in this form and does not save them.",
+          )}
+        </p>
+        <Field label="Provider">
+          <Select
+            value={provider || "off"}
+            onValueChange={(value) => {
+              const aiProvider = value === "off" ? "" : (value as AiProvider);
+              const aiModel =
+                aiProvider === "openai" ||
+                aiProvider === "anthropic" ||
+                aiProvider === "google"
+                  ? (aiModelCatalog[aiProvider][0]?.id ?? "")
+                  : "";
+              onChange({
+                ...settings,
+                aiProvider,
+                aiModel,
+                aiBaseUrl: aiProvider === "openai_compatible" ? settings.aiBaseUrl : "",
+              });
+              onApiKey("");
+              onClearKey(false);
+            }}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "openai", label: "OpenAI" },
+              { value: "anthropic", label: "Anthropic" },
+              { value: "google", label: "Google Gemini" },
+              { value: "openai_compatible", label: "OpenAI-compatible" },
+            ]}
+          />
+        </Field>
+        {provider === "openai_compatible" ? (
+          <Field label="Base URL">
+            <Input
+              value={settings.aiBaseUrl}
+              onChange={(event) => onChange({ ...settings, aiBaseUrl: event.target.value })}
+              placeholder="https://example.com/v1"
+              autoComplete="off"
+            />
+          </Field>
+        ) : null}
+        {catalog.length > 0 ? (
+          <Field label="Model">
+            <Select
+              value={modelChoice}
+              onValueChange={(value) =>
+                onChange({
+                  ...settings,
+                  aiModel: value === customAiModel ? (modelIsKnown ? "" : settings.aiModel) : value,
+                })
+              }
+              options={[
+                ...catalog.map((item) => ({ value: item.id, label: item.label })),
+                { value: customAiModel, label: "Custom model" },
+              ]}
+            />
+          </Field>
+        ) : null}
+        {provider && (provider === "openai_compatible" || modelChoice === customAiModel) ? (
+          <Field label="Model id">
+            <Input
+              value={settings.aiModel}
+              onChange={(event) => onChange({ ...settings, aiModel: event.target.value })}
+              autoComplete="off"
+            />
+          </Field>
+        ) : null}
+        {provider ? (
+          <Field label="API key">
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(event) => {
+                onApiKey(event.target.value);
+                onClearKey(false);
+              }}
+              autoComplete="new-password"
+              placeholder={
+                clearKey
+                  ? t("The saved key will be removed.")
+                  : settings.aiApiKeySet
+                    ? t("Saved. Leave blank to keep it.")
+                    : t("Required")
+              }
+            />
+          </Field>
+        ) : null}
+        {provider && settings.aiApiKeySet ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              onClearKey(!clearKey);
+              onApiKey("");
+            }}
+          >
+            {clearKey ? t("Keep saved key") : t("Clear saved key")}
+          </Button>
+        ) : null}
+        {provider ? (
+          <Button type="button" variant="outline" disabled={!canTest || testing} onClick={onTest}>
+            {testing ? t("Testing…") : t("Test connection")}
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}

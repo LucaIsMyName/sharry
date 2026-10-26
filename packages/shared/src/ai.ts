@@ -92,6 +92,15 @@ export const sendChatMessageSchema = z.object({
   content: z.string().trim().min(1, 'Enter a message.').max(4000, 'A message can be at most 4000 characters.'),
 })
 
+export const aiConnectionTestSchema = z.object({
+  aiProvider: aiProviderSchema.optional(),
+  aiModel: z.string().trim().max(120).optional(),
+  aiBaseUrl: z.string().trim().max(500).optional(),
+  aiApiKey: z.string().max(500).optional(),
+})
+
+export type AiConnectionTestInput = z.infer<typeof aiConnectionTestSchema>
+
 export type ProposeLinkArgs = z.infer<typeof proposeLinkSchema>
 export type ProposeCampaignArgs = z.infer<typeof proposeCampaignSchema>
 

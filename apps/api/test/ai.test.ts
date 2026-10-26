@@ -39,6 +39,39 @@ describe('AI settings and chat', () => {
     expect(JSON.stringify(status.json())).not.toContain('sk-test-secret')
   })
 
+  it('tests an unsaved key without storing it', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const seen: { auth?: string; model?: string } = {}
+    vi.stubGlobal('fetch', async (_url: string, init?: RequestInit) => {
+      const headers = new Headers(init?.headers)
+      seen.auth = headers.get('authorization') ?? ''
+      seen.model = JSON.parse(String(init?.body ?? '{}')).model as string
+      return sse([{ choices: [{ delta: { content: 'ok' } }] }])
+    })
+    const tested = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/admin/ai/test',
+      headers: { cookie: admin.cookie },
+      payload: { aiProvider: 'openai', aiModel: 'gpt-4.1-mini', aiApiKey: 'sk-unsaved' },
+    })
+    expect(tested.statusCode).toBe(200)
+    expect(tested.json()).toEqual({ ok: true })
+    expect(seen.auth).toBe('Bearer sk-unsaved')
+    expect(seen.model).toBe('gpt-4.1-mini')
+    const settings = await ctx.app.inject({ method: 'GET', url: '/api/admin/settings', headers: { cookie: admin.cookie } })
+    expect(settings.json().aiApiKeySet).toBe(false)
+    expect(JSON.stringify(tested.json())).not.toContain('sk-unsaved')
+
+    const missing = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/admin/ai/test',
+      headers: { cookie: admin.cookie },
+      payload: { aiProvider: 'openai', aiModel: 'gpt-4.1-mini' },
+    })
+    expect(missing.statusCode).toBe(400)
+  })
+
   it('requires a base URL for an OpenAI-compatible provider', async () => {
     const ctx = await getContext()
     const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
