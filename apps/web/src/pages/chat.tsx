@@ -190,7 +190,7 @@ export function ChatPage() {
 
   return (
     <section className="grid items-stretch gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="hidden md:sticky md:top-7 md:flex md:h-[calc(100svh-3.5rem)] md:max-h-[calc(100svh-3.5rem)] md:flex-col md:self-start md:border-r md:border-border md:pr-4">
+      <aside className="hidden min-w-0 md:sticky md:top-7 md:flex md:h-[calc(100svh-3.5rem)] md:max-h-[calc(100svh-3.5rem)] md:flex-col md:self-start md:border-r md:border-border md:pr-4">
         <ChatList
           chats={chats}
           tone="page"
@@ -258,15 +258,15 @@ function ChatList({
   const { pathname } = useLocation();
   const sidebar = tone === "sidebar";
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto">
+    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2">
+      <div className="grid min-h-0 w-full min-w-0 flex-1 content-start gap-1 overflow-x-hidden overflow-y-auto">
         {chats.map((chat) => {
           const active = pathname === `/chat/${chat.id}`;
           return (
             <div
               key={chat.id}
               className={cn(
-                "flex items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
+                "flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
                 sidebar
                   ? "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
                   : "hover:bg-primary/20",
@@ -279,7 +279,7 @@ function ChatList({
               </NavLink>
               <button
                 type="button"
-                className="rounded-md p-1"
+                className="shrink-0 rounded-md p-1"
                 aria-label={t("Delete chat")}
                 onClick={() => onDelete(chat.id)}
               >
@@ -291,7 +291,7 @@ function ChatList({
       </div>
       <Button
         className={cn(
-          "shrink-0",
+          "w-full min-w-0 shrink",
           sidebar && "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
         )}
         type="button"
