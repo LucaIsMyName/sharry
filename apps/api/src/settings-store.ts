@@ -33,6 +33,10 @@ export type AppSettings = {
   smtpUser: string
   smtpPasswordEncrypted: string
   emailFrom: string
+  aiProvider: '' | 'openai' | 'anthropic' | 'google' | 'openai_compatible'
+  aiModel: string
+  aiBaseUrl: string
+  aiApiKeyEncrypted: string
 }
 
 let cached: AppSettings | null = null
@@ -65,6 +69,10 @@ export function defaultSettings(env: RuntimeEnv): AppSettings {
     smtpUser: '',
     smtpPasswordEncrypted: '',
     emailFrom: '',
+    aiProvider: '',
+    aiModel: '',
+    aiBaseUrl: '',
+    aiApiKeyEncrypted: '',
   }
 }
 
@@ -92,6 +100,10 @@ export function settingsToRows(settings: AppSettings): Record<string, string> {
     smtp_user: settings.smtpUser,
     smtp_password: settings.smtpPasswordEncrypted,
     email_from: settings.emailFrom,
+    ai_provider: settings.aiProvider,
+    ai_model: settings.aiModel,
+    ai_base_url: settings.aiBaseUrl,
+    ai_api_key: settings.aiApiKeyEncrypted,
   }
 }
 
@@ -130,7 +142,16 @@ export function parseSettings(map: Record<string, string | undefined>, env: Runt
     smtpUser: map.smtp_user ?? '',
     smtpPasswordEncrypted: map.smtp_password ?? '',
     emailFrom: map.email_from ?? '',
+    aiProvider: parseAiProvider(map.ai_provider),
+    aiModel: map.ai_model ?? '',
+    aiBaseUrl: map.ai_base_url ?? '',
+    aiApiKeyEncrypted: map.ai_api_key ?? '',
   }
+}
+
+function parseAiProvider(value: string | undefined): AppSettings['aiProvider'] {
+  if (value === 'openai' || value === 'anthropic' || value === 'google' || value === 'openai_compatible') return value
+  return ''
 }
 
 export async function seedSettings(

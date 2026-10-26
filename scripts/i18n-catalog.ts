@@ -64,6 +64,7 @@ export function requiredMessages(): string[] {
     "packages/shared/src/domain.ts",
     "packages/shared/src/qr.ts",
     "packages/shared/src/schemas.ts",
+    "packages/shared/src/ai.ts",
   ]) {
     const text = fs.readFileSync(path.join(root, file), "utf8");
     for (const match of text.matchAll(/return\s+(["'])((?:\\.|(?!\1)[\s\S])*?)\1/g)) {

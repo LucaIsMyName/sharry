@@ -3,7 +3,7 @@ import path from 'node:path'
 import { desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { apiKeys, auditLogs, links, qrCodes, sessions, trackingCampaigns, users, type Database, type UserRecord } from '@sharry/database'
-import { apiKeySecretPrefix, apiKeyTokenPrefix, appSlug, buildShortUrl, createApiKeySchema, createUserSchema, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
+import { aiBaseUrlError, apiKeySecretPrefix, apiKeyTokenPrefix, appSlug, buildShortUrl, createApiKeySchema, createUserSchema, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
 import { requireAdmin } from './auth.ts'
 import { writeAudit } from './audit.ts'
 import { loadVerifiedHosts, originForLink, removeLogo } from './links.ts'
@@ -246,6 +246,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     if (body.smtpPassword) {
       await writeSetting(app.db, 'smtp_password', encryptString(body.smtpPassword, app.env.ENCRYPTION_KEY), actor.id)
     }
+    await saveAiSettings(app.db, actor.id, app.env.ENCRYPTION_KEY, body, current)
     const smtpChanged =
       (body.smtpHost !== undefined && body.smtpHost !== current.smtpHost) ||
       (body.smtpPort !== undefined && body.smtpPort !== current.smtpPort) ||
@@ -610,7 +611,67 @@ function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
     emailFrom: settings.emailFrom,
     smtpPasswordSet: Boolean(settings.smtpPasswordEncrypted),
     smtpSource: smtpSource(settings, env),
+    aiProvider: settings.aiProvider,
+    aiModel: settings.aiModel,
+    aiBaseUrl: settings.aiBaseUrl,
+    aiApiKeySet: Boolean(settings.aiApiKeyEncrypted),
   }
+}
+
+async function saveAiSettings(
+  db: Database,
+  actorId: string,
+  encryptionKey: string,
+  body: {
+    aiProvider?: AppSettings['aiProvider']
+    aiModel?: string
+    aiBaseUrl?: string
+    aiApiKey?: string
+    aiApiKeyClear?: boolean
+  },
+  current: AppSettings,
+): Promise<void> {
+  const touched =
+    body.aiProvider !== undefined ||
+    body.aiModel !== undefined ||
+    body.aiBaseUrl !== undefined ||
+    body.aiApiKey !== undefined ||
+    body.aiApiKeyClear === true
+  if (!touched) return
+  const provider = body.aiProvider ?? current.aiProvider
+  const baseUrl = body.aiBaseUrl ?? current.aiBaseUrl
+  if (provider === 'openai_compatible') {
+    const error = aiBaseUrlError(baseUrl)
+    if (error) throw new AppError(400, error, 'validation')
+  }
+  let changed = false
+  if (body.aiProvider !== undefined && body.aiProvider !== current.aiProvider) {
+    await writeSetting(db, 'ai_provider', body.aiProvider, actorId)
+    changed = true
+  }
+  if (body.aiModel !== undefined && body.aiModel !== current.aiModel) {
+    await writeSetting(db, 'ai_model', body.aiModel, actorId)
+    changed = true
+  }
+  if (body.aiBaseUrl !== undefined && body.aiBaseUrl !== current.aiBaseUrl) {
+    await writeSetting(db, 'ai_base_url', body.aiBaseUrl, actorId)
+    changed = true
+  }
+  if (body.aiApiKey) {
+    await writeSetting(db, 'ai_api_key', encryptString(body.aiApiKey, encryptionKey), actorId)
+    changed = true
+  } else if (body.aiApiKeyClear && current.aiApiKeyEncrypted) {
+    await writeSetting(db, 'ai_api_key', '', actorId)
+    changed = true
+  }
+  if (!changed) return
+  await writeAudit(db, {
+    actorUserId: actorId,
+    action: 'settings.ai_updated',
+    entityType: 'settings',
+    entityId: 'ai',
+    metadata: { provider, model: body.aiModel ?? current.aiModel },
+  })
 }
 
 function publicSettings(settings: AppSettings, admin: boolean) {

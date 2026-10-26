@@ -26,6 +26,7 @@ Diese sitzen unter der Shell. Der übergeordnete Loader verlangt eine `full`-Sit
 | `/links`, `/links/new`, `/links/:id` | Linkliste, Anlegen und Editor |
 | `/campaigns`, `/campaigns/:id` | Kampagnenliste und Detail |
 | `/analytics` | Analysen |
+| `/chat`, `/chat/:id` | Assistenz-Chat |
 | `/docs` | Leitet nach `/docs/user/signing-in` um |
 | `/docs/*` | Benutzeranleitungen, Entwicklernotizen, `/docs/api` und `/docs/developer/tests` |
 | `/account` | Sprache, Passwort, Foto und Zwei-Faktor-Authentifizierung |
@@ -36,7 +37,7 @@ Admin-Seiten fügen einen Loader hinzu, der nur die Admin-Rolle erlaubt. Alle an
 | --- | --- |
 | `/admin/users` | Konten anlegen und verwalten |
 | `/admin/api-keys` | API-Schlüssel |
-| `/admin/settings` | Präfix, Sitzungen, Mail und CSV-Export |
+| `/admin/settings` | Präfix, Sitzungen, Mail, KI und CSV-Export |
 | `/admin/domains` | Weiterleitungsdomains, DNS-Prüfung und der Einrichtungsdialog |
 | `/admin/server` | Arbeitsspeicher, Festplatte, Betriebssystem und installierte Laufzeit des Hosts |
 | `/admin/audit` | Audit-Protokoll |

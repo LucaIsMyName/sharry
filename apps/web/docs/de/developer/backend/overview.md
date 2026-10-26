@@ -11,6 +11,7 @@ Dieselbe Bereinigung läuft jede Stunde. `SIGINT` und `SIGTERM` schließen den H
 - `auth.ts` für Sitzungen, Passwörter und Zwei-Faktor-Authentifizierung
 - `links.ts`, `tracking.ts`, `analytics.ts` und `qr.ts` für das Produkt
 - `admin.ts` für Benutzer, Einstellungen, Audit, Exporte und API-Schlüssel
+- `ai/chat.ts` für die Assistenz: Aufrufe an den Anbieter bleiben auf dem Server, Chats und Vorschläge werden pro Person gespeichert, und Link- oder Kampagnenkarten werden bestätigt, bevor etwas angelegt wird
 - `redirect-domains.ts` für eigene Weiterleitungsdomains und die Zertifikat-Allowlist
 - `system.ts` für die Server-Momentaufnahme der Administratorinnen und Administratoren
 - `redirect.ts` für Kurzlinks, die nicht unter `/api` liegen

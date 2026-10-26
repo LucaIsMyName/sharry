@@ -34,6 +34,7 @@ const pageOrder = [
   "user/analytics",
   "user/api-keys",
   "user/settings",
+  "user/chat",
   "user/domains",
   "user/server",
   "user/users",

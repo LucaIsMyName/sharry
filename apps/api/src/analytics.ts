@@ -231,6 +231,10 @@ function fillSeries(rows: { date: string; clicks: number }[], range: { from: Dat
   return series
 }
 
+export function parseAnalyticsRange(query: unknown): { from: Date; to: Date } {
+  return parseRange(query)
+}
+
 function parseRange(query: unknown): { from: Date; to: Date } {
   const record = typeof query === 'object' && query ? (query as { from?: string; to?: string }) : {}
   const to = parseTo(record.to, new Date())

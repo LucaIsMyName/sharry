@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import type { QrStyle, RoutingRule } from '@sharry/shared'
+import type { AiProposal, QrStyle, RoutingRule } from '@sharry/shared'
 
 export const users = pgTable(
   'users',
@@ -277,6 +277,37 @@ export const apiKeys = pgTable(
   (table) => [index('api_keys_user_id_idx').on(table.userId)],
 )
 
+export const aiChats = pgTable(
+  'ai_chats',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: text('title').notNull().default('New chat'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('ai_chats_user_updated_idx').on(table.userId, table.updatedAt)],
+)
+
+export const aiMessages = pgTable(
+  'ai_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    chatId: uuid('chat_id')
+      .notNull()
+      .references(() => aiChats.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    content: text('content').notNull().default(''),
+    toolName: text('tool_name'),
+    toolCallId: text('tool_call_id'),
+    proposal: jsonb('proposal').$type<AiProposal>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('ai_messages_chat_created_idx').on(table.chatId, table.createdAt)],
+)
+
 export const passwordResetTokens = pgTable('password_reset_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
@@ -293,3 +324,5 @@ export type LinkRecord = typeof links.$inferSelect
 export type RedirectDomainRecord = typeof redirectDomains.$inferSelect
 export type SessionRecord = typeof sessions.$inferSelect
 export type ApiKeyRecord = typeof apiKeys.$inferSelect
+export type AiChatRecord = typeof aiChats.$inferSelect
+export type AiMessageRecord = typeof aiMessages.$inferSelect

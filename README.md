@@ -293,6 +293,9 @@ Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password 
 | `default_qr_style` | shared default | Settings |
 | `registration_policy` | `closed` | Fixed. There is no public sign-up |
 | `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `email_from` | empty, port from the environment | Settings. The password is encrypted and is not shown again |
+| `ai_provider`, `ai_model`, `ai_base_url`, `ai_api_key` | empty | Settings. The assistant key is encrypted and is not an environment variable. It is not shown again |
+
+The assistant is configured in Settings, not in the environment. `/chat` uses the saved provider for every signed-in person. Chats are private to the person who started them and stay readable when the provider is cleared. A link or campaign is created only after that person confirms the card in the chat.
 
 Password-reset email uses the SMTP host, port, username, password, and from address saved in Settings. Until a host and from address are saved there, Sharry falls back to `SMTP_HOST` and `EMAIL_FROM` when those are set. Two-factor enrollment is refused until Settings has a saved mail server. The environment fallback is not enough to enroll. When `mfa_required` is on, an account cannot disable two-factor authentication.
 

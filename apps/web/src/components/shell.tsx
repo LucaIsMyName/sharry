@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Link,
+  MessageSquare,
   LogOut,
   Megaphone,
   Menu,
@@ -116,6 +117,9 @@ function Navigation({
       </Item>
       <Item to="/analytics" icon={<ChartColumn size={18} />}>
         {t("Analytics")}
+      </Item>
+      <Item to="/chat" icon={<MessageSquare size={18} />}>
+        {t("Chat")}
       </Item>
       <hr className="my-2 border-0 border-t border-sidebar-border" />
       <Item compact to="/docs" icon={<BookOpen size={14} />}>

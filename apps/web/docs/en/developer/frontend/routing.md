@@ -26,6 +26,7 @@ These sit under the shell. The parent loader requires a `full` session. A sessio
 | `/links`, `/links/new`, `/links/:id` | Link list, create, and editor |
 | `/campaigns`, `/campaigns/:id` | Campaign list and detail |
 | `/analytics` | Analytics |
+| `/chat`, `/chat/:id` | Assistant chat |
 | `/docs` | Redirects to `/docs/user/signing-in` |
 | `/docs/*` | User guides, developer notes, `/docs/api`, and `/docs/developer/tests` |
 | `/account` | Language, password, photo, and two-factor authentication |
@@ -36,7 +37,7 @@ Admin pages add a loader that allows only the admin role. Anyone else is sent to
 | --- | --- |
 | `/admin/users` | Create and manage accounts |
 | `/admin/api-keys` | API keys |
-| `/admin/settings` | Prefix, sessions, mail, and CSV export |
+| `/admin/settings` | Prefix, sessions, mail, AI, and CSV export |
 | `/admin/domains` | Redirect domains, DNS verification, and the setup dialog |
 | `/admin/server` | Host memory, disk, operating system, and installed runtime |
 | `/admin/audit` | Audit log |

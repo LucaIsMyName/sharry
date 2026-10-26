@@ -13,6 +13,7 @@ import { DocsPage } from './pages/docs.tsx'
 import { AnalyticsPage } from './pages/analytics.tsx'
 import { AccountPage, EnrollPage, LoginPage, MfaPage, PasswordPage, ResetPage } from './pages/auth.tsx'
 import { CampaignDetailPage, CampaignsPage } from './pages/campaigns.tsx'
+import { ChatPage } from './pages/chat.tsx'
 import { DashboardPage } from './pages/dashboard.tsx'
 import { LinkDetailPage, LinkFormPage, LinksPage } from './pages/links.tsx'
 
@@ -107,6 +108,8 @@ export const router = createBrowserRouter([
           { path: 'campaigns', handle: { title: 'Campaigns' }, element: <CampaignsPage /> },
           { path: 'campaigns/:id', handle: { title: 'Campaign' }, element: <CampaignDetailPage /> },
           { path: 'analytics', handle: { title: 'Analytics' }, element: <AnalyticsPage /> },
+          { path: 'chat', handle: { title: 'Chat' }, element: <ChatPage /> },
+          { path: 'chat/:id', handle: { title: 'Chat' }, element: <ChatPage /> },
           { path: 'docs', loader: () => redirect('/docs/user/signing-in') },
           { path: 'docs/*', handle: { title: 'Docs' }, element: <DocsPage /> },
           { path: 'account', handle: { title: 'Account' }, element: <AccountPage /> },

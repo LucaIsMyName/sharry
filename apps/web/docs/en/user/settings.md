@@ -2,7 +2,7 @@
 
 Settings is available to administrators. Mail and two-factor rules are saved here. The public site address, short-link origin, session secret, and encryption key stay in the server environment. Changing `APP_URL` or `SHORT_URL_BASE` means editing that environment and restarting the process. Settings cannot change them.
 
-Save settings writes the three cards in one request. Export links and Export clicks sit outside that form. They download CSV files of every link and every click. The click file includes each `utm_*` column.
+Save settings writes the cards in one request. Export links and Export clicks sit outside that form. They download CSV files of every link and every click. The click file includes each `utm_*` column.
 
 ## Links
 
@@ -43,3 +43,11 @@ Password reset uses this mail server once a host and a from address are saved. T
 Until a host and from address are saved here, Sharry falls back to `SMTP_HOST` and `EMAIL_FROM` in the server environment when those are set. If neither place has a host and from address, reset email stays off, and two-factor authentication cannot be turned on.
 
 The status line under the fields says which of those three states is active: saved here, still using the server environment, or off.
+
+## AI
+
+The AI card configures the assistant for every signed-in person. Choose a provider: OpenAI, Anthropic, Google Gemini, or an OpenAI-compatible endpoint. The model list follows the provider. Pick Custom model to type an id the list does not show. An OpenAI-compatible provider also needs a base URL, such as `https://example.com/v1`. The server sends the API key to that URL.
+
+The API key is encrypted with the same key as the SMTP password. It is not an environment variable, and Settings never shows it again. Leave the field blank to keep the saved key. Clear saved key removes it on the next save. AI is available only when a provider, a model, and a key are saved, plus a base URL for the compatible provider.
+
+Save settings, then Test connection. That asks the provider for a short reply and does not store a chat. Chat at `/chat` uses this provider. Old chats stay readable when the provider is cleared. New replies stop until a provider, model, and key are saved again.

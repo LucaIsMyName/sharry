@@ -23,6 +23,7 @@ import { recordPendingClick, sendSpa, tryShortLink, isShortLinkPath } from './re
 import { isVerifiedRedirectHost, registerRedirectDomainRoutes, requestHostname } from './redirect-domains.ts'
 import { getSettings } from './settings-store.ts'
 import { AppError, hashToken } from './support.ts'
+import { registerAiRoutes } from './ai/chat.ts'
 import { registerTrackingRoutes } from './tracking.ts'
 import type { ClickDraft } from './analytics.ts'
 
@@ -143,6 +144,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAdminRoutes(app)
   registerRedirectDomainRoutes(app)
   registerSystemRoutes(app)
+  registerAiRoutes(app)
 
   if (options.env.NODE_ENV === 'production') {
     const assets = path.resolve(process.cwd(), 'apps/web/dist/assets')

@@ -2,7 +2,7 @@
 
 Einstellungen stehen Administratorinnen und Administratoren zur Verfügung. Mail und Zwei-Faktor-Regeln werden hier gespeichert. Die öffentliche Site-Adresse, der Kurzlink-Ursprung, das Sitzungsgeheimnis und der Verschlüsselungsschlüssel bleiben in der Serverumgebung. `APP_URL` oder `SHORT_URL_BASE` ändern heißt, diese Umgebung zu bearbeiten und den Prozess neu zu starten. Die Einstellungen können sie nicht ändern.
 
-Einstellungen speichern schreibt die drei Karten in einer Anfrage. Links exportieren und Klicks exportieren stehen außerhalb dieses Formulars. Sie laden CSV-Dateien aller Links und aller Klicks herunter. Die Klickdatei enthält jede `utm_*`-Spalte.
+Einstellungen speichern schreibt die Karten in einer Anfrage. Links exportieren und Klicks exportieren stehen außerhalb dieses Formulars. Sie laden CSV-Dateien aller Links und aller Klicks herunter. Die Klickdatei enthält jede `utm_*`-Spalte.
 
 ## Links
 
@@ -43,3 +43,11 @@ Das Zurücksetzen des Passworts nutzt diesen Mailserver, sobald ein Host und ein
 Solange hier kein Host und keine Absenderadresse gespeichert sind, fällt Sharry auf `SMTP_HOST` und `EMAIL_FROM` in der Serverumgebung zurück, wenn diese gesetzt sind. Wenn an keiner der beiden Stellen Host und Absenderadresse stehen, bleibt die Reset-E-Mail aus, und die Zwei-Faktor-Authentifizierung lässt sich nicht einschalten.
 
 Die Statuszeile unter den Feldern sagt, welcher der drei Zustände aktiv ist: hier gespeichert, noch die Serverumgebung, oder aus.
+
+## KI
+
+Die Karte KI stellt die Assistenz für jede angemeldete Person ein. Wähle einen Anbieter: OpenAI, Anthropic, Google Gemini oder einen OpenAI-kompatiblen Endpunkt. Die Modellliste folgt dem Anbieter. Eigenes Modell nimmt eine ID auf, die die Liste nicht zeigt. Ein OpenAI-kompatibler Anbieter braucht zusätzlich eine Basis-URL, zum Beispiel `https://example.com/v1`. Der Server sendet den API-Schlüssel an diese URL.
+
+Der API-Schlüssel wird mit demselben Schlüssel verschlüsselt wie das SMTP-Passwort. Er ist keine Umgebungsvariable, und die Einstellungen zeigen ihn nicht wieder an. Lass das Feld leer, um den gespeicherten Schlüssel zu behalten. Gespeicherten Schlüssel löschen entfernt ihn beim nächsten Speichern. Die KI ist nur verfügbar, wenn ein Anbieter, ein Modell und ein Schlüssel gespeichert sind, plus eine Basis-URL beim kompatiblen Anbieter.
+
+Speichere die Einstellungen und prüfe dann die Verbindung. Das fragt den Anbieter nach einer kurzen Antwort und speichert keinen Chat. Der Chat unter `/chat` nutzt diesen Anbieter. Alte Chats bleiben lesbar, wenn der Anbieter geleert wird. Neue Antworten pausieren, bis wieder Anbieter, Modell und Schlüssel gespeichert sind.

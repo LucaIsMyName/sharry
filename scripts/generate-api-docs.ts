@@ -27,25 +27,30 @@ export type ApiDoc = {
 
 const METHODS = new Set(['get', 'post', 'patch', 'delete', 'put', 'head'])
 
-const TAG_ORDER = ['Links', 'Campaigns', 'Analytics', 'QR codes', 'Account', 'Admin', 'Settings', 'Domains']
+const TAG_ORDER = ['Links', 'Campaigns', 'Analytics', 'AI', 'QR codes', 'Account', 'Admin', 'Settings', 'Domains']
 
 export function extractApiDocs(dir: string): ApiDoc[] {
-  const files = fs
-    .readdirSync(dir)
-    .filter((file) => file.endsWith('.ts') && !file.endsWith('.d.ts'))
-    .sort()
   const docs: ApiDoc[] = []
-  for (const file of files) {
-    const fullPath = path.join(dir, file)
-    const text = fs.readFileSync(fullPath, 'utf8')
-    const source = ts.createSourceFile(fullPath, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-    visit(source, text, file, docs)
+  for (const file of routeFiles(dir)) {
+    const text = fs.readFileSync(file, 'utf8')
+    const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+    visit(source, text, path.relative(dir, file), docs)
   }
   return docs.sort((left, right) => {
     const tag = tagRank(left.tag) - tagRank(right.tag)
     if (tag !== 0) return tag
     return left.path.localeCompare(right.path) || left.method.localeCompare(right.method)
   })
+}
+
+function routeFiles(dir: string): string[] {
+  const files: string[] = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) files.push(...routeFiles(full))
+    else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts') && !entry.name.endsWith('.test.ts')) files.push(full)
+  }
+  return files.sort()
 }
 
 function visit(node: ts.Node, text: string, file: string, docs: ApiDoc[]): void {

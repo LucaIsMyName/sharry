@@ -11,6 +11,7 @@ The same purge runs every hour. `SIGINT` and `SIGTERM` close the HTTP server and
 - `auth.ts` for sessions, passwords, and two-factor authentication
 - `links.ts`, `tracking.ts`, `analytics.ts`, and `qr.ts` for the product
 - `admin.ts` for users, settings, audit, exports, and API keys
+- `ai/chat.ts` for the assistant: provider calls stay on the server, chats and proposals are stored per user, and link or campaign cards are confirmed before anything is created
 - `redirect-domains.ts` for custom redirect domains and the certificate allow-list
 - `system.ts` for the administrator server snapshot
 - `redirect.ts` for short links that are not under `/api`
