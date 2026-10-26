@@ -55,7 +55,7 @@ export const aiToolDefs: AiToolDef[] = [
   {
     name: 'show_link_form',
     description:
-      'Show the short-link form. Call this as soon as the person wants a short link. Pass destinationUrl when they already gave one. Leave slug empty unless they typed a slug. This does not create the link.',
+      'Show the short-link form. Call this as soon as the person wants a short link. Pass destinationUrl when they already gave one. Leave slug empty unless they typed a slug. The form also asks for an optional title and UTM source, medium, and campaign. This does not create the link.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -68,13 +68,14 @@ export const aiToolDefs: AiToolDef[] = [
   {
     name: 'show_analytics_form',
     description:
-      'Show the analytics form so the person can choose all links or one link. Call this as soon as they want a report. Prefill from and to as YYYY-MM-DD only when they already named dates. This does not run the report.',
+      'Show the analytics form so the person can choose all links or one link and slide the date range. Call this as soon as they want a report. Prefill from and to as YYYY-MM-DD only when they already named dates. Pass linkId when one link is already identified. This does not run the report.',
     parameters: {
       type: 'object',
       additionalProperties: false,
       properties: {
         from: { type: 'string', description: 'YYYY-MM-DD' },
         to: { type: 'string', description: 'YYYY-MM-DD' },
+        linkId: stringParam,
       },
     },
   },
@@ -252,6 +253,7 @@ export async function formBlockFromCall(
   }
   if (call.name === 'show_analytics_form') {
     const parsed = analyticsFormPrefillSchema.safeParse(value)
+    const choices = await visibleLinkChoices(db, actor, settings)
     return {
       ok: true,
       block: {
@@ -260,12 +262,14 @@ export async function formBlockFromCall(
         form: 'analytics',
         status: 'pending',
         prefill: parsed.success ? parsed.data : {},
-        links: await visibleLinkChoices(db, actor, settings),
+        links: choices.links,
+        ...(choices.earliestCreatedAt ? { earliestCreatedAt: choices.earliestCreatedAt } : {}),
       },
     }
   }
   if (call.name === 'show_campaign_form') {
     const parsed = campaignFormPrefillSchema.safeParse(value)
+    const choices = await visibleLinkChoices(db, actor, settings)
     return {
       ok: true,
       block: {
@@ -274,7 +278,7 @@ export async function formBlockFromCall(
         form: 'campaign',
         status: 'pending',
         prefill: parsed.success ? parsed.data : {},
-        links: await visibleLinkChoices(db, actor, settings),
+        links: choices.links,
       },
     }
   }
@@ -294,32 +298,69 @@ export async function applyFormSubmission(
   return submitAnalyticsForm(db, actor, settings, locale, block, body)
 }
 
+function namedRows(value: unknown): { name: string; clicks: number }[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((row) => {
+    if (!row || typeof row !== 'object') return []
+    const name = (row as { name?: unknown }).name
+    const clicks = (row as { clicks?: unknown }).clicks
+    if (typeof name !== 'string' || typeof clicks !== 'number') return []
+    return [{ name, clicks }]
+  })
+}
+
 export function blocksFromAnalyticsResult(value: unknown): ChatBlock[] {
   if (!value || typeof value !== 'object') return []
   const record = value as {
     path?: unknown
     series?: { date: string; clicks: number }[]
     links?: { title: string | null; slug: string; clicks: number; uniqueVisitors?: number }[]
-    referrers?: { name: string; clicks: number }[]
+    referrers?: unknown
+    countries?: unknown
+    browsers?: unknown
+    devices?: unknown
+    operatingSystems?: unknown
+    bots?: unknown
+    utmSources?: unknown
+    utmMediums?: unknown
+    utmCampaigns?: unknown
+    utmIds?: unknown
+    utmTerms?: unknown
+    utmContents?: unknown
   }
   if (typeof record.path !== 'string' || !Array.isArray(record.series)) return []
   const chart: ChatBlock = { type: 'chart', title: 'Clicks', series: record.series, path: record.path }
-  const table: ChatBlock = record.links
-    ? {
-        type: 'table',
-        title: 'Links',
-        columns: ['Name', 'Clicks', 'Unique visitors'],
-        rows: record.links.map((link) => [link.title || link.slug, String(link.clicks), String(link.uniqueVisitors ?? 0)]),
-        path: record.path,
-      }
-    : {
-        type: 'table',
-        title: 'Referrers',
-        columns: ['Referrer', 'Clicks'],
-        rows: (record.referrers ?? []).map((row) => [row.name, String(row.clicks)]),
-        path: record.path,
-      }
-  return [chart, table]
+  const groups: [string, unknown][] = [
+    ['Referrers', record.referrers],
+    ['Countries', record.countries],
+    ['Browsers', record.browsers],
+    ['Devices', record.devices],
+    ['Operating systems', record.operatingSystems],
+    ['Bots', record.bots],
+    ['utm_source', record.utmSources],
+    ['utm_medium', record.utmMediums],
+    ['utm_campaign', record.utmCampaigns],
+    ['utm_id', record.utmIds],
+    ['utm_term', record.utmTerms],
+    ['utm_content', record.utmContents],
+  ]
+  const bars: ChatBlock[] = groups.flatMap(([title, rows]) => {
+    const named = namedRows(rows)
+    if (named.length === 0) return []
+    return [{ type: 'bars', title, rows: named, path: record.path as string }]
+  })
+  const table: ChatBlock[] = record.links
+    ? [
+        {
+          type: 'table',
+          title: 'Links',
+          columns: ['Name', 'Clicks', 'Unique visitors'],
+          rows: record.links.map((link) => [link.title || link.slug, String(link.clicks), String(link.uniqueVisitors ?? 0)]),
+          path: record.path,
+        },
+      ]
+    : []
+  return [chart, ...bars, ...table]
 }
 
 async function submitLinkForm(
@@ -333,10 +374,20 @@ async function submitLinkForm(
   if (!parsed.success) return pendingError(block, parsed.error.issues.map((issue) => issue.message).join(' '))
   let created: Awaited<ReturnType<typeof createLink>>
   try {
+    const utm = cleanUtm({
+      utm_source: parsed.data.utmSource,
+      utm_medium: parsed.data.utmMedium,
+      utm_campaign: parsed.data.utmCampaign,
+    })
     created = await createLink(
       db,
       actor,
-      { destinationUrl: parsed.data.destinationUrl, slug: parsed.data.slug?.trim() || undefined },
+      {
+        destinationUrl: parsed.data.destinationUrl,
+        title: parsed.data.title?.trim() || undefined,
+        slug: parsed.data.slug?.trim() || undefined,
+        utm: Object.keys(utm).length > 0 ? utm : undefined,
+      },
       settings,
     )
   } catch (error) {
@@ -413,10 +464,12 @@ async function submitAnalyticsForm(
   if (!parsed.success) return { block: pendingError(block, parsed.error.issues.map((issue) => issue.message).join(' ')) }
   const prefill = analyticsFormPrefillSchema.safeParse(block.prefill ?? {})
   const dates = prefill.success ? prefill.data : {}
+  const from = parsed.data.from ?? dates.from
+  const to = parsed.data.to ?? dates.to
   try {
     const report = await queryAnalyticsForActor(db, actor, settings, {
-      from: dates.from,
-      to: dates.to,
+      from,
+      to,
       linkId: parsed.data.scope === 'link' ? parsed.data.linkId : undefined,
     })
     if (!report || typeof report !== 'object' || !('path' in report)) {
@@ -436,18 +489,16 @@ async function submitAnalyticsForm(
       linkId: parsed.data.linkId,
       path: data.path,
       from: data.from,
-      to: labelTo(dates.to, data.to),
+      to: labelTo(to, data.to),
       totalClicks: data.totalClicks,
       uniqueVisitors: data.uniqueVisitors,
     }
-    const content = analyticsSentence(locale, result, !dates.from && !dates.to, parsed.data.scope)
+    const content = analyticsSentence(locale, result, !from && !to, parsed.data.scope)
     const chosen = block.links?.find((link) => link.id === parsed.data.linkId)
     const scopeText = parsed.data.scope === 'all' ? 'all links' : `the link ${chosen?.title || chosen?.slug || parsed.data.linkId}`
     const tableText =
-      parsed.data.scope === 'all'
-        ? 'a table of links with name, clicks, and unique visitors'
-        : 'a table of referrers and their clicks'
-    const brief = `The person submitted the analytics form for ${scopeText}. Range ${result.from} to ${result.to}: ${result.totalClicks} clicks, ${result.uniqueVisitors} unique visitors. The chat will draw a clicks-by-day chart and ${tableText} below your text. Write a short opening section in ${locale === 'de' ? 'German' : 'English'} with one markdown heading. Explain the date range, these totals, what the chart shows, and what the table lists. Use only these numbers. Do not draw a table or a chart. Do not call tools.`
+      parsed.data.scope === 'all' ? ' The chat will also draw a table of links with name, clicks, and unique visitors.' : ''
+    const brief = `The person submitted the analytics form for ${scopeText}. Range ${result.from} to ${result.to}: ${result.totalClicks} clicks, ${result.uniqueVisitors} unique visitors. The chat will draw a clicks-by-day chart and bar charts for referrers, countries, browsers, devices, operating systems, bots, and UTM fields below your text.${tableText} Write a short opening section in ${locale === 'de' ? 'German' : 'English'} with one markdown heading. Explain the date range, these totals, what the chart shows, and what the bars compare. Use only these numbers. Do not draw a table or a chart. Do not call tools.`
     return {
       block: { ...block, status: 'submitted', result },
       report: { content, blocks: blocksFromAnalyticsResult(report), brief },
@@ -476,33 +527,49 @@ export function analyticsSentence(
   const to = result.to ?? ''
   const clicks = result.totalClicks ?? 0
   const visitors = result.uniqueVisitors ?? 0
-  if (locale === 'de') {
-    const range = last30 ? `Letzte 30 Tage (${from} bis ${to})` : `Von ${from} bis ${to}`
-    const table =
-      scope === 'all'
-        ? 'Die Tabelle listet jeden Link mit Klicks und eindeutigen Besuchern.'
-        : 'Die Tabelle listet die Verweise.'
-    return `${range}: ${clicks} Klicks, ${visitors} eindeutige Besucher. Das Diagramm zeigt die Klicks pro Tag. ${table}`
-  }
-  const range = last30 ? `Last 30 days (${from} to ${to})` : `From ${from} to ${to}`
+  const bars =
+    locale === 'de'
+      ? 'Die Balken zeigen Verweise, Länder, Browser, Geräte, Betriebssysteme, Bots und UTM-Felder.'
+      : 'The bars show referrers, countries, browsers, devices, operating systems, bots, and UTM fields.'
   const table =
     scope === 'all'
-      ? 'The table lists each link with its clicks and unique visitors.'
-      : 'The table lists referrers.'
-  return `${range}: ${clicks} clicks, ${visitors} unique visitors. The chart shows clicks by day. ${table}`
+      ? locale === 'de'
+        ? ' Die Tabelle listet jeden Link mit Klicks und eindeutigen Besuchern.'
+        : ' The table lists each link with its clicks and unique visitors.'
+      : ''
+  if (locale === 'de') {
+    const range = last30 ? `Letzte 30 Tage (${from} bis ${to})` : `Von ${from} bis ${to}`
+    return `${range}: ${clicks} Klicks, ${visitors} eindeutige Besucher. Das Diagramm zeigt die Klicks pro Tag. ${bars}${table}`
+  }
+  const range = last30 ? `Last 30 days (${from} to ${to})` : `From ${from} to ${to}`
+  return `${range}: ${clicks} clicks, ${visitors} unique visitors. The chart shows clicks by day. ${bars}${table}`
 }
 
 async function visibleLinkChoices(db: Database, actor: Actor, settings: AppSettings) {
-  const visibility = visibleLinksWhere(actor, settings, 'links')
-  return rowsOf<{ id: string; slug: string; title: string | null }>(
-    await db.execute(sql`
-      select id::text as id, slug, title
+  const where = () => visibleLinksWhere(actor, settings, 'links') ?? sql`true`
+  const [linkRows, earliestRows] = await Promise.all([
+    db.execute(sql`
+      select id::text as id, slug, title,
+             to_char(created_at at time zone 'UTC', 'YYYY-MM-DD') as created_at
       from links
-      where ${visibility ?? sql`true`}
+      where ${where()}
       order by updated_at desc
       limit 100
     `),
-  )
+    db.execute(sql`
+      select to_char(min(created_at) at time zone 'UTC', 'YYYY-MM-DD') as created_at
+      from links
+      where ${where()}
+    `),
+  ])
+  const links = rowsOf<{ id: string; slug: string; title: string | null; created_at: string | null }>(linkRows).map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    ...(row.created_at ? { createdAt: row.created_at } : {}),
+  }))
+  const earliestCreatedAt = rowsOf<{ created_at: string | null }>(earliestRows)[0]?.created_at ?? undefined
+  return { links, earliestCreatedAt: earliestCreatedAt || undefined }
 }
 
 export async function confirmProposal(
@@ -609,7 +676,20 @@ export async function queryAnalyticsForActor(
     countries: analytics.countries,
     browsers: analytics.browsers,
     devices: analytics.devices,
+    operatingSystems: analytics.operatingSystems,
     utmSources: analytics.utmSources,
+    utmMediums: analytics.utmMediums,
+    utmCampaigns: analytics.utmCampaigns,
+    utmIds: analytics.utmIds,
+    utmTerms: analytics.utmTerms,
+    utmContents: analytics.utmContents,
+    bots:
+      analytics.totalClicks > 0
+        ? [
+            { name: 'People', clicks: Math.max(0, analytics.totalClicks - analytics.botClicks) },
+            { name: 'Bots', clicks: analytics.botClicks },
+          ]
+        : [],
     campaigns: analytics.campaigns,
     links: linkId ? undefined : await topLinks(db, actor, settings, range),
   }

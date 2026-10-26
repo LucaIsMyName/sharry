@@ -122,6 +122,7 @@ export const suggestSlugSchema = z.object({
 export const analyticsFormPrefillSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  linkId: z.string().uuid().optional(),
 })
 
 export const campaignFormPrefillSchema = z.object({
@@ -131,14 +132,20 @@ export const campaignFormPrefillSchema = z.object({
 
 export const submitLinkFormSchema = z.object({
   destinationUrl: destinationSchema,
+  title: z.string().trim().max(200).optional(),
   slug: z.string().trim().max(64).optional(),
   createQr: z.boolean().optional(),
+  utmSource: z.string().trim().max(200).optional(),
+  utmMedium: z.string().trim().max(200).optional(),
+  utmCampaign: z.string().trim().max(200).optional(),
 })
 
 export const submitAnalyticsFormSchema = z
   .object({
     scope: z.enum(['all', 'link']),
     linkId: z.string().uuid().optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   })
   .refine((value) => value.scope === 'all' || Boolean(value.linkId), 'Choose a link.')
 
@@ -173,7 +180,7 @@ export type AiProposal = {
 export type ChatFormKind = 'link' | 'analytics' | 'campaign'
 export type ChatFormStatus = 'pending' | 'submitted'
 
-export type ChatFormLink = { id: string; title: string | null; slug: string }
+export type ChatFormLink = { id: string; title: string | null; slug: string; createdAt?: string }
 
 export type ChatFormResult = {
   path?: string
@@ -198,9 +205,11 @@ export type ChatBlock =
       status: ChatFormStatus
       prefill?: Record<string, unknown>
       links?: ChatFormLink[]
+      earliestCreatedAt?: string
       result?: ChatFormResult
     }
   | { type: 'chart'; title: string; series: { date: string; clicks: number }[]; path: string }
+  | { type: 'bars'; title: string; rows: { name: string; clicks: number }[]; path: string }
   | { type: 'table'; title: string; columns: string[]; rows: string[][]; path?: string }
 
 export function aiIsAvailable(input: {

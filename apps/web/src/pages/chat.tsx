@@ -39,9 +39,9 @@ type ChatSummary = {
 };
 
 const starterHints: Record<(typeof chatStarters)[number]["id"], string> = {
-  link: "Destination, optional slug, and a QR code.",
+  link: "Destination, optional title, slug, UTM, and a QR code.",
   campaign: "A name, a link, and an optional variant.",
-  analytics: "All links, or one link, for the last 30 days.",
+  analytics: "All links or one link, on a date range.",
 };
 
 type PendingProposal = { id: string; action: "confirm" | "dismiss" };
@@ -668,6 +668,7 @@ function AssistantReply({
         {hasBlocks ? (
           <ChatBlocks
             blocks={message.blocks ?? []}
+            reportText={message.content}
             submitting={submittingForm}
             aiAvailable={aiAvailable}
             onSubmit={onSubmitForm}

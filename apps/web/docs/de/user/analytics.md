@@ -1,6 +1,6 @@
 # Analysen
 
-Das Dashboard zeigt Klicks, eindeutige Besucher, Bot-Klicks, eine Tagesreihe und Aufschlüsselungen für Referrer, Land, Browser, Gerät und jeden `utm_*`-Wert. Ein leerer UTM-Wert zählt als „Not set“. Land und Region werden nur gefüllt, wenn eine lokale GeoIP-Datenbank eingerichtet ist.
+Das Dashboard zeigt Klicks, eindeutige Besucher, Bot-Klicks, eine Tagesreihe und Aufschlüsselungen für Referrer, Land, Browser, Betriebssystem, Gerät und jeden `utm_*`-Wert. Analysen zeichnen außerdem einen Balken für Personen und Bot-Klicks neben der Bot-Summe. Ein leerer UTM-Wert zählt als „Not set“. Land und Region werden nur gefüllt, wenn eine lokale GeoIP-Datenbank eingerichtet ist.
 
 Übersicht ist die Zusammenfassung der Links, die du sehen kannst, mit den letzten Links. Analysen sind dieselben Summen mit einer Linkauswahl und den Aufschlüsselungen. Standardbenutzer sehen Analysen für ihre eigenen Links und für alle anderen Links, die die Einstellungen öffnen. Administratorinnen und Administratoren können über jeden Link schauen.
 

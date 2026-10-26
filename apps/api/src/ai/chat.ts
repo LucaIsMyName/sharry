@@ -244,13 +244,13 @@ export function registerAiRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * Submit a form in the chat. A link or campaign is created here. An analytics form adds the chart and table.
+   * Submit a form in the chat. A link or campaign is created here. An analytics form adds the chart, the bar charts, and the table.
    * @route POST /api/chats/:id/forms/:formId/submit
    * @tag AI
    * @auth api-key or session
    * @param id string Chat id
    * @param formId string Form id
-   * @body JSON { destinationUrl?, slug?, createQr?, scope?, linkId?, name?, description?, variantName? }
+   * @body JSON { destinationUrl?, title?, slug?, createQr?, utmSource?, utmMedium?, utmCampaign?, scope?, linkId?, from?, to?, name?, description?, variantName? }
    * @response 200 { message, report }
    */
   app.post('/api/chats/:id/forms/:formId/submit', async (request) => {

@@ -1,6 +1,6 @@
 # Analytics
 
-The dashboard shows clicks, unique visitors, bot clicks, a daily series, and breakdowns for referrer, country, browser, device, and each `utm_*` value. A blank UTM value is counted as “Not set”. Country and region are filled only when a local GeoIP database is configured.
+The dashboard shows clicks, unique visitors, bot clicks, a daily series, and breakdowns for referrer, country, browser, operating system, device, and each `utm_*` value. Analytics also draws a bots bar for people and bot clicks beside the bot total. A blank UTM value is counted as “Not set”. Country and region are filled only when a local GeoIP database is configured.
 
 Overview is the summary of the links you can see, with the recent links. Analytics is the same totals with a link picker and the breakdowns. Standard users see analytics for their own links, and for any other links Settings lets them open. Administrators can look across every link.
 

@@ -133,13 +133,7 @@ export function AnalyticsPage() {
               <ClickChart series={analytics.series} />
             </CardContent>
           </Card>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Breakdown title={t("Referrers")} rows={analytics.referrers} />
-            <Breakdown title={t("Countries")} rows={analytics.countries} />
-            <Breakdown title={t("Browsers")} rows={analytics.browsers} />
-            <Breakdown title={t("Devices")} rows={analytics.devices} />
-            <UtmBreakdowns analytics={analytics} />
-          </div>
+          <AnalyticsBreakdowns analytics={analytics} />
         </div>
       ) : null}
       <div className="mt-4 min-w-0">
@@ -231,6 +225,28 @@ export function ClickChart({ series }: { series: Analytics["series"] }) {
   );
 }
 
+export function AnalyticsBreakdowns({ analytics }: { analytics: Analytics }) {
+  const { t } = useI18n();
+  const bots =
+    analytics.totalClicks <= 0
+      ? []
+      : [
+          { name: t("People"), clicks: Math.max(0, analytics.totalClicks - analytics.botClicks) },
+          { name: t("Bots"), clicks: analytics.botClicks },
+        ];
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Breakdown title={t("Referrers")} rows={analytics.referrers} />
+      <Breakdown title={t("Countries")} rows={analytics.countries} />
+      <Breakdown title={t("Browsers")} rows={analytics.browsers} />
+      <Breakdown title={t("Operating systems")} rows={analytics.operatingSystems} />
+      <Breakdown title={t("Devices")} rows={analytics.devices} />
+      <Breakdown title={t("Bots")} rows={bots} />
+      <UtmBreakdowns analytics={analytics} />
+    </div>
+  );
+}
+
 export function UtmBreakdowns({ analytics }: { analytics: Analytics }) {
   const rows = [
     ["utm_source", analytics.utmSources],
@@ -254,37 +270,49 @@ function barTone(index: number): string {
 export function Breakdown({
   title,
   rows,
+  plain = false,
 }: {
   title: string;
   rows: { name: string; clicks: number }[];
+  plain?: boolean;
 }) {
   const { t } = useI18n();
   const max = Math.max(1, ...rows.map((row) => row.clicks));
+  const body =
+    rows.length === 0 ? (
+      <EmptyState>{t("No data yet.")}</EmptyState>
+    ) : (
+      <div className="grid gap-2">
+        {rows.map((row, index) => (
+          <div
+            className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-sm"
+            key={`${index}-${row.name}`}
+          >
+            <span className="truncate">{row.name}</span>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <span
+                className={cn("block h-full", barTone(index))}
+                style={{ width: `${(row.clicks / max) * 100}%` }}
+              />
+            </div>
+            <b>{row.clicks}</b>
+          </div>
+        ))}
+      </div>
+    );
+  if (plain) {
+    return (
+      <div>
+        <h2 className="mb-3 font-medium">{t(title)}</h2>
+        {body}
+      </div>
+    );
+  }
   return (
     <Card>
       <CardContent>
         <h2 className="mb-3 text-lg font-medium">{t(title)}</h2>
-        {rows.length === 0 ? (
-          <EmptyState>{t("No data yet.")}</EmptyState>
-        ) : (
-          <div className="grid gap-2">
-            {rows.map((row, index) => (
-              <div
-                className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-sm"
-                key={`${index}-${row.name}`}
-              >
-                <span className="truncate">{row.name}</span>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <span
-                    className={cn("block h-full", barTone(index))}
-                    style={{ width: `${(row.clicks / max) * 100}%` }}
-                  />
-                </div>
-                <b>{row.clicks}</b>
-              </div>
-            ))}
-          </div>
-        )}
+        {body}
       </CardContent>
     </Card>
   );

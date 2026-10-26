@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { aiMessages, appSettings, clickEvents, links, qrCodes, trackingCampaigns } from '@sharry/database'
+import { aiMessages, appSettings, clickEvents, links, qrCodes, trackingCampaigns, trackingConfigs } from '@sharry/database'
 import type { AiProposal, ChatBlock } from '@sharry/shared'
 import { pageIo } from '../src/ai/page-slug.ts'
 import { SHARRY_ONLY_RULE } from '../src/ai/prompt.ts'
 import type { Actor } from '../src/auth.ts'
-import { lookupForActor, queryAnalyticsForActor } from '../src/ai/tools.ts'
+import { formBlockFromCall, lookupForActor, queryAnalyticsForActor } from '../src/ai/tools.ts'
 import { getSettings } from '../src/settings-store.ts'
 import { decryptString } from '../src/support.ts'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
@@ -422,6 +422,8 @@ describe('AI settings and chat', () => {
     const ownerForm = events(ownerReply.body).find((event) => event.event === 'block')?.data.block
     if (!ownerForm || ownerForm.type !== 'form') throw new Error('missing form')
     expect(ownerForm.links?.some((item) => item.id === link.id)).toBe(true)
+    expect(ownerForm.links?.find((item) => item.id === link.id)?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(ownerForm.earliestCreatedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
 
     const otherChat = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: other.cookie } })
     const otherReply = await ctx.app.inject({
@@ -444,6 +446,10 @@ describe('AI settings and chat', () => {
     const chart = report.json().report.blocks.find((block: ChatBlock) => block.type === 'chart')
     expect(chart.series.some((point: { clicks: number }) => point.clicks === 1)).toBe(true)
     expect(chart.path).toBe(`/analytics?link=${link.id}`)
+    const browsers = report.json().report.blocks.find((block: ChatBlock) => block.type === 'bars' && block.title === 'Browsers')
+    expect(browsers?.type === 'bars' ? browsers.rows : []).toEqual([{ name: 'Chrome', clicks: 1 }])
+    const systems = report.json().report.blocks.find((block: ChatBlock) => block.type === 'bars' && block.title === 'Operating systems')
+    expect(systems?.type === 'bars' ? systems.rows : []).toEqual([{ name: 'macOS', clicks: 1 }])
   })
 
   it('keeps analytics and page lookup inside the caller visibility', async () => {
@@ -472,7 +478,17 @@ describe('AI settings and chat', () => {
     const range = { from: '2026-10-20', to: '2026-10-20' }
     const ownerReport = await queryAnalyticsForActor(ctx.db, actor(owner.id, 'ada', 'user'), settings, range)
     const otherReport = await queryAnalyticsForActor(ctx.db, actor(other.id, 'bea', 'user'), settings, range)
-    expect(ownerReport).toMatchObject({ totalClicks: 1, path: '/analytics' })
+    expect(ownerReport).toMatchObject({
+      totalClicks: 1,
+      path: '/analytics',
+      browsers: [{ name: 'Chrome', clicks: 1 }],
+      operatingSystems: [{ name: 'macOS', clicks: 1 }],
+      devices: [{ name: 'desktop', clicks: 1 }],
+      bots: [
+        { name: 'People', clicks: 1 },
+        { name: 'Bots', clicks: 0 },
+      ],
+    })
     expect(otherReport).toMatchObject({ totalClicks: 0 })
 
     const hidden = await lookupForActor(ctx.db, actor(other.id, 'bea', 'user'), settings, { query: 'audit settings' })
@@ -536,6 +552,40 @@ describe('AI settings and chat', () => {
     const campaigns = await ctx.db.select().from(trackingCampaigns)
     expect(campaigns).toHaveLength(1)
     expect(campaigns[0]?.userId).toBe(other.id)
+  })
+
+  it('stores a title and utm source from the link form', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const chat = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: user.cookie } })
+    const formId = randomUUID()
+    const pending: ChatBlock = { type: 'form', id: formId, form: 'link', status: 'pending' }
+    await ctx.db.insert(aiMessages).values({ chatId: chat.json().id, role: 'assistant', content: 'Form', blocks: [pending] })
+    const submitted = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${chat.json().id}/forms/${formId}/submit`,
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/spring', title: 'Spring', utmSource: 'newsletter' },
+    })
+    expect(submitted.statusCode).toBe(200)
+    const stored = await ctx.db.select().from(links)
+    const created = stored.find((link) => link.title === 'Spring')
+    expect(created?.title).toBe('Spring')
+    const utm = await ctx.db.select().from(trackingConfigs)
+    expect(utm.find((row) => row.linkId === created?.id)?.utmSource).toBe('newsletter')
+    if (!created) return
+    await ctx.db.update(links).set({ createdAt: new Date('2020-01-15T00:00:00.000Z') }).where(eq(links.id, created.id))
+    const settings = await getSettings(ctx.db, ctx.env)
+    const opened = await formBlockFromCall(ctx.db, actor(user.id, 'ada', 'user'), settings, {
+      id: 'call-analytics',
+      name: 'show_analytics_form',
+      arguments: JSON.stringify({ linkId: created.id, from: '2020-02-01', to: '2020-02-02' }),
+    })
+    expect(opened.ok).toBe(true)
+    if (!opened.ok || opened.block.type !== 'form') throw new Error('missing analytics form')
+    expect(opened.block.earliestCreatedAt).toBe('2020-01-15')
+    expect(opened.block.prefill).toMatchObject({ linkId: created.id, from: '2020-02-01' })
+    expect(opened.block.links?.find((link) => link.id === created.id)?.createdAt).toBe('2020-01-15')
   })
 })
 

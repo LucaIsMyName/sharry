@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import type { AiProposal, ChatBlock } from "@sharry/shared";
 import { setActiveLocale } from "../i18n/index.tsx";
+import { addDays, dayNumber, initialWindow, utcToday } from "./analytics-range.ts";
 import { ChatConversation, chatToOpen, type ChatMessage } from "./chat.tsx";
 
 afterEach(() => {
@@ -19,6 +20,7 @@ function renderConversation(
   messages: ChatMessage[] = [],
   draft = "",
   onSubmit: (event: FormEvent<HTMLFormElement>) => void = (event) => event.preventDefault(),
+  onSubmitForm: (formId: string, body: Record<string, unknown>) => void = () => {},
 ) {
   return render(
     <MemoryRouter>
@@ -33,7 +35,7 @@ function renderConversation(
         onStarter={() => {}}
         onConfirm={() => {}}
         onDismiss={() => {}}
-        onSubmitForm={() => {}}
+        onSubmitForm={onSubmitForm}
       />
     </MemoryRouter>,
   );
@@ -77,6 +79,8 @@ describe("chat conversation", () => {
     ]);
     const link = screen.getByRole("link", { name: "Open link" });
     expect(link.getAttribute("href")).toBe("/links/link-1");
+    expect(link.className.includes("underline")).toBe(false);
+    expect(link.className.includes("inline-flex")).toBe(true);
   });
 
   it("shows the short-link form and an analytics link list", () => {
@@ -141,12 +145,16 @@ describe("chat conversation", () => {
     expect(card?.querySelector("[data-slot=card]")).toBeNull();
     expect(card?.textContent).toContain("Spring");
     expect(document.querySelectorAll("[data-slot=card]")).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Open analytics" }).getAttribute("href")).toBe("/analytics");
+    const open = screen.getByRole("link", { name: "Open analytics" });
+    expect(open.getAttribute("href")).toBe("/analytics");
+    expect(open.className.includes("underline")).toBe(false);
+    expect(open.className.includes("inline-flex")).toBe(true);
+    expect(screen.queryByRole("button", { name: "Export to PDF" })).toBeNull();
   });
 
   it("shows a hint under each starter and a translated placeholder", () => {
     renderConversation(true);
-    expect(screen.getByText("Destination, optional slug, and a QR code.")).toBeTruthy();
+    expect(screen.getByText("Destination, optional title, slug, UTM, and a QR code.")).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Message" }).getAttribute("placeholder")).toBe(
       "Ask about links, campaigns, or analytics",
     );
@@ -249,5 +257,111 @@ describe("chat conversation", () => {
     expect(onSubmit).not.toHaveBeenCalled();
     fireEvent.keyDown(box, { key: "Enter" });
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws browser bars, skips an empty country group, and exports a pdf", () => {
+    const create = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:pdf");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    const chart: ChatBlock = {
+      type: "chart",
+      title: "Clicks",
+      series: [{ date: "2026-10-01", clicks: 2 }],
+      path: "/analytics",
+    };
+    const browsers: ChatBlock = {
+      type: "bars",
+      title: "Browsers",
+      rows: [{ name: "Chrome", clicks: 2 }],
+      path: "/analytics",
+    };
+    const countries: ChatBlock = {
+      type: "bars",
+      title: "Countries",
+      rows: [],
+      path: "/analytics",
+    };
+    renderConversation(true, [
+      {
+        id: "m1",
+        role: "assistant",
+        content: "From 2026-10-01 to 2026-10-02: 2 clicks.",
+        proposal: null,
+        blocks: [chart, browsers, countries],
+      },
+    ]);
+    expect(screen.getByRole("heading", { name: "Browsers" })).toBeTruthy();
+    expect(screen.getByText("Chrome")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Countries" })).toBeNull();
+    const open = screen.getByRole("link", { name: "Open analytics" });
+    expect(open.className.includes("underline")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Export to PDF" }));
+    expect(create).toHaveBeenCalled();
+    create.mockRestore();
+  });
+
+  it("starts the date track on the link creation day and submits both ends", () => {
+    const today = utcToday();
+    const earliest = addDays(today, -800);
+    const created = addDays(today, -10);
+    const onSubmitForm = vi.fn();
+    const analyticsForm: ChatBlock = {
+      type: "form",
+      id: "form-range",
+      form: "analytics",
+      status: "pending",
+      earliestCreatedAt: earliest,
+      links: [{ id: "link-1", title: "Spring", slug: "spring", createdAt: created }],
+    };
+    renderConversation(
+      true,
+      [{ id: "m1", role: "assistant", content: "", proposal: null, blocks: [analyticsForm] }],
+      "",
+      (event) => event.preventDefault(),
+      onSubmitForm,
+    );
+    const start = screen.getByRole("slider", { name: "Start date" }) as HTMLInputElement;
+    expect(start.min).toBe(String(dayNumber(earliest)));
+    fireEvent.click(screen.getByRole("combobox", { name: "Report" }));
+    const oneLink = screen.getByRole("option", { name: "One link" });
+    fireEvent.pointerDown(oneLink, { button: 0 });
+    fireEvent.pointerUp(oneLink, { button: 0 });
+    fireEvent.click(oneLink);
+    fireEvent.click(screen.getByRole("combobox", { name: "Link" }));
+    const spring = screen.getByRole("option", { name: "Spring (spring)" });
+    fireEvent.pointerDown(spring, { button: 0 });
+    fireEvent.pointerUp(spring, { button: 0 });
+    fireEvent.click(spring);
+    const moved = screen.getByRole("slider", { name: "Start date" }) as HTMLInputElement;
+    expect(moved.min).toBe(String(dayNumber(created)));
+    expect(moved.value).toBe(String(dayNumber(created)));
+    fireEvent.click(screen.getByRole("button", { name: "Show report" }));
+    expect(onSubmitForm).toHaveBeenCalledWith("form-range", {
+      scope: "link",
+      linkId: "link-1",
+      from: created,
+      to: today,
+    });
+  });
+
+  it("asks to narrow a range longer than 400 days", () => {
+    const today = utcToday();
+    const earliest = addDays(today, -800);
+    const analyticsForm: ChatBlock = {
+      type: "form",
+      id: "form-long",
+      form: "analytics",
+      status: "pending",
+      earliestCreatedAt: earliest,
+      prefill: { from: earliest, to: today },
+      links: [],
+    };
+    renderConversation(true, [{ id: "m1", role: "assistant", content: "", proposal: null, blocks: [analyticsForm] }]);
+    expect(screen.getByText("Choose a range of 400 days or fewer")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show report" }).hasAttribute("disabled")).toBe(true);
+    const start = screen.getByRole("slider", { name: "Start date" });
+    fireEvent.change(start, { target: { value: String(dayNumber(addDays(today, -10))) } });
+    expect(screen.queryByText("Choose a range of 400 days or fewer")).toBeNull();
+    expect(screen.getByRole("button", { name: "Show report" }).hasAttribute("disabled")).toBe(false);
+    expect(initialWindow(earliest, today, earliest, today).from).toBe(earliest);
   });
 });

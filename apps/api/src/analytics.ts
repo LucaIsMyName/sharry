@@ -34,7 +34,7 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
    * @auth api-key or session
    * @query from string Start day, YYYY-MM-DD, inclusive. Defaults to 30 days before to
    * @query to string End day, YYYY-MM-DD, inclusive. Defaults to now. A date-only value includes that whole UTC day
-   * @response 200 totals, daily series, referrer, country, browser, device, and utm breakdowns, plus links
+   * @response 200 totals, daily series, referrer, country, browser, operating system, device, bots, and utm breakdowns, plus links
    */
   app.get('/api/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -53,7 +53,7 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
    * @param id string Link id
    * @query from string Start day, YYYY-MM-DD, inclusive
    * @query to string End day, YYYY-MM-DD, inclusive. A date-only value includes that whole UTC day
-   * @response 200 totals, daily series, referrer, country, browser, device, and utm breakdowns
+   * @response 200 totals, daily series, referrer, country, browser, operating system, device, bots, and utm breakdowns
    */
   app.get('/api/links/:id/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
