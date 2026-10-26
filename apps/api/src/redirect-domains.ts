@@ -209,7 +209,7 @@ export function registerRedirectDomainRoutes(app: FastifyInstance): void {
    * @response 404 Not found
    */
   app.get('/internal/caddy/ask', async (request, reply) => {
-    if (!isLoopbackAddress(request.socket.remoteAddress)) return reply.code(404).send({ ok: false })
+    if (!isLoopbackAddress(request.ip)) return reply.code(404).send({ ok: false })
     const domain = typeof (request.query as { domain?: unknown }).domain === 'string' ? (request.query as { domain: string }).domain : ''
     const hostname = normalizeHostname(domain)
     if (!hostname || !(await isVerifiedRedirectHost(app.db, hostname))) return reply.code(404).send({ ok: false })

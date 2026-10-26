@@ -10,7 +10,7 @@ import { lookupGeo } from './geo.ts'
 import { findBySlug } from './links.ts'
 import { verifyPassword } from './passwords.ts'
 import { getSettings } from './settings-store.ts'
-import { anonymousVisitorId, escapeHtml, parseUserAgent, referrerHost } from './support.ts'
+import { anonymousVisitorId, escapeHtml, linkPasswordNetworkId, parseUserAgent, referrerHost } from './support.ts'
 import { variantUtm } from './tracking.ts'
 
 function unlockCookie(app: FastifyInstance): string {
@@ -56,12 +56,10 @@ export async function tryShortLink(
   let justUnlocked = false
   if (link.passwordHash && !unlockValid(request.cookies[unlockCookie(app)], link.id, app.env.SESSION_SECRET)) {
     if (request.method === 'POST') {
-      const visitorId = anonymousVisitorId(
-        request.ip,
-        typeof request.headers['user-agent'] === 'string' ? request.headers['user-agent'] : '',
-        app.env.ENCRYPTION_KEY,
-      )
-      if (!(await allowLinkPasswordAttempt(app.db, link.id, visitorId))) {
+      const userAgent = typeof request.headers['user-agent'] === 'string' ? request.headers['user-agent'] : ''
+      const visitorId = anonymousVisitorId(request.ip, userAgent, app.env.ENCRYPTION_KEY)
+      const networkId = linkPasswordNetworkId(request.ip, app.env.ENCRYPTION_KEY)
+      if (!(await allowLinkPasswordAttempt(app.db, link.id, visitorId, networkId))) {
         reply.code(429).header('cache-control', 'no-store').type('text/html').send(passwordPage(slug, prefix, 'limited', app.env.APP_NAME))
         return true
       }
@@ -316,8 +314,7 @@ export async function purgeLinkPasswordAttempts(db: Database): Promise<void> {
   await db.delete(linkPasswordAttempts).where(lt(linkPasswordAttempts.attemptedAt, cutoff))
 }
 
-async function allowLinkPasswordAttempt(db: Database, linkId: string, visitorId: string): Promise<boolean> {
-  const since = new Date(Date.now() - PASSWORD_WINDOW_MS)
+async function recentPasswordAttempts(db: Database, linkId: string, visitorId: string, since: Date): Promise<number> {
   const recent = await db
     .select({ id: linkPasswordAttempts.id })
     .from(linkPasswordAttempts)
@@ -327,8 +324,25 @@ async function allowLinkPasswordAttempt(db: Database, linkId: string, visitorId:
       gt(linkPasswordAttempts.attemptedAt, since),
     ))
     .limit(PASSWORD_MAX_ATTEMPTS)
-  if (recent.length >= PASSWORD_MAX_ATTEMPTS) return false
-  await db.insert(linkPasswordAttempts).values({ linkId, visitorId })
+  return recent.length
+}
+
+async function allowLinkPasswordAttempt(
+  db: Database,
+  linkId: string,
+  visitorId: string,
+  networkId: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - PASSWORD_WINDOW_MS)
+  const [visitorCount, networkCount] = await Promise.all([
+    recentPasswordAttempts(db, linkId, visitorId, since),
+    recentPasswordAttempts(db, linkId, networkId, since),
+  ])
+  if (visitorCount >= PASSWORD_MAX_ATTEMPTS || networkCount >= PASSWORD_MAX_ATTEMPTS) return false
+  await db.insert(linkPasswordAttempts).values([
+    { linkId, visitorId },
+    { linkId, visitorId: networkId },
+  ])
   return true
 }
 

@@ -354,7 +354,7 @@ Public URLs look like `https://share.example.com/s/summer-sale`. `tryShortLink` 
 
 Reserved prefixes, in `packages/shared/src/prefix.ts`, are `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, and `docs`. Slugs reserve those names plus `favicon.ico` and `robots.txt`. A prefix is one lowercase segment: letters, digits, and hyphens.
 
-Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_<slug>-challenge.<hostname>` (`_sharry-challenge.links.example.com` when the app name is Sharry) and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. After verification, and once the hostname’s A record points at this server, Caddy issues a certificate the first time someone opens it. Sharry checks the TXT record again every hour. A temporary lookup failure leaves the domain verified. Two checks in a row with no matching record move it back to pending. Caddy asks `GET /internal/caddy/ask?domain=` first. That route returns 200 only for a verified hostname, and only when the connection comes from loopback.
+Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_<slug>-challenge.<hostname>` (`_sharry-challenge.links.example.com` when the app name is Sharry) and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. After verification, and once the hostname’s A record points at this server, Caddy issues a certificate the first time someone opens it. Sharry checks the TXT record again every hour. A temporary lookup failure leaves the domain verified. Two checks in a row with no matching record move it back to pending. Caddy asks `GET /internal/caddy/ask?domain=` first. That route returns 200 only for a verified hostname, and only when the client address is loopback. A request through the reverse proxy uses the visitor's address and returns 404.
 
 `GET /api/redirect-domains` returns verified hostnames to every signed-in user so the link form can offer them. Creating or editing a link can store `redirectDomainId`. A missing, pending, or deleted domain falls back to `SHORT_URL_BASE`. The same slug still resolves on every host that reaches this process. The selected domain is the address shown in the dashboard, CSV export, and new QR codes.
 
@@ -499,7 +499,7 @@ npm install
 npm run deploy
 ```
 
-`npm run deploy` runs the full test suite on this machine before it connects. A failing suite stops the deploy, and nothing is uploaded. The suite writes `apps/web/public/test-results.csv`, the archive includes it, and production serves it at `/test-results.csv`.
+`npm run deploy` runs the full test suite on this machine before it connects. A failing suite stops the deploy, and nothing is uploaded. The suite writes `apps/web/public/test-results.csv`, the archive includes it, and production serves it at `/test-results.csv` to a signed-in session.
 
 The first deploy writes `$DEPLOY_REMOTE_DIR/shared/.env` with mode `0600`. A later deploy keeps that file. Pass `--sync-env` when the runtime values should be copied again.
 

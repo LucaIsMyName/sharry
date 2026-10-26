@@ -89,7 +89,7 @@ npm run deploy
 
 Pass `--sync-env` when the runtime values should be copied to the server again.
 
-`npm run deploy` runs the full test suite on this machine before it connects. A failing suite stops the deploy, and nothing is uploaded. The suite writes `apps/web/public/test-results.csv`. The release archive includes that file. The server build copies it into the dashboard, and the production process serves it at `/test-results.csv` for Docs → Developer → Tests → Last run.
+`npm run deploy` runs the full test suite on this machine before it connects. A failing suite stops the deploy, and nothing is uploaded. The suite writes `apps/web/public/test-results.csv`. The release archive includes that file. The server build copies it into the dashboard, and the production process serves it at `/test-results.csv` to a signed-in session for Docs → Developer → Tests → Last run.
 
 On a server that is already in use, each step is safe to repeat. Node.js 22.23.4 or newer stays installed. An existing PostgreSQL cluster is left as it is. An existing database role or database is not dropped, and its password is not changed. If the `sharry` role already exists and `DATABASE_URL` is empty, deploy stops and asks you to set the current connection string. A Caddy site that already names `DOMAIN` is left in place.
 

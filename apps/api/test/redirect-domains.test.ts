@@ -313,6 +313,13 @@ describe('redirect domains', () => {
       remoteAddress: '198.51.100.8',
     })
     expect(remote.statusCode).toBe(404)
+    const proxied = await ctx.app.inject({
+      method: 'GET',
+      url: '/internal/caddy/ask?domain=go.brand.com',
+      remoteAddress: '127.0.0.1',
+      headers: { 'x-forwarded-for': '198.51.100.8' },
+    })
+    expect(proxied.statusCode).toBe(404)
     const unknown = await ctx.app.inject({ method: 'GET', url: '/internal/caddy/ask?domain=other.example' })
     expect(unknown.statusCode).toBe(404)
   })

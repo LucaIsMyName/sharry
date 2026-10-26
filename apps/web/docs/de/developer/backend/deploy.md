@@ -89,7 +89,7 @@ npm run deploy
 
 Übergib `--sync-env`, wenn die Laufzeitwerte wieder auf den Server kopiert werden sollen.
 
-`npm run deploy` führt die komplette Testsuite auf diesem Rechner aus, bevor es eine Verbindung aufbaut. Eine fehlgeschlagene Suite stoppt das Deploy, und es wird nichts hochgeladen. Die Suite schreibt `apps/web/public/test-results.csv`. Das Archiv der Veröffentlichung enthält diese Datei. Der Build auf dem Server kopiert sie ins Dashboard, und der Produktionsprozess liefert sie unter `/test-results.csv` für Docs → Entwickler → Tests → Letzter Lauf.
+`npm run deploy` führt die komplette Testsuite auf diesem Rechner aus, bevor es eine Verbindung aufbaut. Eine fehlgeschlagene Suite stoppt das Deploy, und es wird nichts hochgeladen. Die Suite schreibt `apps/web/public/test-results.csv`. Das Archiv der Veröffentlichung enthält diese Datei. Der Build auf dem Server kopiert sie ins Dashboard, und der Produktionsprozess liefert sie unter `/test-results.csv` an eine angemeldete Sitzung für Docs → Entwickler → Tests → Letzter Lauf.
 
 Auf einem Server, der schon in Benutzung ist, kann jeder Schritt wiederholt werden. Node.js 22.23.4 oder neuer bleibt installiert. Ein vorhandener PostgreSQL-Cluster bleibt, wie er ist. Eine vorhandene Datenbankrolle oder Datenbank wird nicht gelöscht, und ihr Passwort wird nicht geändert. Wenn die Rolle `sharry` schon existiert und `DATABASE_URL` leer ist, stoppt Deploy und bittet dich, die aktuelle Verbindungszeichenkette zu setzen. Eine Caddy-Site, die `DOMAIN` schon nennt, bleibt stehen.
 

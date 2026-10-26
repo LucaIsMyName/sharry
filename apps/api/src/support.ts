@@ -83,6 +83,11 @@ export function anonymousVisitorId(ip: string, userAgent: string, secret: string
   return crypto.createHmac('sha256', secret).update(`${day}|${truncateIp(ip)}|${userAgent}`).digest('hex')
 }
 
+export function linkPasswordNetworkId(ip: string, secret: string, now = new Date()): string {
+  const day = now.toISOString().slice(0, 10)
+  return crypto.createHmac('sha256', secret).update(`link-password|${day}|${truncateIp(ip)}`).digest('hex')
+}
+
 export function truncateIp(ip: string): string {
   if (ip.includes('.')) {
     const parts = ip.split('.')

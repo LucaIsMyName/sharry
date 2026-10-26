@@ -336,6 +336,16 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
   app.post('/api/auth/reset-password', limit, async (request) => {
     const body = parseBody(resetPasswordSchema, request.body)
     const tokenHash = hashToken(body.token, app.env.SESSION_SECRET)
+    const tokenReady = await app.db
+      .select({ userId: passwordResetTokens.userId })
+      .from(passwordResetTokens)
+      .where(and(
+        eq(passwordResetTokens.tokenHash, tokenHash),
+        isNull(passwordResetTokens.usedAt),
+        sql`${passwordResetTokens.expiresAt} > now()`,
+      ))
+      .limit(1)
+    if (!tokenReady[0]) throw new AppError(400, 'This reset link is invalid or expired')
     const passwordHash = await hashPassword(body.newPassword)
     const userId = await app.db.transaction(async (tx) => {
       const consumed = await tx

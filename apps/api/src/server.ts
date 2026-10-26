@@ -15,7 +15,7 @@ import { bearerToken, isAccountPath } from './api-keys.ts'
 import { registerAdminRoutes } from './admin.ts'
 import { registerSystemRoutes } from './system.ts'
 import { registerAnalyticsRoutes } from './analytics.ts'
-import { registerAuthRoutes } from './auth.ts'
+import { registerAuthRoutes, requireUser } from './auth.ts'
 import { registerLinkRoutes } from './links.ts'
 import type { Mailer } from './mail.ts'
 import { registerQrRoutes } from './qr.ts'
@@ -149,7 +149,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (fs.existsSync(assets)) {
       await app.register(fastifyStatic, { root: assets, prefix: '/assets/', decorateReply: false })
     }
-    app.get('/test-results.csv', async (_request, reply) => {
+    app.get('/test-results.csv', async (request, reply) => {
+      await requireUser(app, request, ['full', 'password_change', 'mfa_enroll', 'mfa_challenge'])
       const body = shippedTestResults(process.cwd())
       if (body === null) return reply.code(404).send({ error: 'Not found' })
       return reply.type('text/csv').send(body)

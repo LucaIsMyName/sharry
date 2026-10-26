@@ -18,13 +18,13 @@ The same slug still resolves on every host that reaches this process. The select
 
 Sharry checks verified domains again every hour. A lookup timeout or another temporary DNS failure leaves the domain verified. Two checks in a row that find no matching TXT record move it back to pending. Pending stops new certificates and takes the hostname off the redirect menu until an administrator verifies it again.
 
-Caddy asks `GET /internal/caddy/ask?domain=` before issuing a certificate. The route returns 200 only for a verified hostname, and only when the connection comes from loopback. Other names return 404. Paths that are not a short link return 404 on a verified custom host, so the dashboard stays on the deployment host.
+Caddy asks `GET /internal/caddy/ask?domain=` before issuing a certificate. The route returns 200 only for a verified hostname, and only when the client address is loopback. A visitor who reaches the deployment host through the reverse proxy is not loopback and receives 404. Caddy's own ask connects to `127.0.0.1` directly and still receives 200. Other names return 404. Paths that are not a short link return 404 on a verified custom host, so the dashboard stays on the deployment host.
 
 Slug uniqueness is case-insensitive. The taken-slug response is 409 with "This short URL is already in use. Please choose a different slug."
 
 ## Password, cache, and clicks
 
-A password-protected link renders a small HTML form and sets an unlock cookie. Wrong passwords are limited to 10 attempts per minute for that link and visitor. The visitor id is the same daily HMAC used for clicks, so the raw IP is not stored. The counter is in the database and old rows leave with the hourly purge. A successful password submission answers with 303 so the browser follows the destination with GET, and that unlock is counted as a click. Later visits use the link's redirect type. Every redirect sends `Cache-Control: no-store`, including 301 and 308, so a destination edit is not stuck in the browser.
+A password-protected link renders a small HTML form and sets an unlock cookie. Wrong passwords are limited to 10 attempts per minute for that link and visitor, and to 10 attempts per minute for that link and network. The network counter ignores the browser, so a new browser string does not start a fresh budget. The visitor id used for clicks is unchanged: the same daily HMAC of a truncated address and the user agent. The raw IP is not stored. The counter is in the database and old rows leave with the hourly purge. A successful password submission answers with 303 so the browser follows the destination with GET, and that unlock is counted as a click. Later visits use the link's redirect type. Every redirect sends `Cache-Control: no-store`, including 301 and 308, so a destination edit is not stuck in the browser.
 
 Clicks are recorded after the response, from an `onResponse` hook. A paused, missing, or expired link does not record a click. The anonymous visitor id is a daily HMAC of a truncated IP and the user agent. The raw IP is not stored. Referrers are stored as hostnames.
 

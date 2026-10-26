@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildApp, shippedTestResults } from '../src/server.ts'
-import { getContext, useTestApp } from './helpers.ts'
+import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 
 const shipped = '# ran_at=2026-10-26T00:00:00.000Z\nfile,passed,failed,skipped,duration_ms\n"a.test.ts",1,0,0,2\n'
 
@@ -36,7 +36,14 @@ describe('shipped test results', () => {
       logger: false,
     })
     try {
-      const response = await app.inject({ method: 'GET', url: '/test-results.csv' })
+      const anonymous = await app.inject({ method: 'GET', url: '/test-results.csv' })
+      expect(anonymous.statusCode).toBe(401)
+      const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test-results.csv',
+        headers: { cookie: user.cookie },
+      })
       expect(response.statusCode).toBe(200)
       expect(String(response.headers['content-type'])).toContain('text/csv')
       expect(response.body).toBe(shipped)

@@ -784,6 +784,48 @@ describe('short links', () => {
     expect(open.headers.location).toBe('https://example.com/open')
   })
 
+  it('keeps the password limit when the browser string changes', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/secret', slug: 'rotated' },
+    })
+    await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/links/${created.json().id}`,
+      headers: { cookie: user.cookie },
+      payload: { password: 'poster-secret' },
+    })
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const wrong = await ctx.app.inject({
+        method: 'POST',
+        url: '/s/rotated',
+        headers: { 'user-agent': 'Browser Alpha' },
+        payload: { password: 'nope' },
+      })
+      expect(wrong.statusCode).toBe(401)
+    }
+    const rotated = await ctx.app.inject({
+      method: 'POST',
+      url: '/s/rotated',
+      headers: { 'user-agent': 'Browser Beta' },
+      payload: { password: 'nope' },
+    })
+    expect(rotated.statusCode).toBe(429)
+    expect(rotated.body).toContain('Too many attempts')
+    const otherNetwork = await ctx.app.inject({
+      method: 'POST',
+      url: '/s/rotated',
+      remoteAddress: '203.0.113.10',
+      headers: { 'user-agent': 'Browser Beta' },
+      payload: { password: 'nope' },
+    })
+    expect(otherNetwork.statusCode).toBe(401)
+  })
+
   it('sends a visit to the first matching route and falls back when routing is stale', async () => {
     const ctx = await getContext()
     const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
