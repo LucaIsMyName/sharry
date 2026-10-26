@@ -50,7 +50,6 @@ export function Select<T extends string>({
       <SelectContent
         alignItemWithTrigger={false}
         sideOffset={6}
-        className="max-w-md"
       >
         {options.map((option) => (
           <SelectItem

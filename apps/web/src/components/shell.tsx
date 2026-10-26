@@ -303,7 +303,8 @@ function AccountFoot({
           className={({ isActive }) =>
             cn(
               "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-white md:h-7 md:text-xs",
-              isActive && cn("bg-sidebar-accent text-white", sidebarBevel),
+              sidebarBevel,
+              isActive && "bg-sidebar-accent text-white",
             )
           }
         >

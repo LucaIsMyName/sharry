@@ -26,7 +26,9 @@ import {
   DialogContent,
   DialogTitle,
 } from "./ui/dialog.tsx";
+import { cardBevel } from "./ui/card.tsx";
 import { toastCaught } from "./ui/toast.tsx";
+import { cn } from "cn";
 import {
   catalogMatches,
   matchingDocs,
@@ -338,7 +340,10 @@ function Row({
     <Command.Item
       value={value}
       onSelect={onSelect}
-      className="flex cursor-default items-center gap-2.5 rounded-md border border-border px-2.5 py-2 text-sm text-foreground data-[selected=true]:border-muted-foreground data-[selected=true]:bg-accent"
+      className={cn(
+        "flex cursor-default items-center gap-2.5 rounded-md border border-border px-2.5 py-2 text-sm text-foreground data-[selected=true]:border-muted-foreground data-[selected=true]:bg-accent",
+        cardBevel,
+      )}
     >
       <span className="shrink-0 text-muted-foreground" aria-hidden>
         {routeIcon(to)}
