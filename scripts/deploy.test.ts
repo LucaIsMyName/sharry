@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { upsertEnvKeys } from './env-file.ts'
 import { caddyHasSite, caddySiteBlock, databaseTarget, ensureBuildMemoryCommand, ensureCaddyOnDemand, linuxDistro, minimumNodeVersion, nodeInstallScript, nodeVersionIsCurrent, provisionHost, psqlCommand } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
+import { formatDeploySummary } from './deploy-summary.ts'
 import { activateRelease } from './release.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
@@ -113,6 +114,81 @@ describe('local secrets', () => {
   })
 })
 
+describe('deploy summary', () => {
+  const secret = 'super-secret-db-password'
+
+  it('prints the public URL and leaves out secrets', () => {
+    const summary = formatDeploySummary({
+      appName: 'Sharry',
+      version: '0.0.40',
+      url: 'https://share.example.com',
+      shortUrlBase: 'https://go.example.com',
+      healthUrl: 'https://share.example.com/health',
+      host: '203.0.113.10',
+      user: 'deploy',
+      port: 22,
+      release: '/var/www/sharry/releases/20261026084100',
+      service: 'sharry',
+      nodeVersion: '22.23.4',
+      durationMs: 134_000,
+    })
+    expect(summary).toBe(`Sharry 0.0.40 was deployed
+
+  URL        https://share.example.com
+  Short URLs https://go.example.com
+  Health     https://share.example.com/health
+  Host       deploy@203.0.113.10:22
+  Release    /var/www/sharry/releases/20261026084100
+  Service    sharry
+  Node       22.23.4
+  Duration   2m 14s`)
+    expect(summary).not.toContain(secret)
+    expect(summary).not.toContain('DATABASE_URL')
+    expect(formatDeploySummary({
+      appName: 'Sharry',
+      version: '0.0.40',
+      url: 'https://share.example.com',
+      shortUrlBase: 'https://share.example.com',
+      healthUrl: 'https://share.example.com/health',
+      host: '203.0.113.10',
+      user: 'deploy',
+      port: 22,
+      release: '/var/www/sharry/releases/20261026084100',
+      service: 'sharry',
+      nodeVersion: '22.23.4',
+      durationMs: 3_661_000,
+    })).toContain('1h 1m 1s')
+  })
+
+  it('omits the short URL line when it matches the app URL', () => {
+    const summary = formatDeploySummary({
+      appName: 'Sharry',
+      version: '0.0.40',
+      url: 'https://share.example.com',
+      shortUrlBase: 'https://share.example.com',
+      healthUrl: 'https://share.example.com/health',
+      host: '203.0.113.10',
+      user: 'deploy',
+      port: 22,
+      release: '/var/www/sharry/releases/20261026084100',
+      service: 'sharry',
+      nodeVersion: '22.23.4',
+      durationMs: 0,
+    })
+    expect(summary).toBe(`Sharry 0.0.40 was deployed
+
+  URL      https://share.example.com
+  Health   https://share.example.com/health
+  Host     deploy@203.0.113.10:22
+  Release  /var/www/sharry/releases/20261026084100
+  Service  sharry
+  Node     22.23.4
+  Duration 0s`)
+    expect(summary).not.toContain('Short URLs')
+    expect(summary).not.toContain(secret)
+  })
+})
+
 function remoteResult(command: string, options: { os: string; role: string; caddy: string }): { stdout: string; stderr: string } {
   if (command.includes('/etc/os-release')) return { stdout: options.os, stderr: '' }
   const encoded = command.match(/echo ([A-Za-z0-9+/=]+) \| base64/)?.[1]
@@ -174,6 +250,7 @@ describe('server bootstrap', () => {
     expect(databaseTarget(generatedDatabaseUrl()).user).toBe('sharry')
 
     const commands: string[] = []
+    const phases: string[] = []
     let saved = false
     let createdRole = false
     await provisionHost(
@@ -200,8 +277,19 @@ describe('server bootstrap', () => {
         beforeDatabaseChanges: () => {
           saved = true
         },
+        log: (message) => {
+          phases.push(message)
+        },
       },
     )
+    expect(phases).toEqual([
+      'Checking the operating system',
+      'Ensuring Node.js',
+      'Ensuring PostgreSQL and the sharry user',
+      'Ensuring the database',
+      'Ensuring Caddy',
+      'Checking the firewall',
+    ])
     const joined = commands.join('\n')
     expect(createdRole).toBe(false)
     expect(joined).not.toContain(password)

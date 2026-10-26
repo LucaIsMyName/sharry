@@ -16,13 +16,16 @@ Follow these rules for every change in this repository.
 - Use Vitest (`npm test`). Keep tests next to the code they cover, matching the existing `*.test.ts` files.
 - A change is incomplete until its tests pass.
 
-## Update the Documentation
+## Update the Documentation and 'package.json' version in root from `0.0.nnn'
 
-- update the docs where needed after a code change
+- When a change is finished, update the docs where needed after a code change
+    - README.md in root
+    - 'apps/web/docs'
+- When a change is finished:; update the version number in the root `package.json` of the last comma version (the first and second only the dev changes)
 
 ## After every change
 
-When a change is finished, report a commit summary and description. Do not create the commit unless asked.
+- When a change is finished, report a commit summary and description. Do not create the commit unless asked.
 
 Use this format:
 

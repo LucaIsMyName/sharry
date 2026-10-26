@@ -112,7 +112,7 @@ The script then does the following, in order:
 15. Points `current` at the new release, reloads systemd, enables the service, and restarts it.
 16. Requests `https://DOMAIN/health` up to 30 times, once a second. When that fails and a previous release exists, deploy points `current` back at it, restarts, and exits with an error. Old releases are deleted only after the health check passes, and the five newest are kept.
 
-Secrets are not printed. The service listens on `APP_PORT` (3000 by default) as the `sharry` user. The unit file is `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` and `ExecStart=/usr/bin/node apps/api/dist/index.js`. It restarts on failure, reads `shared/.env`, and may write only under `shared/data` and the current release’s `data` link.
+The script prints each step as it runs, then a summary with the public URL when the health check passes. Secrets are not printed. The service listens on `APP_PORT` (3000 by default) as the `sharry` user. The unit file is `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` and `ExecStart=/usr/bin/node apps/api/dist/index.js`. It restarts on failure, reads `shared/.env`, and may write only under `shared/data` and the current release’s `data` link.
 
 Sign in with the initial administrator and choose a new password. Mail and the two-factor requirement are configured in Settings after that.
 

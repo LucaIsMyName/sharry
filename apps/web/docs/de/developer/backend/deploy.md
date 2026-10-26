@@ -112,7 +112,7 @@ Das Skript tut danach der Reihe nach Folgendes:
 15. Zeigt `current` auf die neue Veröffentlichung, lädt systemd neu, aktiviert den Dienst und startet ihn neu.
 16. Fragt `https://DOMAIN/health` bis zu 30 Mal ab, einmal pro Sekunde. Wenn das scheitert und eine vorherige Veröffentlichung existiert, zeigt Deploy `current` wieder darauf, startet neu und beendet sich mit einem Fehler. Alte Veröffentlichungen werden erst gelöscht, wenn der Health-Check besteht, und die fünf neuesten bleiben.
 
-Geheimnisse werden nicht ausgegeben. Der Dienst lauscht auf `APP_PORT` (Vorgabe 3000) als Benutzer `sharry`. Die Unit-Datei ist `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` und `ExecStart=/usr/bin/node apps/api/dist/index.js`. Sie startet bei einem Fehler neu, liest `shared/.env` und darf nur unter `shared/data` und dem `data`-Link der aktuellen Veröffentlichung schreiben.
+Das Skript gibt jeden Schritt aus und danach eine Zusammenfassung mit der öffentlichen URL, wenn der Health-Check besteht. Geheimnisse werden nicht ausgegeben. Der Dienst lauscht auf `APP_PORT` (Vorgabe 3000) als Benutzer `sharry`. Die Unit-Datei ist `WorkingDirectory=$DEPLOY_REMOTE_DIR/current` und `ExecStart=/usr/bin/node apps/api/dist/index.js`. Sie startet bei einem Fehler neu, liest `shared/.env` und darf nur unter `shared/data` und dem `data`-Link der aktuellen Veröffentlichung schreiben.
 
 Melde dich mit der ersten Administratorin oder dem ersten Administrator an und wähle ein neues Passwort. Mail und die Zwei-Faktor-Pflicht werden danach in den Einstellungen eingerichtet.
 

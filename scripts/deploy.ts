@@ -13,6 +13,7 @@ import {
   serializeEnv,
   splitEnv,
 } from '@sharry/shared'
+import { formatDeploySummary } from './deploy-summary.ts'
 import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
 import { ensureBuildMemoryCommand, minimumNodeVersion, nodeVersionIsCurrent, provisionHost } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
@@ -20,6 +21,8 @@ import { activateRelease } from './release.ts'
 import { runNpmTest } from './release-suite.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
+const startedAt = Date.now()
+const { version: appVersion } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 const syncEnv = process.argv.includes('--sync-env')
 const envPath = resolveEnvFile('production')
 if (!fs.existsSync(envPath)) {
@@ -54,6 +57,8 @@ for (const key of ['SESSION_SECRET', 'ENCRYPTION_KEY', 'DATABASE_URL', 'INITIAL_
 }
 for (const value of Object.values(secretUpdates)) remember(value)
 
+const log = (message: string) => console.log(redactSecrets(message, secrets))
+
 if (deployEnv.DEPLOY_ENABLED !== 'true') {
   console.error('Set DEPLOY_ENABLED=true in .env.production before deploying.')
   process.exit(1)
@@ -62,7 +67,9 @@ if (deployEnv.DEPLOY_ENABLED !== 'true') {
 assertSafeRemoteDir(deployEnv.DEPLOY_REMOTE_DIR)
 assertSafeServiceName(deployEnv.DEPLOY_RESTART_SERVICE)
 
-console.log('Running the test suite')
+const appName = fileVars.APP_NAME?.trim() || 'Sharry'
+log(`Deploying ${appName} ${appVersion} to ${deployEnv.DEPLOY_USER}@${deployEnv.DEPLOY_HOST} (${domain})`)
+log('Running the test suite')
 try {
   await runNpmTest()
 } catch (error) {
@@ -74,14 +81,15 @@ const remote = deployEnv.DEPLOY_REMOTE_DIR
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '')
 const release = `${remote}/releases/${stamp}`
 const knownHostsPath = deployEnv.DEPLOY_KNOWN_HOSTS_PATH ?? path.join(os.homedir(), '.ssh', 'known_hosts')
+log(`Checking the SSH host key for ${deployEnv.DEPLOY_HOST}`)
 const knownHosts = await ensureKnownHost(knownHostsPath, deployEnv.DEPLOY_HOST, deployEnv.DEPLOY_PORT)
 const privateKey = fs.readFileSync(deployEnv.DEPLOY_SSH_KEY_PATH)
 
-const log = (message: string) => console.log(redactSecrets(message, secrets))
-
+log(`Connecting to ${deployEnv.DEPLOY_USER}@${deployEnv.DEPLOY_HOST}:${deployEnv.DEPLOY_PORT}`)
 const conn = await connect()
 try {
   const savedDatabaseUrl = fileVars.DATABASE_URL?.trim() ?? ''
+  log('Preparing the server')
   await provisionHost((command) => exec(conn, command, secrets), {
     domain,
     databaseUrl: savedDatabaseUrl,
@@ -100,10 +108,12 @@ try {
       }
       if (!savedDatabaseUrl) upsertEnvKeys(envPath, { DATABASE_URL: databaseUrl })
     },
+    log,
   })
-  const version = (await exec(conn, '/usr/bin/node -p process.versions.node', secrets)).stdout.trim()
-  if (!nodeVersionIsCurrent(version)) {
-    throw new Error(`The server must have Node.js ${minimumNodeVersion} or newer. Found ${version || 'no Node.js binary'}`)
+  log('Checking the server Node.js version')
+  const nodeVersion = (await exec(conn, '/usr/bin/node -p process.versions.node', secrets)).stdout.trim()
+  if (!nodeVersionIsCurrent(nodeVersion)) {
+    throw new Error(`The server must have Node.js ${minimumNodeVersion} or newer. Found ${nodeVersion || 'no Node.js binary'}`)
   }
   const { runtime } = splitEnv(fileVars)
   const runtimeEnv = parseRuntimeEnv(runtime)
@@ -112,6 +122,7 @@ try {
   remember(runtimeEnv.DATABASE_URL)
   remember(runtimeEnv.INITIAL_ADMIN_PASSWORD)
   remember(runtimeEnv.SMTP_PASSWORD)
+  log(`Creating the release directory ${release}`)
   await exec(
     conn,
     privileged(
@@ -127,13 +138,19 @@ try {
     )
   }
   const archive = path.join(os.tmpdir(), `sharry-${stamp}.tgz`)
+  log('Packing the repository')
   await tarRepo(archive)
+  log('Uploading the release')
   await upload(conn, archive, `${remote}/incoming.tgz`)
   fs.rmSync(archive, { force: true })
+  log('Extracting the release')
   await exec(conn, `tar -xzf ${remote}/incoming.tgz -C ${release} && rm -f ${remote}/incoming.tgz`, secrets)
+  log('Linking shared data')
   await exec(conn, `ln -sfn ${remote}/shared/data ${release}/data`, secrets)
+  log('Checking memory for the build')
   await exec(conn, privileged(ensureBuildMemoryCommand()), secrets)
   try {
+    log('Installing dependencies and building')
     await exec(conn, `cd ${release} && npm ci --no-audit --no-fund && npm run build`, secrets)
   } catch (error) {
     const message = error instanceof Error ? error.message : ''
@@ -148,12 +165,17 @@ try {
     log(syncEnv ? 'Updated the server runtime environment' : 'Wrote the server runtime environment')
   }
   const backup = `${remote}/backups/${appSlug(runtimeEnv.APP_NAME)}-${stamp}.dump`
+  log('Backing up the database')
   await exec(conn, `cd ${release} && SHARRY_ENV_FILE=${envFile} npm run backup -- ${backup}`, secrets)
+  log('Applying migrations')
   await exec(conn, `cd ${release} && SHARRY_ENV_FILE=${envFile} npm run db:migrate`, secrets)
+  log('Recording the previous release')
   const previous = (await exec(conn, `readlink ${remote}/current || true`, secrets)).stdout.trim()
   if (previous) await writeRemoteFile(conn, `${remote}/previous-release`, `${previous}\n`, 0o644)
+  log('Installing the systemd service')
   await installService(conn, remote, deployEnv.DEPLOY_RESTART_SERVICE, secrets)
   const restart = async () => {
+    log(`Restarting ${deployEnv.DEPLOY_RESTART_SERVICE}`)
     await exec(
       conn,
       privileged(`systemctl daemon-reload && systemctl enable ${deployEnv.DEPLOY_RESTART_SERVICE} && systemctl restart ${deployEnv.DEPLOY_RESTART_SERVICE}`),
@@ -162,13 +184,38 @@ try {
   }
   await activateRelease({
     previous,
-    switchCurrent: () => exec(conn, `ln -sfn ${release} ${remote}/current`, secrets).then(() => undefined),
+    switchCurrent: () => {
+      log('Switching to the new release')
+      return exec(conn, `ln -sfn ${release} ${remote}/current`, secrets).then(() => undefined)
+    },
     restart,
-    health: () => waitForHealth(deployEnv.DEPLOY_HEALTHCHECK_URL),
-    prune: () => pruneReleases(conn, remote, secrets),
-    restorePrevious: () => exec(conn, `ln -sfn ${previous} ${remote}/current`, secrets).then(() => undefined),
+    health: () => {
+      log(`Waiting for ${deployEnv.DEPLOY_HEALTHCHECK_URL}`)
+      return waitForHealth(deployEnv.DEPLOY_HEALTHCHECK_URL)
+    },
+    prune: () => {
+      log('Removing old releases')
+      return pruneReleases(conn, remote, secrets)
+    },
+    restorePrevious: () => {
+      log('Restoring the previous release')
+      return exec(conn, `ln -sfn ${previous} ${remote}/current`, secrets).then(() => undefined)
+    },
   })
-  log('Deployment finished and the health check passed')
+  log(formatDeploySummary({
+    appName: runtimeEnv.APP_NAME,
+    version: appVersion,
+    url: runtimeEnv.APP_URL,
+    shortUrlBase: runtimeEnv.SHORT_URL_BASE,
+    healthUrl: deployEnv.DEPLOY_HEALTHCHECK_URL,
+    host: deployEnv.DEPLOY_HOST,
+    user: deployEnv.DEPLOY_USER,
+    port: deployEnv.DEPLOY_PORT,
+    release,
+    service: deployEnv.DEPLOY_RESTART_SERVICE,
+    nodeVersion,
+    durationMs: Date.now() - startedAt,
+  }))
 } catch (error) {
   const message = error instanceof Error ? error.message : 'Deployment failed'
   console.error(redactSecrets(message, secrets))

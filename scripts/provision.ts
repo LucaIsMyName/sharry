@@ -164,15 +164,20 @@ export async function provisionHost(
     databaseUrl: string | undefined
     generatedDatabaseUrl: () => string
     beforeDatabaseChanges: (databaseUrl: string) => void
+    log?: (message: string) => void
   },
 ): Promise<void> {
+  const log = input.log ?? (() => undefined)
+  log('Checking the operating system')
   const osRelease = (await run('cat /etc/os-release')).stdout
   const distro = linuxDistro(osRelease)
   if (!distro) {
     const id = osRelease.match(/^ID=(?:"?)([^"\n]+)/m)?.[1] ?? 'unknown'
     throw new Error(`This deploy supports Ubuntu and Debian. This server reports ID=${id}.`)
   }
+  log('Ensuring Node.js')
   await run(privileged(nodeInstallScript()))
+  log('Ensuring PostgreSQL and the sharry user')
   await run(
     privileged(`set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -191,6 +196,7 @@ if ! id sharry >/dev/null 2>&1; then
 fi`),
   )
 
+  log('Ensuring the database')
   let databaseUrl = input.databaseUrl?.trim() ?? ''
   const roleName = databaseUrl ? databaseTarget(databaseUrl).user : 'sharry'
   const role = (await run(psqlCommand(`SELECT 1 FROM pg_roles WHERE rolname = ${sqlLiteral(roleName)}`))).stdout.trim()
@@ -213,6 +219,7 @@ fi`),
     await run(psqlCommand(`ALTER SCHEMA public OWNER TO ${target.user}`, target.database))
   }
 
+  log('Ensuring Caddy')
   await run(
     privileged(`set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -247,6 +254,7 @@ systemctl reload caddy || systemctl restart caddy`),
     await run(privileged('systemctl start caddy'))
   }
 
+  log('Checking the firewall')
   await run(
     privileged(`set -euo pipefail
 if command -v ufw >/dev/null 2>&1 && ufw status | grep -q '^Status: active'; then
