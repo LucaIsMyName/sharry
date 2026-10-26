@@ -30,6 +30,7 @@ import {
   isWriteTool,
   proposalFromWrite,
   runReadTool,
+  searchContextForActor,
 } from './tools.ts'
 
 const messageLimit = 40
@@ -300,7 +301,9 @@ async function runTurn(
   send: (event: string, data: unknown) => void,
 ): Promise<void> {
   const history = await recentMessages(db, chatId)
-  const live = toProviderMessages(history, locale)
+  const latest = [...history].reverse().find((row) => row.role === 'user')
+  const searchNote = latest ? await searchContextForActor(db, actor, settings, latest.content) : undefined
+  const live = toProviderMessages(history, locale, searchNote)
   let text = ''
   const blocks: ChatBlock[] = []
   for (let round = 0; round < toolRounds; round += 1) {
@@ -391,8 +394,9 @@ async function runTurn(
   send('done', { messageId: saved.id })
 }
 
-function toProviderMessages(rows: AiMessageRecord[], locale: string): AiTurnMessage[] {
-  const messages: AiTurnMessage[] = [{ role: 'system', content: aiSystemPrompt(locale) }]
+function toProviderMessages(rows: AiMessageRecord[], locale: string, searchNote?: string): AiTurnMessage[] {
+  const note = searchNote ? `\n\n${searchNote}` : ''
+  const messages: AiTurnMessage[] = [{ role: 'system', content: `${aiSystemPrompt(locale)}${note}` }]
   for (const row of rows) {
     if (row.role === 'user') {
       messages.push({ role: 'user', content: row.content })

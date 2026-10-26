@@ -12,7 +12,7 @@ Das Auswertungsformular fragt, ob der Bericht alle Links oder einen Link betriff
 
 Das Kampagnenformular fragt nach einem Namen, einem optionalen Link aus derselben Liste und einem optionalen Variantennamen. Absenden legt die Kampagne an.
 
-Ältere Bestätigungskarten funktionieren weiter. Der Rest der Aufgabe bleibt im Chat. Eine Seite, die du nicht gefunden hast, und eine Erklärung eines Bildschirms enthalten ebenfalls einen Link, den du öffnen kannst. Der Chat schickt dich nicht von selbst weg.
+Ältere Bestätigungskarten funktionieren weiter. Der Rest der Aufgabe bleibt im Chat. Eine Seite, die du nicht gefunden hast, und eine Erklärung eines Bildschirms enthalten ebenfalls einen Link, den du öffnen kannst. Bevor die Assistenz nach einem klareren Namen fragt, sucht sie in den Links, Kampagnen, Chats und Seiten, die diese Person öffnen kann, auch wenn der Name vertippt ist. Der Chat schickt dich nicht von selbst weg.
 
 Das Nachrichtenfeld bleibt unten im Gespräch. Eingabetaste sendet. Umschalt+Eingabetaste beginnt eine neue Zeile. Das Feld wächst beim Tippen. Wer nach oben scrollt, kommt mit Zum Neuesten zurück zur letzten Zeile. Während eine Antwort geschrieben wird, beendet Stopp sie. Ein Senden, das scheitert, bleibt im Gespräch mit Erneut versuchen.
 

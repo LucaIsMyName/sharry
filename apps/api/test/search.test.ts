@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { aiChats, aiMessages, apiKeys, auditLogs, links, qrCodes, redirectDomains, trackingCampaigns, trackingVariants } from '@sharry/database'
 import { defaultQrStyle } from '@sharry/shared'
+import { searchPhrases, textMatches } from '../src/search.ts'
 import { writeSetting } from '../src/settings-store.ts'
 import { createSessionUser, getContext, useTestApp, type TestContext } from './helpers.ts'
 
 describe('search', () => {
   useTestApp()
+
+  it('matches a loose or mistyped link name', () => {
+    expect(textMatches('test router', 'test-router')).toBe(true)
+    expect(textMatches('test-router', 'test-router')).toBe(true)
+    expect(textMatches('test route', 'test-router')).toBe(true)
+    expect(textMatches('tset router', 'test-router')).toBe(true)
+    expect(textMatches('test rouer', 'test-router')).toBe(true)
+    expect(textMatches('harbor', 'cap target')).toBe(false)
+    const phrases = searchPhrases('analytics for test router')
+    expect(phrases.some((phrase) => textMatches(phrase, 'test-router'))).toBe(true)
+  })
 
   it('matches the caller’s own records and hides someone else’s', async () => {
     const ctx = await getContext()
@@ -196,6 +208,32 @@ describe('search', () => {
       headers: { cookie: admin.cookie },
     })
     expect(junk.statusCode).toBe(200)
+  })
+
+  it('finds test-router from a loose name and hides another person’s link', async () => {
+    const ctx = await getContext()
+    const ada = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const grace = await createSessionUser(ctx, { username: 'grace', email: 'grace@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: ada.cookie },
+      payload: { destinationUrl: 'https://example.com/router', slug: 'test-router', title: 'Router' },
+    })
+    expect(created.statusCode).toBe(200)
+    const hidden = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: grace.cookie },
+      payload: { destinationUrl: 'https://example.com/hidden', slug: 'grace-router', title: 'Test router private' },
+    })
+    expect(hidden.statusCode).toBe(200)
+    const hiddenId = hidden.json().id as string
+    for (const query of ['test router', 'test-router', 'test route', 'tset router', 'test rouer']) {
+      const ids = (await search(ctx, ada.cookie, query)).json().links.map((link: { id: string }) => link.id)
+      expect(ids).toContain(created.json().id)
+      expect(ids).not.toContain(hiddenId)
+    }
   })
 })
 

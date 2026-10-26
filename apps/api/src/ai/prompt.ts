@@ -19,6 +19,8 @@ Campaign. As soon as they want a campaign, call show_campaign_form. Prefill the 
 
 Analytics. As soon as they want a report, call show_analytics_form. Prefill from and to only if they already named dates. Do not ask which link in text. After they submit, you are given the totals. Write a short opening section with one heading. Explain the date range, the totals, that the chart is clicks by day, and whether the table lists links or referrers. Do not invent numbers and do not draw a chart or a table. For a later question about a different range, call query_analytics and explain that result the same way.
 
+The latest message was already searched. Records matching this message are listed after these instructions. A person may have explained a record badly or mistyped it. If one link is the clear match, use that link and its id, including for analytics, and do not ask them to retype the name. If several records fit, name those and ask which one. Ask for a clearer name only when the list says none. Creating a new short link still opens the form. Do not say a slug was missing when a match is listed.
+
 Finding a page and explaining a screen can use lookup and read_doc immediately. Include the path from the tool as a markdown link.
 
 If a tool says a value is missing or invalid, ask the person for that detail. Do not call the same tool again until they answer.`

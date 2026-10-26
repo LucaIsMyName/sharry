@@ -27,6 +27,7 @@ import { loadAnalytics, parseAnalyticsRange } from '../analytics.ts'
 import { writeAudit } from '../audit.ts'
 import type { Actor } from '../auth.ts'
 import { createLink, findBySlug, getLinkForActor, loadVerifiedHosts, serializeLink, visibleLinksWhere } from '../links.ts'
+import { searchForActor, searchPhrases, textMatches, type SearchResults } from '../search.ts'
 import { rowsOf, type AppSettings } from '../settings-store.ts'
 import { AppError } from '../support.ts'
 import { suggestFreeSlug } from './page-slug.ts'
@@ -584,8 +585,9 @@ export async function queryAnalyticsForActor(
   if (!parsed.success) return { error: 'Use dates as YYYY-MM-DD.' }
   let linkId = parsed.data.linkId
   if (!linkId && parsed.data.slug) {
-    const link = await resolveVariantLink(db, actor, settings, undefined, parsed.data.slug)
-    linkId = link.id
+    const resolved = await resolveAnalyticsLink(db, actor, settings, parsed.data.slug)
+    if ('matches' in resolved) return resolved
+    linkId = resolved.id
   } else if (linkId) {
     await getLinkForActor(db, actor, linkId, settings, 'view')
   }
@@ -621,48 +623,25 @@ export async function lookupForActor(
 ): Promise<{ matches: { kind: string; label: string; path: string }[] }> {
   const parsed = lookupSchema.safeParse(input)
   if (!parsed.success) return { matches: [] }
-  const query = parsed.data.query
-  const matches: { kind: string; label: string; path: string; score: number }[] = []
-  for (const page of pageCatalog) {
-    if (page.admin && actor.role !== 'admin') continue
-    const score = scoreText(query, `${page.label} ${page.keywords} ${page.path}`)
-    if (score > 0) matches.push({ kind: 'page', label: page.label, path: page.path, score })
-  }
-  const needle = `%${query.replace(/[%_\\]/g, '')}%`
-  const visibility = visibleLinksWhere(actor, settings, 'links')
-  const linkRows = rowsOf<{ id: string; slug: string; title: string | null }>(
-    await db.execute(sql`
-      select id::text as id, slug, title
-      from links
-      where ${visibility ?? sql`true`}
-        and (slug ilike ${needle} or coalesce(title, '') ilike ${needle})
-      order by updated_at desc
-      limit 5
-    `),
+  const found = await searchForActor(db, actor, settings, parsed.data.query)
+  const pages = pagesForPhrases([parsed.data.query], actor.role === 'admin')
+  return { matches: matchList(found, pages).slice(0, 8).map(({ kind, label, path }) => ({ kind, label, path })) }
+}
+
+export async function searchContextForActor(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  message: string,
+): Promise<string> {
+  const phrases = searchPhrases(message)
+  const found = phrases.length > 0 ? await searchForActor(db, actor, settings, phrases) : emptyActorSearch(actor.role === 'admin')
+  const pages = pagesForPhrases(phrases, actor.role === 'admin')
+  const lines = matchList(found, pages).map((match) =>
+    match.detail ? `${match.kind}: ${match.label} — ${match.detail} — ${match.path}` : `${match.kind}: ${match.label} — ${match.path}`,
   )
-  for (const link of linkRows) {
-    matches.push({
-      kind: 'link',
-      label: link.title?.trim() || link.slug,
-      path: `/links/${link.id}`,
-      score: 3,
-    })
-  }
-  const campaignRows = rowsOf<{ id: string; name: string }>(
-    await db.execute(sql`
-      select id::text as id, name
-      from tracking_campaigns
-      where ${actor.role === 'admin' ? sql`true` : sql`user_id = ${actor.id}`}
-        and name ilike ${needle}
-      order by updated_at desc
-      limit 5
-    `),
-  )
-  for (const campaign of campaignRows) {
-    matches.push({ kind: 'campaign', label: campaign.name, path: `/campaigns/${campaign.id}`, score: 3 })
-  }
-  matches.sort((left, right) => right.score - left.score)
-  return { matches: matches.slice(0, 8).map(({ kind, label, path }) => ({ kind, label, path })) }
+  if (lines.length === 0) return 'Records matching this message: none.'
+  return `Records matching this message:\n${lines.join('\n')}`
 }
 
 export function readGuide(locale: string, input: unknown): { path: string; markdown: string } | { error: string } {
@@ -698,11 +677,83 @@ const pageCatalog: { path: string; label: string; admin: boolean; keywords: stri
   { path: '/admin/audit', label: 'Audit', admin: true, keywords: 'admin log' },
 ]
 
-function scoreText(query: string, haystack: string): number {
-  const words = query.toLowerCase().split(/\s+/).filter((word) => word.length > 1)
-  if (words.length === 0) return 0
-  const text = haystack.toLowerCase()
-  return words.reduce((score, word) => score + (text.includes(word) ? 1 : 0), 0)
+async function resolveAnalyticsLink(db: Database, actor: Actor, settings: AppSettings, slug: string) {
+  try {
+    return await resolveVariantLink(db, actor, settings, undefined, slug)
+  } catch (error) {
+    if (!(error instanceof AppError) || error.statusCode !== 404) throw error
+    const found = await searchForActor(db, actor, settings, slug)
+    const first = found.links[0]
+    if (found.links.length === 1 && first) return getLinkForActor(db, actor, first.id, settings, 'view')
+    if (found.links.length > 1) {
+      return {
+        matches: found.links.map((link) => ({
+          id: link.id,
+          slug: link.slug,
+          title: link.title,
+          path: `/links/${link.id}`,
+          analyticsPath: `/analytics?link=${link.id}`,
+        })),
+      }
+    }
+    throw error
+  }
+}
+
+function pagesForPhrases(phrases: string[], admin: boolean) {
+  const pages: { label: string; path: string }[] = []
+  for (const page of pageCatalog) {
+    if (page.admin && !admin) continue
+    const haystack = `${page.label} ${page.keywords} ${page.path}`
+    if (!phrases.some((phrase) => textMatches(phrase, haystack))) continue
+    pages.push({ label: page.label, path: page.path })
+    if (pages.length === 8) break
+  }
+  return pages
+}
+
+function matchList(found: SearchResults, pages: { label: string; path: string }[]) {
+  const matches: { kind: string; label: string; path: string; detail?: string }[] = []
+  for (const link of found.links) {
+    const name = link.title?.trim() || link.slug
+    matches.push({
+      kind: 'Link',
+      label: name,
+      detail: `slug ${link.slug}, id ${link.id}, analytics /analytics?link=${link.id}`,
+      path: `/links/${link.id}`,
+    })
+  }
+  for (const campaign of found.campaigns) {
+    matches.push({ kind: 'Campaign', label: campaign.name, path: `/campaigns/${campaign.id}` })
+  }
+  for (const chat of found.chats) {
+    matches.push({ kind: 'Chat', label: chat.title, path: `/chat/${chat.id}` })
+  }
+  for (const page of pages) matches.push({ kind: 'Page', label: page.label, path: page.path })
+  for (const user of found.users ?? []) {
+    matches.push({ kind: 'User', label: user.username, detail: user.email, path: `/admin/users?focus=${user.id}` })
+  }
+  for (const domain of found.domains ?? []) {
+    matches.push({ kind: 'Domain', label: domain.hostname, path: `/admin/domains?focus=${domain.id}` })
+  }
+  for (const key of found.apiKeys ?? []) {
+    matches.push({ kind: 'API key', label: key.name, detail: key.tokenPrefix, path: `/admin/api-keys?focus=${key.id}` })
+  }
+  for (const entry of found.audit ?? []) {
+    matches.push({
+      kind: 'Audit',
+      label: entry.action,
+      detail: entry.actorUsername ?? undefined,
+      path: `/admin/audit?entry=${entry.id}`,
+    })
+  }
+  return matches
+}
+
+function emptyActorSearch(admin: boolean): SearchResults {
+  const base = { links: [], campaigns: [], chats: [] }
+  if (!admin) return base
+  return { ...base, users: [], domains: [], apiKeys: [], audit: [] }
 }
 
 function readDocFile(locale: string, slug: DocSlug): { path: string; markdown: string } {

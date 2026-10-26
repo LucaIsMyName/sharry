@@ -485,6 +485,26 @@ describe('AI settings and chat', () => {
     expect(missed.matches.some((match) => match.path === `/links/${link.id}`)).toBe(false)
   })
 
+  it('resolves a loose analytics slug through search', async () => {
+    const ctx = await getContext()
+    const owner = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: owner.cookie },
+      payload: { destinationUrl: 'https://example.com/router', slug: 'test-router', title: 'Test Router' },
+    })
+    expect(created.statusCode).toBe(200)
+    const linkId = created.json().id as string
+    const settings = await getSettings(ctx.db, ctx.env)
+    const report = await queryAnalyticsForActor(ctx.db, actor(owner.id, 'ada', 'user'), settings, {
+      slug: 'test router',
+      from: '2026-10-01',
+      to: '2026-10-26',
+    })
+    expect(report).toMatchObject({ path: `/analytics?link=${linkId}` })
+  })
+
   it('creates a campaign for the caller and skips a link they cannot see', async () => {
     const ctx = await getContext()
     const owner = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })

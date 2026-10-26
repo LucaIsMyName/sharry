@@ -12,7 +12,7 @@ The analytics form asks whether the report is for all links or one link. One lin
 
 The campaign form asks for a name, an optional link from that same list, and an optional variant name. Submitting it creates the campaign.
 
-Older confirmation cards still work. The rest of the task stays in the chat. A page you could not find, and an explanation of a screen, also include a link you can open. The chat does not send you away on its own.
+Older confirmation cards still work. The rest of the task stays in the chat. A page you could not find, and an explanation of a screen, also include a link you can open. Before it asks for a clearer name, the assistant searches the links, campaigns, chats, and pages that person can open, including when the name is mistyped. The chat does not send you away on its own.
 
 The message box stays at the bottom of the thread. Enter sends. Shift+Enter starts a new line. The box grows as you type. If you scroll up, Jump to latest returns to the newest line. While a reply is being written, Stop ends it. A send that fails stays in the thread with Retry.
 
