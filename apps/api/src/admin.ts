@@ -635,6 +635,7 @@ function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
     aiModel: settings.aiModel,
     aiBaseUrl: settings.aiBaseUrl,
     aiApiKeySet: Boolean(settings.aiApiKeyEncrypted),
+    aiEnabled: settings.aiEnabled,
   }
 }
 
@@ -648,6 +649,7 @@ async function saveAiSettings(
     aiBaseUrl?: string
     aiApiKey?: string
     aiApiKeyClear?: boolean
+    aiEnabled?: boolean
   },
   current: AppSettings,
 ): Promise<void> {
@@ -656,7 +658,8 @@ async function saveAiSettings(
     body.aiModel !== undefined ||
     body.aiBaseUrl !== undefined ||
     body.aiApiKey !== undefined ||
-    body.aiApiKeyClear === true
+    body.aiApiKeyClear === true ||
+    body.aiEnabled !== undefined
   if (!touched) return
   const provider = body.aiProvider ?? current.aiProvider
   const baseUrl = body.aiBaseUrl ?? current.aiBaseUrl
@@ -682,6 +685,10 @@ async function saveAiSettings(
     changed = true
   } else if (body.aiApiKeyClear && current.aiApiKeyEncrypted) {
     await writeSetting(db, 'ai_api_key', '', actorId)
+    changed = true
+  }
+  if (body.aiEnabled !== undefined && body.aiEnabled !== current.aiEnabled) {
+    await writeSetting(db, 'ai_enabled', body.aiEnabled ? 'true' : 'false', actorId)
     changed = true
   }
   if (!changed) return

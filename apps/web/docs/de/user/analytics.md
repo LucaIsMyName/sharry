@@ -14,13 +14,23 @@ Eine Anfrage ist ein Bot, wenn der User-Agent leer ist oder zu einem Crawler, Vo
 
 Land und Region bleiben leer, außer `GEOIP_DB_PATH` zeigt auf eine lokale MaxMind-Datenbank auf dem Server. Sharry ruft keinen GeoIP-Dienst auf.
 
+## Filter
+
+Die Leiste unter der Überschrift filtert die Karten, das Diagramm, die Aufschlüsselungen, die Zusammenfassung und die Zählungen in der Linktabelle. Sie ist da, ob die KI an ist oder nicht.
+
+Links ist eine Mehrfachauswahl der Links, die du sehen kannst. Leer heißt jeder sichtbare Link. Mehrere Links passen, wenn einer davon stimmt. Ein Link behält den Namen dieses Links in der Überschrift. Eine Zeile in der Tabelle wählt genau diesen Link. Alle Links löscht nur die Linkauswahl.
+
+Von und Bis sind Kalendertage. Der Schieberegler am Diagramm schreibt dieselben zwei Felder. Beide leer heißt etwa die letzten 30 Tage. Ein Zeitraum länger als 400 Tage zeigt einen Fehler und wird nicht gesendet.
+
+Land, Browser, Betriebssystem und jedes UTM-Feld sind Mehrfachauswahlen. Ein leeres Feld wird nicht gefiltert. Mehrere Werte in einem Feld passen, wenn einer davon stimmt. Verschiedene Felder müssen alle passen. Ein leerer gespeicherter Wert ist „Nicht gesetzt“ und kann gewählt werden. Die Auswahl kommt aus den Klicks der gewählten Tage und Links und ignoriert die anderen Dimensionsfilter. Zurücksetzen entfernt jeden Filter.
+
 ## Eine kurze Zusammenfassung
 
-Wenn die KI eingeschaltet ist, zeigen Übersicht, Analysen und das Diagramm an einem Link je einen Zeitraum und Zusammenfassen. Der Zeitraum beginnt mit den letzten 30 Tagen. Der Schieberegler läuft vom ältesten Link, den du sehen kannst, oder von 400 Tagen zuvor, wenn dieser Tag unbekannt ist, bis heute. An einem Link beginnt der Regler an dem Tag, an dem dieser Link angelegt wurde. Ein Zeitraum länger als 400 Tage bittet dich, ihn enger zu fassen. Zusammenfassen schreibt zwei oder drei Sätze für diesen Zeitraum: die Summen, ob die spätere Hälfte gestiegen oder gefallen ist, und den stärksten Verweis, das Land oder den UTM-Wert. Die Wahl eines Links in Analysen fasst diesen Link zusammen. Die Sätze werden nicht gespeichert.
+Wenn die KI eingeschaltet ist, zeigt Analysen Zusammenfassen in einer eigenen Karte über dem Diagramm. Übersicht und das Diagramm an einem Link setzen Zeitraum und Zusammenfassen weiter zusammen. Der Zeitraum beginnt mit den letzten 30 Tagen. Der Schieberegler läuft vom ältesten Link, den du sehen kannst, oder von 400 Tagen zuvor, wenn dieser Tag unbekannt ist, bis heute. An einem Link beginnt der Regler an dem Tag, an dem dieser Link angelegt wurde. Ein Zeitraum länger als 400 Tage bittet dich, ihn enger zu fassen. Zusammenfassen schreibt zwei oder drei Sätze für diesen Zeitraum: die Summen, ob die spätere Hälfte gestiegen oder gefallen ist, und den stärksten Verweis, das Land oder den UTM-Wert. Die Wahl eines Links in Analysen fasst diesen Link zusammen, für dieselben Tage wie das Diagramm. Die Sätze werden nicht gespeichert.
 
 ## Zeitraum
 
-`from` und `to` sind UTC-Kalendertage, und beide Enden zählen mit. `from=2026-10-20&to=2026-10-20` ist dieser eine Tag. Lass `to` weg, um bis zur aktuellen Zeit zu gehen. Ein Zeitraum länger als 400 Tage wird abgelehnt, damit die Tagesreihe keine Tage verliert, während die Summen sie noch zählen. Der Anfang muss vor dem Ende liegen.
+`from` und `to` sind UTC-Kalendertage, und beide Enden zählen mit. `from=2026-10-20&to=2026-10-20` ist dieser eine Tag. Lass `to` weg, um bis zur aktuellen Zeit zu gehen. Ein Zeitraum länger als 400 Tage wird abgelehnt, damit die Tagesreihe keine Tage verliert, während die Summen sie noch zählen. Der Anfang muss vor dem Ende liegen. Der Regler bewegt sich beim Ziehen und lädt das Diagramm neu, wenn du loslässt oder nach einer kurzen Pause.
 
 ## Aufbewahrung und Export
 

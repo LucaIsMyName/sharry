@@ -309,6 +309,20 @@ export const aiMessages = pgTable(
   (table) => [index('ai_messages_chat_created_idx').on(table.chatId, table.createdAt)],
 )
 
+export const aiUsageEvents = pgTable(
+  'ai_usage_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    feature: text('feature').notNull(),
+    model: text('model').notNull().default(''),
+    promptTokens: integer('prompt_tokens'),
+    completionTokens: integer('completion_tokens'),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('ai_usage_events_occurred_idx').on(table.occurredAt)],
+)
+
 export const passwordResetTokens = pgTable('password_reset_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')

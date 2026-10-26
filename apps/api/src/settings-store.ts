@@ -39,6 +39,7 @@ export type AppSettings = {
   aiModel: string
   aiBaseUrl: string
   aiApiKeyEncrypted: string
+  aiEnabled: boolean
 }
 
 let cached: AppSettings | null = null
@@ -75,6 +76,7 @@ export function defaultSettings(env: RuntimeEnv): AppSettings {
     aiModel: '',
     aiBaseUrl: '',
     aiApiKeyEncrypted: '',
+    aiEnabled: true,
   }
 }
 
@@ -106,6 +108,7 @@ export function settingsToRows(settings: AppSettings): Record<string, string> {
     ai_model: settings.aiModel,
     ai_base_url: settings.aiBaseUrl,
     ai_api_key: settings.aiApiKeyEncrypted,
+    ai_enabled: settings.aiEnabled ? 'true' : 'false',
   }
 }
 
@@ -148,6 +151,7 @@ export function parseSettings(map: Record<string, string | undefined>, env: Runt
     aiModel: map.ai_model ?? '',
     aiBaseUrl: map.ai_base_url ?? '',
     aiApiKeyEncrypted: map.ai_api_key ?? '',
+    aiEnabled: map.ai_enabled !== 'false',
   }
 }
 

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { aiMessages, appSettings, clickEvents, links, qrCodes, trackingCampaigns, trackingConfigs } from '@sharry/database'
+import { aiMessages, aiUsageEvents, appSettings, clickEvents, links, qrCodes, trackingCampaigns, trackingConfigs } from '@sharry/database'
 import type { AiProposal, ChatBlock } from '@sharry/shared'
 import { pageIo } from '../src/ai/page-slug.ts'
 import { SHARRY_ONLY_RULE } from '../src/ai/prompt.ts'
@@ -698,6 +698,117 @@ describe('AI settings and chat', () => {
     expect(opened.block.earliestCreatedAt).toBe('2020-01-15')
     expect(opened.block.prefill).toMatchObject({ linkId: created.id, from: '2020-02-01' })
     expect(opened.block.links?.find((link) => link.id === created.id)?.createdAt).toBe('2020-01-15')
+  })
+
+  it('pauses AI without clearing the provider and records a call for an admin', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    await saveAi(admin.cookie, { aiApiKey: 'sk-test-secret' })
+    const saved = await ctx.app.inject({ method: 'GET', url: '/api/admin/settings', headers: { cookie: admin.cookie } })
+    expect(saved.json()).toMatchObject({
+      aiEnabled: true,
+      aiProvider: 'openai',
+      aiModel: 'gpt-4.1-mini',
+      aiApiKeySet: true,
+    })
+
+    const paused = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/admin/settings',
+      headers: { cookie: admin.cookie },
+      payload: { aiEnabled: false },
+    })
+    expect(paused.statusCode).toBe(200)
+    expect(paused.json()).toMatchObject({
+      aiEnabled: false,
+      aiProvider: 'openai',
+      aiModel: 'gpt-4.1-mini',
+      aiApiKeySet: true,
+    })
+    const status = await ctx.app.inject({ method: 'GET', url: '/api/ai/status', headers: { cookie: user.cookie } })
+    expect(status.json().available).toBe(false)
+    const blocked = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/ai/suggest-utm',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/pricing' },
+    })
+    expect(blocked.statusCode).toBe(503)
+    expect(blocked.json().code).toBe('ai_unavailable')
+
+    const lookup = pageIo.lookup
+    pageIo.lookup = async () => [{ address: '93.184.216.34', family: 4 }]
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (String(url).includes('api.openai.com')) return sse([{ choices: [{ delta: { content: 'ok' } }] }])
+      return new Response('<html><title>Pricing</title></html>', { status: 200 })
+    })
+    try {
+      const tested = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/admin/ai/test',
+        headers: { cookie: admin.cookie },
+        payload: {},
+      })
+      expect(tested.statusCode).toBe(200)
+      expect(await ctx.db.select().from(aiUsageEvents)).toHaveLength(0)
+
+      await ctx.app.inject({
+        method: 'PATCH',
+        url: '/api/admin/settings',
+        headers: { cookie: admin.cookie },
+        payload: { aiEnabled: true },
+      })
+      vi.stubGlobal('fetch', async (url: string) => {
+        if (String(url).includes('api.openai.com')) {
+          return sse([
+            {
+              choices: [
+                {
+                  delta: {
+                    content: '{"utm_source":"newsletter","utm_medium":"email","utm_campaign":"october"}',
+                  },
+                },
+              ],
+            },
+            { usage: { prompt_tokens: 11, completion_tokens: 4 } },
+          ])
+        }
+        return new Response('<html><title>Pricing</title></html>', { status: 200 })
+      })
+      const suggested = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-utm',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'https://example.com/pricing', placement: 'October newsletter' },
+      })
+      expect(suggested.statusCode).toBe(200)
+      const rows = await ctx.db.select().from(aiUsageEvents)
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        userId: user.id,
+        feature: 'suggest-utm',
+        promptTokens: 11,
+        completionTokens: 4,
+      })
+      const denied = await ctx.app.inject({
+        method: 'GET',
+        url: '/api/admin/ai-usage',
+        headers: { cookie: user.cookie },
+      })
+      expect(denied.statusCode).toBe(404)
+      const usage = await ctx.app.inject({
+        method: 'GET',
+        url: '/api/admin/ai-usage',
+        headers: { cookie: admin.cookie },
+      })
+      expect(usage.statusCode).toBe(200)
+      expect(usage.json().totalTokens).toBe(15)
+      expect(usage.json().features).toEqual([{ name: 'suggest-utm', tokens: 15 }])
+      expect(usage.json().series).toHaveLength(30)
+    } finally {
+      pageIo.lookup = lookup
+    }
   })
 })
 

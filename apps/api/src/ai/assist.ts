@@ -25,6 +25,10 @@ const titleLimit = 80
 
 export type TextComplete = (system: string, user: string) => Promise<string>
 
+export type ModelUsage = { promptTokens: number | null; completionTokens: number | null }
+
+export type ModelUse = (usage: ModelUsage) => Promise<void>
+
 export type SuggestedLinkRow = {
   destinationUrl: string
   title: string
@@ -58,8 +62,11 @@ export async function collectCompletion(
   system: string,
   user: string,
   fetchImpl: typeof fetch = fetch,
+  onModelUse?: ModelUse,
 ): Promise<string> {
   let text = ''
+  let promptTokens: number | null = null
+  let completionTokens: number | null = null
   for await (const event of streamCompletion(
     config,
     [
@@ -70,7 +77,12 @@ export async function collectCompletion(
     fetchImpl,
   )) {
     if (event.type === 'text') text += event.text
+    if (event.type === 'usage') {
+      if (event.promptTokens != null) promptTokens = event.promptTokens
+      if (event.completionTokens != null) completionTokens = event.completionTokens
+    }
   }
+  if (onModelUse) await onModelUse({ promptTokens, completionTokens })
   return text.trim()
 }
 
@@ -180,7 +192,7 @@ export function analyticsSummarySentences(
 export async function suggestUtmValues(
   config: ProviderConfig,
   input: { destinationUrl: string; placement?: string },
-  options: { io?: PageIo; complete?: TextComplete; fetchImpl?: typeof fetch } = {},
+  options: { io?: PageIo; complete?: TextComplete; fetchImpl?: typeof fetch; onModelUse?: ModelUse } = {},
 ): Promise<{ utm: UtmParams }> {
   const page = await readPublicPage(input.destinationUrl, options.io ?? pageIo).catch(() => null)
   const placement = input.placement?.trim() ?? ''
@@ -198,7 +210,7 @@ export async function suggestUtmValues(
 export async function suggestRouteRules(
   config: ProviderConfig,
   instruction: string,
-  options: { complete?: TextComplete; fetchImpl?: typeof fetch } = {},
+  options: { complete?: TextComplete; fetchImpl?: typeof fetch; onModelUse?: ModelUse } = {},
 ): Promise<{ rules: RoutingRule[] }> {
   const text = await runComplete(config, routeSystem, instruction.trim(), options)
   const rules = rulesFromModel(extractJson(text))
@@ -213,7 +225,7 @@ export async function summarizeAnalyticsForActor(
   locale: string,
   config: ProviderConfig,
   input: { from?: string; to?: string; linkId?: string; slug?: string },
-  options: { complete?: TextComplete; fetchImpl?: typeof fetch } = {},
+  options: { complete?: TextComplete; fetchImpl?: typeof fetch; onModelUse?: ModelUse } = {},
 ): Promise<{ summary: string; from: string; to: string }> {
   const report = (await queryAnalyticsForActor(db, actor, settings, input)) as AnalyticsReport
   if (!report || typeof report !== 'object') throw new AppError(422, 'Could not read analytics.')
@@ -241,7 +253,7 @@ export async function summarizeAnalyticsForActor(
 export async function suggestVariantDrafts(
   config: ProviderConfig,
   instruction: string,
-  options: { complete?: TextComplete; fetchImpl?: typeof fetch } = {},
+  options: { complete?: TextComplete; fetchImpl?: typeof fetch; onModelUse?: ModelUse } = {},
 ): Promise<{ description: string; variants: VariantDraft[] }> {
   const text = await runComplete(config, variantSystem, instruction.trim(), options)
   const parsed = variantsFromModel(extractJson(text))
@@ -252,7 +264,7 @@ export async function suggestVariantDrafts(
 export async function suggestLinkRows(
   db: Database,
   urls: string[],
-  options: { io?: PageIo; complete?: TextComplete; config?: ProviderConfig; fetchImpl?: typeof fetch } = {},
+  options: { io?: PageIo; complete?: TextComplete; config?: ProviderConfig; fetchImpl?: typeof fetch; onModelUse?: ModelUse } = {},
 ): Promise<{ rows: SuggestedLinkRow[] }> {
   const rows: SuggestedLinkRow[] = []
   const seen = new Set<string>()
@@ -279,7 +291,7 @@ export async function suggestLinkRows(
   if (weak.length === 0) return { rows }
   let titles: string[] = []
   try {
-    const complete = options.complete ?? (options.config ? completionFor(options.config, options.fetchImpl) : null)
+    const complete = options.complete ?? (options.config ? completionFor(options.config, options.fetchImpl, options.onModelUse) : null)
     if (!complete) return { rows }
     const listed = weak
       .map((index, order) => `${order + 1}. ${rows[index]?.destinationUrl ?? ''} current: ${rows[index]?.title || '(none)'}`)
@@ -320,17 +332,17 @@ function summarySystem(locale: string): string {
   return `You summarize Sharry analytics in ${language}. Reply with two or three sentences. Use only the facts. Include the click count exactly as given. Do not invent a cause, a chart, or a number that is not in the facts.`
 }
 
-function completionFor(config: ProviderConfig, fetchImpl?: typeof fetch): TextComplete {
-  return (system, user) => collectCompletion(config, system, user, fetchImpl)
+function completionFor(config: ProviderConfig, fetchImpl?: typeof fetch, onModelUse?: ModelUse): TextComplete {
+  return (system, user) => collectCompletion(config, system, user, fetchImpl, onModelUse)
 }
 
 async function runComplete(
   config: ProviderConfig,
   system: string,
   user: string,
-  options: { complete?: TextComplete; fetchImpl?: typeof fetch },
+  options: { complete?: TextComplete; fetchImpl?: typeof fetch; onModelUse?: ModelUse },
 ): Promise<string> {
-  const complete = options.complete ?? completionFor(config, options.fetchImpl)
+  const complete = options.complete ?? completionFor(config, options.fetchImpl, options.onModelUse)
   const text = await complete(system, user)
   if (!text.trim()) throw new AppError(422, 'Could not read a suggestion.')
   return text

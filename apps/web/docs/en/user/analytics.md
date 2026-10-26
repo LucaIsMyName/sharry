@@ -14,13 +14,23 @@ A request is a bot when the user agent is empty or matches a crawler, preview fe
 
 Country and region stay empty unless `GEOIP_DB_PATH` points at a local MaxMind database on the server. Sharry does not call a GeoIP service.
 
+## Filters
+
+The bar under the heading filters the cards, the chart, the breakdowns, the summary, and the counts in the link table. It is there whether or not AI is on.
+
+Links is a multiselect of the links you can see. Leave it empty for every visible link. Several links match any of them. One link keeps that link’s name in the heading. A row in the table selects that one link. All links clears only the link choice.
+
+From and To are calendar days. The chart slider writes the same two fields. Leave both empty for about the last 30 days. A range longer than 400 days shows an error and is not sent.
+
+Country, browser, operating system, and each UTM field are multiselects. Leave a field empty to ignore it. Several values in one field match any of them. Different fields all have to match. A blank stored value is “Not set” and can be selected. The choices come from clicks in the chosen dates and selected links, ignoring the other dimension filters. Clear removes every filter.
+
 ## A written summary
 
-When AI is turned on, Overview, Analytics, and the chart on a link each show a date range and Summarize. The range starts on the last 30 days. The slider runs from the oldest link you can see, or from 400 days ago when that day is unknown, through today. On a link, the slider starts on the day that link was created. A range longer than 400 days asks you to narrow it. Summarize writes two or three sentences for that range: the totals, whether the later half rose or fell, and the top referrer, country, or UTM value. Choosing one link on Analytics summarizes that link. The sentences are not stored.
+When AI is turned on, Analytics shows Summarize in its own card above the chart. Overview and a link’s chart still put the date range and Summarize together. The range starts on the last 30 days. The slider runs from the oldest link you can see, or from 400 days ago when that day is unknown, through today. On a link, the slider starts on the day that link was created. A range longer than 400 days asks you to narrow it. Summarize writes two or three sentences for that range: the totals, whether the later half rose or fell, and the top referrer, country, or UTM value. Choosing one link on Analytics summarizes that link, for the same days as the chart. The sentences are not stored.
 
 ## Date range
 
-`from` and `to` are UTC calendar days and both ends are included. `from=2026-10-20&to=2026-10-20` is that single day. Omit `to` to end at the current time. A range longer than 400 days is rejected so the daily series cannot drop days while the totals still count them. The start must be before the end.
+`from` and `to` are UTC calendar days and both ends are included. `from=2026-10-20&to=2026-10-20` is that single day. Omit `to` to end at the current time. A range longer than 400 days is rejected so the daily series cannot drop days while the totals still count them. The start must be before the end. The slider moves as you drag and reloads the chart when you release it, or after a short pause.
 
 ## Retention and export
 

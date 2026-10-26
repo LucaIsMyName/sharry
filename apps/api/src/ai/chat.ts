@@ -22,8 +22,17 @@ import { requireAdmin, requireUser } from '../auth.ts'
 import { getSettings, rowsOf, type AppSettings } from '../settings-store.ts'
 import { AppError, decryptString, parseBody } from '../support.ts'
 import { aiSystemPrompt } from './prompt.ts'
-import { mistralCompletionsBase, streamCompletion, type AiToolCall, type AiTurnMessage, type ProviderConfig } from './provider.ts'
+import {
+  mistralCompletionsBase,
+  streamCompletion,
+  type AiToolCall,
+  type AiToolDef,
+  type AiTurnMessage,
+  type ProviderConfig,
+  type StreamEvent,
+} from './provider.ts'
 import { suggestFreeSlug } from './page-slug.ts'
+import { loadAiUsage, recordAiUsage, type ModelUsage } from './usage.ts'
 import {
   suggestLinkRows,
   suggestRouteRules,
@@ -78,10 +87,10 @@ export function registerAiRoutes(app: FastifyInstance): void {
    * @response 200 { utm }
    */
   app.post('/api/ai/suggest-utm', async (request) => {
-    await requireUser(app, request, ['full'])
+    const actor = await requireUser(app, request, ['full'])
     const ready = await requireAi(app)
     const body = parseBody(suggestUtmSchema, request.body ?? {})
-    return suggestUtmValues(ready.config, body)
+    return suggestUtmValues(ready.config, body, { onModelUse: noteUsage(app.db, actor.id, 'suggest-utm', ready.config.model) })
   })
 
   /**
@@ -93,10 +102,12 @@ export function registerAiRoutes(app: FastifyInstance): void {
    * @response 200 { rules }
    */
   app.post('/api/ai/suggest-routes', async (request) => {
-    await requireUser(app, request, ['full'])
+    const actor = await requireUser(app, request, ['full'])
     const ready = await requireAi(app)
     const body = parseBody(suggestRoutesSchema, request.body ?? {})
-    return suggestRouteRules(ready.config, body.instruction)
+    return suggestRouteRules(ready.config, body.instruction, {
+      onModelUse: noteUsage(app.db, actor.id, 'suggest-routes', ready.config.model),
+    })
   })
 
   /**
@@ -112,7 +123,9 @@ export function registerAiRoutes(app: FastifyInstance): void {
     const ready = await requireAi(app)
     const body = parseBody(summarizeAnalyticsSchema, request.body ?? {})
     const locale = await userLocale(app.db, actor.id)
-    return summarizeAnalyticsForActor(app.db, actor, ready.settings, locale, ready.config, body)
+    return summarizeAnalyticsForActor(app.db, actor, ready.settings, locale, ready.config, body, {
+      onModelUse: noteUsage(app.db, actor.id, 'summarize', ready.config.model),
+    })
   })
 
   /**
@@ -124,10 +137,12 @@ export function registerAiRoutes(app: FastifyInstance): void {
    * @response 200 { description, variants }
    */
   app.post('/api/ai/suggest-variants', async (request) => {
-    await requireUser(app, request, ['full'])
+    const actor = await requireUser(app, request, ['full'])
     const ready = await requireAi(app)
     const body = parseBody(suggestVariantsSchema, request.body ?? {})
-    return suggestVariantDrafts(ready.config, body.instruction)
+    return suggestVariantDrafts(ready.config, body.instruction, {
+      onModelUse: noteUsage(app.db, actor.id, 'suggest-variants', ready.config.model),
+    })
   })
 
   /**
@@ -139,10 +154,13 @@ export function registerAiRoutes(app: FastifyInstance): void {
    * @response 200 { rows }
    */
   app.post('/api/ai/suggest-links', async (request) => {
-    await requireUser(app, request, ['full'])
+    const actor = await requireUser(app, request, ['full'])
     const ready = await requireAi(app)
     const body = parseBody(suggestLinksSchema, request.body ?? {})
-    return suggestLinkRows(app.db, body.urls, { config: ready.config })
+    return suggestLinkRows(app.db, body.urls, {
+      config: ready.config,
+      onModelUse: noteUsage(app.db, actor.id, 'suggest-links', ready.config.model),
+    })
   })
 
   /**
@@ -175,6 +193,18 @@ export function registerAiRoutes(app: FastifyInstance): void {
       // A successful stream is enough. The reply is not stored.
     }
     return { ok: true }
+  })
+
+  /**
+   * Token totals for model calls over the last 30 days.
+   * @route GET /api/admin/ai-usage
+   * @tag AI
+   * @auth admin api-key or admin session
+   * @response 200 { totalTokens, series, features }
+   */
+  app.get('/api/admin/ai-usage', async (request) => {
+    await requireAdmin(app, request)
+    return loadAiUsage(app.db)
   })
 
   /**
@@ -366,9 +396,10 @@ export function registerAiRoutes(app: FastifyInstance): void {
         const history = toProviderMessages(await recentMessages(app.db, chat.id), locale)
         history.push({ role: 'user', content: applied.report.brief })
         let text = ''
-        for await (const event of streamCompletion(config, history, [])) {
+        const usage = await readModelStream(config, history, [], (event) => {
           if (event.type === 'text') text += event.text
-        }
+        })
+        await recordAiUsage(app.db, { userId: actor.id, feature: 'chat', model: config.model, ...usage })
         if (text.trim()) content = text.trim()
       } catch {
         content = applied.report.content
@@ -397,15 +428,16 @@ async function runTurn(
   for (let round = 0; round < toolRounds; round += 1) {
     const calls: AiToolCall[] = []
     let roundText = ''
-    for await (const event of streamCompletion(config, live, aiToolDefs)) {
+    const usage = await readModelStream(config, live, aiToolDefs, (event) => {
       if (event.type === 'text') {
         roundText += event.text
         text += event.text
         send('text', { text: event.text })
-      } else {
+      } else if (event.type === 'tool') {
         calls.push(event.call)
       }
-    }
+    })
+    await recordAiUsage(db, { userId: actor.id, feature: 'chat', model: config.model, ...usage })
     if (calls.length === 0) {
       const saved = await insertAssistant(db, chatId, text, undefined, blocks)
       send('done', { messageId: saved.id })
@@ -659,12 +691,38 @@ function providerConfig(settings: AppSettings, encryptionKey: string): ProviderC
 }
 
 function configured(settings: AppSettings): boolean {
-  return aiIsAvailable({
-    provider: settings.aiProvider,
-    model: settings.aiModel,
-    baseUrl: settings.aiBaseUrl,
-    apiKeySet: Boolean(settings.aiApiKeyEncrypted),
-  })
+  return (
+    settings.aiEnabled &&
+    aiIsAvailable({
+      provider: settings.aiProvider,
+      model: settings.aiModel,
+      baseUrl: settings.aiBaseUrl,
+      apiKeySet: Boolean(settings.aiApiKeyEncrypted),
+    })
+  )
+}
+
+function noteUsage(db: Database, userId: string, feature: string, model: string) {
+  return (usage: ModelUsage) => recordAiUsage(db, { userId, feature, model, ...usage })
+}
+
+async function readModelStream(
+  config: ProviderConfig,
+  messages: AiTurnMessage[],
+  tools: AiToolDef[],
+  onEvent: (event: Exclude<StreamEvent, { type: 'usage' }>) => void,
+): Promise<ModelUsage> {
+  let promptTokens: number | null = null
+  let completionTokens: number | null = null
+  for await (const event of streamCompletion(config, messages, tools)) {
+    if (event.type === 'usage') {
+      if (event.promptTokens != null) promptTokens = event.promptTokens
+      if (event.completionTokens != null) completionTokens = event.completionTokens
+      continue
+    }
+    onEvent(event)
+  }
+  return { promptTokens, completionTokens }
 }
 
 function statusOf(settings: AppSettings) {

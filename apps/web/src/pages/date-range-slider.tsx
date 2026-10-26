@@ -1,5 +1,12 @@
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n/index.tsx";
 import { dayFromNumber, dayNumber } from "./analytics-range.ts";
+
+const settleMs = 400;
+
+export type DateRangeCommit = {
+  current: (() => { start: string; end: string }) | null;
+};
 
 export function DateRangeSlider({
   min,
@@ -7,18 +14,82 @@ export function DateRangeSlider({
   start,
   end,
   onChange,
+  commitRef,
 }: {
   min: string;
   max: string;
   start: string;
   end: string;
   onChange: (start: string, end: string) => void;
+  commitRef?: DateRangeCommit;
 }) {
   const { t } = useI18n();
+  const [draft, setDraft] = useState({ start, end });
+  const draftRef = useRef(draft);
+  const committed = useRef({ start, end });
+  const dragging = useRef(false);
+  const pending = useRef<number | null>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  function flush() {
+    if (pending.current != null) {
+      window.clearTimeout(pending.current);
+      pending.current = null;
+    }
+    dragging.current = false;
+    const next = draftRef.current;
+    if (next.start !== committed.current.start || next.end !== committed.current.end) {
+      committed.current = { start: next.start, end: next.end };
+      onChangeRef.current(next.start, next.end);
+    }
+    return { start: next.start, end: next.end };
+  }
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
+  useEffect(() => {
+    if (dragging.current || pending.current != null) return;
+    const next = { start, end };
+    draftRef.current = next;
+    committed.current = next;
+    setDraft(next);
+  }, [start, end]);
+
+  useEffect(() => {
+    if (!commitRef) return;
+    commitRef.current = () => flushRef.current();
+    return () => {
+      commitRef.current = null;
+    };
+  }, [commitRef]);
+
+  useEffect(
+    () => () => {
+      if (pending.current != null) window.clearTimeout(pending.current);
+    },
+    [],
+  );
+
+  function schedule() {
+    if (pending.current != null) window.clearTimeout(pending.current);
+    pending.current = window.setTimeout(() => {
+      pending.current = null;
+      flushRef.current();
+    }, settleMs);
+  }
+
+  function move(next: { start: string; end: string }) {
+    dragging.current = true;
+    draftRef.current = next;
+    setDraft(next);
+    schedule();
+  }
+
   const minIndex = dayNumber(min);
   const maxIndex = dayNumber(max);
-  const startIndex = dayNumber(start);
-  const endIndex = dayNumber(end);
+  const startIndex = dayNumber(draft.start);
+  const endIndex = dayNumber(draft.end);
   const span = Math.max(1, maxIndex - minIndex);
   const startPct = ((startIndex - minIndex) / span) * 100;
   const endPct = ((endIndex - minIndex) / span) * 100;
@@ -27,8 +98,8 @@ export function DateRangeSlider({
   return (
     <div className="grid gap-2">
       <div className="flex justify-between gap-3 text-sm">
-        <span>{start}</span>
-        <span>{end}</span>
+        <span>{draft.start}</span>
+        <span>{draft.end}</span>
       </div>
       <div className="relative h-6">
         <div className="absolute top-1/2 right-0 left-0 h-1 -translate-y-1/2 rounded-full bg-muted" />
@@ -43,7 +114,18 @@ export function DateRangeSlider({
           min={minIndex}
           max={maxIndex}
           value={startIndex}
-          onChange={(event) => onChange(dayFromNumber(Math.min(Number(event.target.value), endIndex)), end)}
+          onPointerDown={() => {
+            dragging.current = true;
+          }}
+          onPointerUp={() => flush()}
+          onPointerCancel={() => flush()}
+          onBlur={() => flush()}
+          onChange={(event) =>
+            move({
+              start: dayFromNumber(Math.min(Number(event.target.value), dayNumber(draftRef.current.end))),
+              end: draftRef.current.end,
+            })
+          }
         />
         <input
           className={thumb}
@@ -52,7 +134,18 @@ export function DateRangeSlider({
           min={minIndex}
           max={maxIndex}
           value={endIndex}
-          onChange={(event) => onChange(start, dayFromNumber(Math.max(Number(event.target.value), startIndex)))}
+          onPointerDown={() => {
+            dragging.current = true;
+          }}
+          onPointerUp={() => flush()}
+          onPointerCancel={() => flush()}
+          onBlur={() => flush()}
+          onChange={(event) =>
+            move({
+              start: draftRef.current.start,
+              end: dayFromNumber(Math.max(Number(event.target.value), dayNumber(draftRef.current.start))),
+            })
+          }
         />
       </div>
       <div className="flex justify-between gap-3 text-xs text-muted-foreground">

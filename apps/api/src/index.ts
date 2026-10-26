@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { createDb, runMigrations, sessions } from '@sharry/database'
 import { parseRuntimeEnv } from '@sharry/shared'
 import { purgeOldClicks } from './analytics.ts'
+import { purgeOldAiUsage } from './ai/usage.ts'
 import { purgeExpiredResetTokens } from './auth.ts'
 import { recheckVerifiedDomains } from './redirect-domains.ts'
 import { purgeLinkPasswordAttempts } from './redirect.ts'
@@ -52,6 +53,7 @@ try {
 async function runRetention(): Promise<void> {
   const settings = await getSettings(db, env)
   await purgeOldClicks(db, settings.analyticsRetentionDays)
+  await purgeOldAiUsage(db, settings.analyticsRetentionDays)
   await purgeExpiredResetTokens(db)
   await db.delete(sessions).where(sql`${sessions.expiresAt} < now()`)
   await purgeLinkPasswordAttempts(db)

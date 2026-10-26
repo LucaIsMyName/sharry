@@ -91,6 +91,7 @@ type Settings = {
   aiModel: string;
   aiBaseUrl: string;
   aiApiKeySet: boolean;
+  aiEnabled: boolean;
 };
 
 type AuditEntry = {
@@ -511,6 +512,7 @@ export function AdminSettingsPage() {
           aiProvider: settings.aiProvider,
           aiModel: settings.aiModel,
           aiBaseUrl: settings.aiBaseUrl,
+          aiEnabled: settings.aiEnabled,
           ...extra,
           ...(smtpPassword ? { smtpPassword } : {}),
           ...(aiApiKey ? { aiApiKey } : {}),

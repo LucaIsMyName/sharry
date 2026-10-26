@@ -25,6 +25,7 @@ describe('provider requests', () => {
       tools: [{ type: 'function', function: { name: 'show_link_form' } }],
     })
     expect(mistral.headers.authorization).toBe(`Bearer ${key}`)
+    expect(openai.body).toMatchObject({ stream_options: { include_usage: true } })
     expect(openai.url).toBe('https://api.openai.com/v1/chat/completions')
     expect(mistral.url).toBe('https://api.mistral.ai/v1/chat/completions')
     expect(compatible.url).toBe('http://127.0.0.1:11434/v1/chat/completions')
@@ -33,6 +34,23 @@ describe('provider requests', () => {
     expect(google.url).toContain('models/gemini-2.5-flash')
     const headers = openai.headers.authorization ?? ''
     expect(headers).toBe(`Bearer ${key}`)
+  })
+
+  it('reads token counts from an OpenAI usage chunk', async () => {
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        sse([
+          { choices: [{ delta: { content: 'ok' } }] },
+          { usage: { prompt_tokens: 11, completion_tokens: 4 } },
+        ]),
+    )
+    const events = []
+    for await (const event of streamCompletion(config('openai'), [{ role: 'user', content: 'Hello' }], [])) {
+      events.push(event)
+    }
+    expect(events).toContainEqual({ type: 'usage', promptTokens: 11, completionTokens: 4 })
+    expect(events).toContainEqual({ type: 'text', text: 'ok' })
   })
 
   it('keeps a malformed tool call for the assistant to ask again', async () => {

@@ -194,6 +194,7 @@ export const settingsUpdateSchema = z.object({
   aiBaseUrl: z.string().trim().max(500).optional(),
   aiApiKey: z.string().max(500).optional(),
   aiApiKeyClear: z.boolean().optional(),
+  aiEnabled: z.boolean().optional(),
 })
 
 export type CreateLinkInput = z.infer<typeof createLinkSchema>

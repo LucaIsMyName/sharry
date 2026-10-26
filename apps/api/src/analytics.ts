@@ -34,19 +34,42 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
    * @auth api-key or session
    * @query from string Start day, YYYY-MM-DD, inclusive. Defaults to 30 days before to
    * @query to string End day, YYYY-MM-DD, inclusive. Defaults to now. A date-only value includes that whole UTC day
-   * @response 200 totals, daily series, referrer, country, browser, operating system, device, bots, and utm breakdowns, plus links
+   * @query link string Repeat for each link id. Empty means every visible link. A link the caller cannot see is ignored
+   * @query country string Repeat to match any of these countries. Not set matches a blank value
+   * @query browser string Repeat to match any of these browsers
+   * @query os string Repeat to match any of these operating systems
+   * @query utm_source string Repeat to match any of these sources
+   * @query utm_medium string Repeat to match any of these mediums
+   * @query utm_campaign string Repeat to match any of these campaigns
+   * @query utm_id string Repeat to match any of these ids
+   * @query utm_term string Repeat to match any of these terms
+   * @query utm_content string Repeat to match any of these contents
+   * @response 200 totals, daily series, breakdowns, link counts, and dropdown options
    */
   app.get('/api/analytics', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const range = parseRange(request.query)
     const settings = await getSettings(app.db, app.env)
-    const filter = { visibility: visibleLinksWhere(actor, settings, 'links') }
+    const requested = readClickQuery(request.raw.url ?? request.url)
+    const visibility = visibleLinksWhere(actor, settings, 'links')
+    const filter: ClickFilter = {
+      visibility,
+      linkIds: requested.linkIds,
+      unmatchedLinks: requested.unmatchedLinks,
+      dimensions: requested.dimensions,
+    }
     const analytics = await loadAnalytics(app.db, filter, range)
-    const earliestCreatedAt = await earliestLinkDay(app.db, filter.visibility)
+    const earliestCreatedAt = await earliestLinkDay(app.db, visibility)
+    const options = await loadFilterOptions(
+      app.db,
+      { visibility, linkIds: requested.linkIds, unmatchedLinks: requested.unmatchedLinks },
+      range,
+    )
     return {
       ...analytics,
       ...(earliestCreatedAt ? { earliestCreatedAt } : {}),
-      links: await loadLinkStats(app.db, visibleLinksWhere(actor, settings, 'l'), range),
+      options,
+      links: await loadLinkStats(app.db, visibleLinksWhere(actor, settings, 'l'), range, requested.dimensions),
     }
   })
 
@@ -69,7 +92,51 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
   })
 }
 
-type ClickFilter = { linkId?: string; visibility: SQL | null }
+const notSet = 'Not set'
+const maxFilterValues = 50
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const dimensionColumns = {
+  country: 'country_code',
+  browser: 'browser',
+  os: 'operating_system',
+  utm_source: 'utm_source',
+  utm_medium: 'utm_medium',
+  utm_campaign: 'utm_campaign',
+  utm_id: 'utm_id',
+  utm_term: 'utm_term',
+  utm_content: 'utm_content',
+} as const
+
+type DimensionKey = keyof typeof dimensionColumns
+type DimensionFilters = Partial<Record<DimensionKey, string[]>>
+
+type ClickFilter = {
+  linkId?: string
+  linkIds?: string[]
+  unmatchedLinks?: boolean
+  visibility: SQL | null
+  dimensions?: DimensionFilters
+}
+
+function readClickQuery(url: string): { linkIds: string[]; unmatchedLinks: boolean; dimensions: DimensionFilters } {
+  const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : ''
+  const params = new URLSearchParams(query)
+  const requestedLinks = readFilterList(params, 'link')
+  const linkIds = requestedLinks.filter((id) => uuidPattern.test(id))
+  const dimensions: DimensionFilters = {}
+  for (const key of Object.keys(dimensionColumns) as DimensionKey[]) {
+    const values = readFilterList(params, key)
+    if (values.length > 0) dimensions[key] = values
+  }
+  return { linkIds, unmatchedLinks: requestedLinks.length > 0 && linkIds.length === 0, dimensions }
+}
+
+function readFilterList(params: URLSearchParams, key: string): string[] {
+  const values = params.getAll(key).map((value) => value.trim()).filter((value) => value.length > 0)
+  if (values.length > maxFilterValues) throw new AppError(400, 'Choose 50 values or fewer')
+  return [...new Set(values)]
+}
 
 async function earliestLinkDay(db: Database, visibility: SQL | null): Promise<string | undefined> {
   const rows = rowsOf<{ created_at: string | null }>(
@@ -156,7 +223,7 @@ export async function loadAnalytics(db: Database, filter: ClickFilter, range: { 
         from click_events e
         left join tracking_variants v on v.id = e.tracking_variant_id
         left join tracking_campaigns c on c.id = v.campaign_id
-        where ${whereAlias(filter, range)}
+        where ${clickPredicate(filter, range, 'e')}
         group by 1
         order by clicks desc
         limit 12
@@ -167,7 +234,7 @@ export async function loadAnalytics(db: Database, filter: ClickFilter, range: { 
         select q.id::text as id, q.name, count(*)::int as clicks
         from click_events e
         join qr_codes q on q.id = e.qr_code_id
-        where ${whereAlias(filter, range)}
+        where ${clickPredicate(filter, range, 'e')}
         group by q.id, q.name
         order by clicks desc
         limit 12
@@ -176,8 +243,48 @@ export async function loadAnalytics(db: Database, filter: ClickFilter, range: { 
   }
 }
 
-async function loadLinkStats(db: Database, visibility: SQL | null, range: { from: Date; to: Date }) {
+async function loadFilterOptions(db: Database, filter: ClickFilter, range: { from: Date; to: Date }) {
+  const where = clickPredicate(filter, range, '')
+  return {
+    countries: await facetValues(db, 'country_code', where),
+    browsers: await facetValues(db, 'browser', where),
+    operatingSystems: await facetValues(db, 'operating_system', where),
+    utmSources: await facetValues(db, 'utm_source', where),
+    utmMediums: await facetValues(db, 'utm_medium', where),
+    utmCampaigns: await facetValues(db, 'utm_campaign', where),
+    utmIds: await facetValues(db, 'utm_id', where),
+    utmTerms: await facetValues(db, 'utm_term', where),
+    utmContents: await facetValues(db, 'utm_content', where),
+  }
+}
+
+async function facetValues(db: Database, column: string, where: SQL): Promise<string[]> {
+  const rows = rowsOf<{ name: string | null }>(
+    await db.execute(sql`
+      select ${sql.raw(column)} as name
+      from click_events
+      where ${where}
+      group by 1
+      order by count(*) desc
+      limit 100
+    `),
+  )
+  const names: string[] = []
+  for (const row of rows) {
+    const name = row.name && row.name.trim() ? row.name : notSet
+    if (!names.includes(name)) names.push(name)
+  }
+  return names
+}
+
+async function loadLinkStats(
+  db: Database,
+  visibility: SQL | null,
+  range: { from: Date; to: Date },
+  dimensions?: DimensionFilters,
+) {
   const owner = visibility ?? sql`true`
+  const extra = dimensionPredicate(dimensions, 'e')
   const rows = rowsOf<{ id: string; slug: string; title: string | null; clicks: number; unique_visitors: number }>(
     await db.execute(sql`
       select l.id::text as id, l.slug, l.title,
@@ -188,6 +295,7 @@ async function loadLinkStats(db: Database, visibility: SQL | null, range: { from
         on e.link_id = l.id
        and e.occurred_at >= ${range.from}
        and e.occurred_at < ${range.to}
+       ${extra ? sql`and ${extra}` : sql``}
       where ${owner}
       group by l.id
       order by clicks desc, l.created_at desc
@@ -204,16 +312,43 @@ async function loadLinkStats(db: Database, visibility: SQL | null, range: { from
 }
 
 function filterSql(filter: ClickFilter, range: { from: Date; to: Date }) {
-  const parts = [sql`occurred_at >= ${range.from}`, sql`occurred_at < ${range.to}`]
-  if (filter.linkId) parts.push(sql`link_id = ${filter.linkId}`)
-  if (filter.visibility) parts.push(sql`link_id in (select id from links where ${filter.visibility})`)
+  return clickPredicate(filter, range, '')
+}
+
+function clickPredicate(filter: ClickFilter, range: { from: Date; to: Date }, alias: '' | 'e') {
+  const column = (name: string) => sql.raw(alias ? `${alias}.${name}` : name)
+  const linkColumn = column('link_id')
+  const parts = [sql`${column('occurred_at')} >= ${range.from}`, sql`${column('occurred_at')} < ${range.to}`]
+  if (filter.linkId) parts.push(sql`${linkColumn} = ${filter.linkId}`)
+  else if (filter.unmatchedLinks) parts.push(sql`false`)
+  else if (filter.linkIds && filter.linkIds.length > 0) {
+    parts.push(sql`${linkColumn} in (${sql.join(filter.linkIds.map((id) => sql`${id}`), sql`, `)})`)
+  }
+  if (filter.visibility) parts.push(sql`${linkColumn} in (select id from links where ${filter.visibility})`)
+  const dimensions = dimensionPredicate(filter.dimensions, alias)
+  if (dimensions) parts.push(dimensions)
   return sql.join(parts, sql` and `)
 }
 
-function whereAlias(filter: ClickFilter, range: { from: Date; to: Date }) {
-  const parts = [sql`e.occurred_at >= ${range.from}`, sql`e.occurred_at < ${range.to}`]
-  if (filter.linkId) parts.push(sql`e.link_id = ${filter.linkId}`)
-  if (filter.visibility) parts.push(sql`e.link_id in (select id from links where ${filter.visibility})`)
+function dimensionPredicate(dimensions: DimensionFilters | undefined, alias: '' | 'e'): SQL | null {
+  if (!dimensions) return null
+  const parts: SQL[] = []
+  for (const [key, columnName] of Object.entries(dimensionColumns) as [DimensionKey, string][]) {
+    const values = dimensions[key]
+    if (!values || values.length === 0) continue
+    const named = values.filter((value) => value !== notSet)
+    const blank = values.includes(notSet)
+    const column = sql.raw(alias ? `${alias}.${columnName}` : columnName)
+    const empty = sql`(${column} is null or btrim(${column}) = '')`
+    if (named.length > 0 && blank) {
+      parts.push(sql`(${column} in (${sql.join(named.map((value) => sql`${value}`), sql`, `)}) or ${empty})`)
+    } else if (blank) {
+      parts.push(empty)
+    } else {
+      parts.push(sql`${column} in (${sql.join(named.map((value) => sql`${value}`), sql`, `)})`)
+    }
+  }
+  if (parts.length === 0) return null
   return sql.join(parts, sql` and `)
 }
 

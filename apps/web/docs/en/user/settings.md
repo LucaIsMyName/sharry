@@ -50,4 +50,8 @@ The AI card configures the assistant for every signed-in person. Choose a provid
 
 The API key is encrypted with the same key as the SMTP password. It is not an environment variable, and Settings never shows it again. Leave the field blank to keep the saved key. Clear saved key removes it on the next save. AI is available only when a provider, a model, and a key are saved, plus a base URL for the compatible provider.
 
-Test connection checks the provider, model, and key in the form, including a key you have not saved yet. It asks the provider for a short reply and does not store a chat or the key. Save settings for Chat at `/chat` to use them. Old chats stay readable when the provider is cleared. New replies stop until a provider, model, and key are saved again.
+Once a provider is saved, AI active pauses the assistant everywhere without clearing the provider, model, base URL, or key. Save settings to keep that choice. While it is off, Chat shows that AI is not available and the suggest controls stay hidden. Test connection still runs. If the switch has never been saved, AI stays on.
+
+The same card shows token use for the last 30 days: the total, a daily line, and a total for each feature. Sharry stores the counts the provider sends. A call with no counts is still listed, with empty token fields. Slug and title suggestions that only read the page, and Test connection, are not counted. `analytics_retention_days` deletes older usage rows on the same hourly schedule. `0` keeps them.
+
+Test connection checks the provider, model, and key in the form, including a key you have not saved yet. It asks the provider for a short reply and does not store a chat, the key, or a usage row. Save settings for Chat at `/chat` to use them. Old chats stay readable when the provider is cleared. New replies stop until a provider, model, and key are saved again.

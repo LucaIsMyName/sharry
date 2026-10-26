@@ -30,7 +30,10 @@ export type ProviderRequest = {
   body: unknown
 }
 
-export type StreamEvent = { type: 'text'; text: string } | { type: 'tool'; call: AiToolCall }
+export type StreamEvent =
+  | { type: 'text'; text: string }
+  | { type: 'tool'; call: AiToolCall }
+  | { type: 'usage'; promptTokens: number | null; completionTokens: number | null }
 
 export function buildProviderRequest(
   config: ProviderConfig,
@@ -85,6 +88,7 @@ function openAiRequest(config: ProviderConfig, messages: AiTurnMessage[], tools:
     body: {
       model: config.model,
       stream: true,
+      stream_options: { include_usage: true },
       messages: messages.map(openAiMessage),
       ...(tools.length > 0
         ? {
@@ -229,8 +233,11 @@ async function* parseOpenAi(response: Response): AsyncGenerator<StreamEvent> {
   const pending = new Map<number, AiToolCall>()
   for await (const data of readSse(response)) {
     const payload = parseJson(data) as {
+      usage?: { prompt_tokens?: number; completion_tokens?: number }
       choices?: { delta?: { content?: string | null; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] } }[]
     } | null
+    const usage = usageEvent(payload?.usage?.prompt_tokens, payload?.usage?.completion_tokens)
+    if (usage) yield usage
     const delta = payload?.choices?.[0]?.delta
     if (!delta) continue
     if (delta.content) yield { type: 'text', text: delta.content }
@@ -257,8 +264,18 @@ async function* parseAnthropic(response: Response): AsyncGenerator<StreamEvent> 
       index?: number
       content_block?: { type?: string; id?: string; name?: string }
       delta?: { type?: string; text?: string; partial_json?: string }
+      message?: { usage?: { input_tokens?: number; output_tokens?: number } }
+      usage?: { input_tokens?: number; output_tokens?: number }
     } | null
     if (!payload) continue
+    if (payload.type === 'message_start') {
+      const usage = usageEvent(payload.message?.usage?.input_tokens, payload.message?.usage?.output_tokens)
+      if (usage) yield usage
+    }
+    if (payload.type === 'message_delta') {
+      const usage = usageEvent(payload.usage?.input_tokens, payload.usage?.output_tokens)
+      if (usage) yield usage
+    }
     if (payload.type === 'content_block_start' && payload.content_block) {
       blocks.set(payload.index ?? blocks.size, {
         type: payload.content_block.type ?? 'text',
@@ -288,6 +305,7 @@ async function* parseGemini(response: Response): AsyncGenerator<StreamEvent> {
   for await (const data of readSse(response)) {
     const payload = parseJson(data) as {
       candidates?: { content?: { parts?: { text?: string; functionCall?: { name?: string; args?: unknown } }[] } }[]
+      usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number }
     } | null
     for (const part of payload?.candidates?.[0]?.content?.parts ?? []) {
       if (part.text) yield { type: 'text', text: part.text }
@@ -300,7 +318,16 @@ async function* parseGemini(response: Response): AsyncGenerator<StreamEvent> {
         index += 1
       }
     }
+    const usage = usageEvent(payload?.usageMetadata?.promptTokenCount, payload?.usageMetadata?.candidatesTokenCount)
+    if (usage) yield usage
   }
+}
+
+function usageEvent(prompt: unknown, completion: unknown): StreamEvent | null {
+  const promptTokens = typeof prompt === 'number' ? prompt : null
+  const completionTokens = typeof completion === 'number' ? completion : null
+  if (promptTokens == null && completionTokens == null) return null
+  return { type: 'usage', promptTokens, completionTokens }
 }
 
 async function* readSse(response: Response): AsyncGenerator<string> {

@@ -89,6 +89,7 @@ export async function resetDatabase(db: Database): Promise<void> {
       redirect_domains,
       ai_messages,
       ai_chats,
+      ai_usage_events,
       users,
       app_settings
     restart identity cascade

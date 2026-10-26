@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Link } from "react-router";
 import type { ChatBlock, ChatFormLink } from "@sharry/shared";
@@ -6,7 +6,7 @@ import { ApiError, api } from "../api.ts";
 import { Breakdown, ClickChart } from "./analytics.tsx";
 import { downloadAnalyticsPdf } from "./analytics-pdf.ts";
 import { clampWindow, inclusiveDays, initialWindow, maxAnalyticsDays, trackStartFor, utcToday } from "./analytics-range.ts";
-import { DateRangeSlider } from "./date-range-slider.tsx";
+import { DateRangeSlider, type DateRangeCommit } from "./date-range-slider.tsx";
 import { SuggestButton } from "../components/suggest-button.tsx";
 import { UtmSuggest } from "../components/utm-suggest.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
@@ -393,6 +393,7 @@ function AnalyticsForm({
   }, [trackStart, today]);
   const done = block.status === "submitted";
   const chosen = block.links?.find((link) => link.id === block.result?.linkId);
+  const rangeCommit = useRef<DateRangeCommit>({ current: null });
   const tooLong = inclusiveDays(range.from, range.to) > maxAnalyticsDays;
   return (
     <div className="grid gap-3">
@@ -404,7 +405,14 @@ function AnalyticsForm({
             className="grid gap-3"
             onSubmit={(event) => {
               event.preventDefault();
-              onSubmit(block.id, { scope, linkId: scope === "link" ? linkId : undefined, from: range.from, to: range.to });
+              const latest = rangeCommit.current.current?.() ?? { start: range.from, end: range.to };
+              if (inclusiveDays(latest.start, latest.end) > maxAnalyticsDays) return;
+              onSubmit(block.id, {
+                scope,
+                linkId: scope === "link" ? linkId : undefined,
+                from: latest.start,
+                to: latest.end,
+              });
             }}
           >
             <Field label="Report">
@@ -434,6 +442,7 @@ function AnalyticsForm({
                 max={today}
                 start={range.from}
                 end={range.to}
+                commitRef={rangeCommit.current}
                 onChange={(from, to) => setRange({ from, to })}
               />
               {tooLong ? <p className="text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p> : null}

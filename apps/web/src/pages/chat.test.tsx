@@ -407,6 +407,9 @@ describe("chat conversation", () => {
     expect(screen.getByRole("button", { name: "Show report" }).hasAttribute("disabled")).toBe(true);
     const start = screen.getByRole("slider", { name: "Start date" });
     fireEvent.change(start, { target: { value: String(dayNumber(addDays(today, -10))) } });
+    expect(screen.getByText(addDays(today, -10))).toBeTruthy();
+    expect(screen.getByText("Choose a range of 400 days or fewer")).toBeTruthy();
+    fireEvent.pointerUp(start);
     expect(screen.queryByText("Choose a range of 400 days or fewer")).toBeNull();
     expect(screen.getByRole("button", { name: "Show report" }).hasAttribute("disabled")).toBe(false);
     expect(initialWindow(earliest, today, earliest, today).from).toBe(earliest);

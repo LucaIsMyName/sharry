@@ -24,11 +24,13 @@ export function AnalyticsSummary({
   earliest,
   range,
   onRange,
+  showRange = true,
 }: {
   linkId?: string;
   earliest?: string;
   range: { from: string; to: string };
   onRange: (from: string, to: string) => void;
+  showRange?: boolean;
 }) {
   const { t } = useI18n();
   const [today] = useState(() => utcToday());
@@ -59,11 +61,13 @@ export function AnalyticsSummary({
   }
   return (
     <div className="grid gap-3">
-      <div className="grid gap-2">
-        <span className="text-sm font-medium">{t("Date range")}</span>
-        <DateRangeSlider min={trackStart} max={today} start={range.from} end={range.to} onChange={onRange} />
-        {tooLong ? <p className="text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p> : null}
-      </div>
+      {showRange ? (
+        <div className="grid gap-2">
+          <span className="text-sm font-medium">{t("Date range")}</span>
+          <DateRangeSlider min={trackStart} max={today} start={range.from} end={range.to} onChange={onRange} />
+          {tooLong ? <p className="text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p> : null}
+        </div>
+      ) : null}
       <div>
         <Button type="button" variant="outline" size="sm" disabled={pending || tooLong} onClick={() => void summarize()}>
           <Sparkles /> {pending ? t("Summarizing…") : t("Summarize")}

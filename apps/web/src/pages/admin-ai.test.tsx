@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AiSettingsCard, type AiFormSettings } from "./ai-settings-card.tsx";
 
 afterEach(() => {
@@ -14,6 +14,7 @@ function settings(overrides: Partial<AiFormSettings> = {}): AiFormSettings {
     aiModel: "gpt-4.1-mini",
     aiBaseUrl: "",
     aiApiKeySet: false,
+    aiEnabled: true,
     ...overrides,
   };
 }
@@ -47,5 +48,30 @@ describe("AI settings card", () => {
   it("enables Test connection for a saved key when the field is blank", () => {
     renderCard({ form: settings({ aiApiKeySet: true }) });
     expect(screen.getByRole("button", { name: "Test connection" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("pauses AI without clearing the provider, model, or saved key", () => {
+    const onChange = vi.fn();
+    render(
+      <AiSettingsCard
+        settings={settings({ aiApiKeySet: true })}
+        apiKey=""
+        clearKey={false}
+        testing={false}
+        onChange={onChange}
+        onApiKey={() => {}}
+        onClearKey={() => {}}
+        onTest={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "AI active" }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        aiEnabled: false,
+        aiProvider: "openai",
+        aiModel: "gpt-4.1-mini",
+        aiApiKeySet: true,
+      }),
+    );
   });
 });

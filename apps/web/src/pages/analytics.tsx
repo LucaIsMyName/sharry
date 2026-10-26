@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -28,57 +28,80 @@ import {
 } from "../components/ui/table.tsx";
 import { cn } from "cn";
 import { chartDayLabel } from "../chart-day.ts";
+import { AnalyticsFilters } from "../components/analytics-filters.tsx";
 import { AnalyticsSummary, useReportRange } from "../components/analytics-summary.tsx";
 import { useAiAvailable } from "../components/use-ai.ts";
 import { useI18n } from "../i18n/index.tsx";
+import { clampWindow, inclusiveDays, maxAnalyticsDays } from "./analytics-range.ts";
+import { DateRangeSlider } from "./date-range-slider.tsx";
 
 export function AnalyticsPage() {
   const { t } = useI18n();
   const [params, setParams] = useSearchParams();
-  const linkId = params.get("link");
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const linkIds = params.getAll("link");
+  const [analytics, setAnalytics] = useState<(Analytics & { links: LinkStat[] }) | null>(null);
   const [links, setLinks] = useState<LinkStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [earliest, setEarliest] = useState<string | undefined>();
   const aiAvailable = useAiAvailable();
-  const report = useReportRange(linkId ? undefined : earliest);
-  const selected = links.find((link) => link.id === linkId) ?? null;
+  const report = useReportRange(linkIds.length === 1 ? undefined : earliest);
+  const selected = linkIds.length === 1 ? (links.find((link) => link.id === linkIds[0]) ?? null) : null;
+  const urlFrom = params.get("from") ?? "";
+  const urlTo = params.get("to") ?? "";
+  const hasDates = /^\d{4}-\d{2}-\d{2}$/.test(urlFrom) && /^\d{4}-\d{2}-\d{2}$/.test(urlTo);
+  const tooLong = hasDates && inclusiveDays(urlFrom, urlTo) > maxAnalyticsDays;
+  const window = hasDates
+    ? clampWindow(urlFrom, urlTo, report.trackStart, report.today)
+    : report.range;
+  const queryKey = params.toString();
+  const loaded = useRef(false);
 
   useEffect(() => {
+    if (tooLong) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    setAnalytics(null);
-    setLoading(true);
-    const rangeQuery = aiAvailable ? `?from=${report.range.from}&to=${report.range.to}` : "";
-    const overview = api<Analytics & { links: LinkStat[] }>(`/api/analytics${rangeQuery}`)
+    if (!loaded.current) setLoading(true);
+    const search = queryKey ? `?${queryKey}` : "";
+    void api<Analytics & { links: LinkStat[] }>(`/api/analytics${search}`)
       .then((combined) => {
         if (cancelled) return;
+        loaded.current = true;
         setLinks(combined.links);
         if (combined.earliestCreatedAt) setEarliest(combined.earliestCreatedAt);
-        if (!linkId) setAnalytics(combined);
+        setAnalytics(combined);
       })
       .catch((caught: unknown) => {
         if (!cancelled) toastCaught(caught, t("Could not load analytics"));
-      });
-    if (linkId) {
-      void api<Analytics>(`/api/links/${linkId}/analytics${rangeQuery}`)
-        .then((result) => {
-          if (!cancelled) setAnalytics(result);
-        })
-        .catch((caught: unknown) => {
-          if (!cancelled) toastCaught(caught, t("Could not load this link"));
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    } else {
-      void overview.finally(() => {
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    }
     return () => {
       cancelled = true;
     };
-  }, [linkId, aiAvailable, report.range.from, report.range.to]);
+  }, [queryKey, tooLong]);
+
+  function setDates(from: string, to: string) {
+    const next = new URLSearchParams(params);
+    next.set("from", from);
+    next.set("to", to);
+    setParams(next);
+  }
+
+  function selectLink(id: string) {
+    const next = new URLSearchParams(params);
+    next.delete("link");
+    next.set("link", id);
+    setParams(next);
+  }
+
+  function clearLinks() {
+    const next = new URLSearchParams(params);
+    next.delete("link");
+    setParams(next);
+  }
 
   return (
     <section>
@@ -94,13 +117,17 @@ export function AnalyticsPage() {
           "Visitor addresses are not stored. Country appears only when a local GeoIP database is configured.",
         )}
         action={
-          linkId ? (
-            <Button variant="outline" size="sm" type="button" onClick={() => setParams({})}>
+          linkIds.length > 0 ? (
+            <Button variant="outline" size="sm" type="button" onClick={clearLinks}>
               <ArrowLeft /> {t("All links")}
             </Button>
           ) : null
         }
       />
+      <AnalyticsFilters params={params} links={links} options={analytics?.options} onChange={setParams} />
+      {tooLong && !analytics ? (
+        <p className="mb-4 text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p>
+      ) : null}
       {loading && !analytics ? (
         <div className="grid gap-4">
           <StatSkeleton />
@@ -135,16 +162,34 @@ export function AnalyticsPage() {
               </CardContent>
             </Card>
           </div>
+          {aiAvailable ? (
+            <Card>
+              <CardContent>
+                <AnalyticsSummary
+                  showRange={false}
+                  linkId={linkIds.length === 1 ? linkIds[0] : undefined}
+                  earliest={linkIds.length === 1 ? undefined : earliest}
+                  range={window}
+                  onRange={setDates}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
           <Card>
             <CardContent className="grid gap-4">
-              {aiAvailable ? (
-                <AnalyticsSummary
-                  linkId={linkId ?? undefined}
-                  earliest={linkId ? undefined : earliest}
-                  range={report.range}
-                  onRange={(from, to) => report.setRange({ from, to })}
+              <div className="grid gap-2">
+                <span className="text-sm font-medium">{t("Date range")}</span>
+                <DateRangeSlider
+                  min={report.trackStart}
+                  max={report.today}
+                  start={window.from}
+                  end={window.to}
+                  onChange={setDates}
                 />
-              ) : null}
+                {tooLong ? (
+                  <p className="text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p>
+                ) : null}
+              </div>
               <ClickChart series={analytics.series} />
             </CardContent>
           </Card>
@@ -181,8 +226,8 @@ export function AnalyticsPage() {
                   <ClickableTableRow
                     key={link.id}
                     label={name}
-                    className={cn(link.id === linkId && "bg-muted")}
-                    onSelect={() => setParams({ link: link.id })}
+                    className={cn(linkIds.includes(link.id) && "bg-muted")}
+                    onSelect={() => selectLink(link.id)}
                   >
                     <TableCell className="font-medium">{name}</TableCell>
                     <TableCell>{link.clicks}</TableCell>
@@ -198,7 +243,13 @@ export function AnalyticsPage() {
   );
 }
 
-export function ClickChart({ series }: { series: Analytics["series"] }) {
+export function ClickChart({
+  series,
+  metric = "Clicks",
+}: {
+  series: Analytics["series"];
+  metric?: string;
+}) {
   const { locale, t } = useI18n();
   return (
     <div className="h-64 w-full">
@@ -220,7 +271,7 @@ export function ClickChart({ series }: { series: Analytics["series"] }) {
                 <div className="rounded-md bg-popover px-2.5 py-1.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10">
                   <div>{chartDayLabel(String(label), locale)}</div>
                   <div className="tabular-nums">
-                    {clicks} {t("Clicks")}
+                    {clicks} {t(metric)}
                   </div>
                 </div>
               );
@@ -229,7 +280,7 @@ export function ClickChart({ series }: { series: Analytics["series"] }) {
           <Line
             type="monotone"
             dataKey="clicks"
-            name={t("Clicks")}
+            name={t(metric)}
             stroke="var(--primary)"
             strokeWidth={2}
             dot={false}

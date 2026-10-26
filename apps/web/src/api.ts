@@ -105,11 +105,24 @@ export type LinkStat = {
   uniqueVisitors: number;
 };
 
+export type AnalyticsOptions = {
+  countries: string[];
+  browsers: string[];
+  operatingSystems: string[];
+  utmSources: string[];
+  utmMediums: string[];
+  utmCampaigns: string[];
+  utmIds: string[];
+  utmTerms: string[];
+  utmContents: string[];
+};
+
 export type Analytics = {
   totalClicks: number;
   uniqueVisitors: number;
   botClicks: number;
   series: { date: string; clicks: number }[];
+  options?: AnalyticsOptions;
   referrers: { name: string; clicks: number }[];
   countries: { name: string; clicks: number }[];
   browsers: { name: string; clicks: number }[];

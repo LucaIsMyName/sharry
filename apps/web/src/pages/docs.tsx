@@ -247,10 +247,10 @@ function CodeBlock({
 }) {
   if (className)
     return (
-      <code className={cn("font-mono text-sm md:text-[13px]", className)}>{children}</code>
+      <code className={cn("font-mono text-sm md:text-[85%]", className)}>{children}</code>
     );
   return (
-    <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm md:text-[13px]">
+    <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm md:text-[85%]">
       {children}
     </code>
   );
