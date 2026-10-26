@@ -7,7 +7,6 @@ import {
   ExternalLink,
   Plus,
   Save,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 import { cn } from "cn";
@@ -37,6 +36,7 @@ import {
 } from "../api.ts";
 import { useAppName } from "../brand.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { SuggestButton } from "../components/suggest-button.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
@@ -600,9 +600,6 @@ export function LinkFormPage() {
   );
 }
 
-const suggestButtonClass =
-  "absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50";
-
 export function LinkSuggestFields({
   aiAvailable,
   linkId,
@@ -691,23 +688,15 @@ export function LinkSuggestFields({
             }}
           />
           {aiAvailable ? (
-            <button
-              type="button"
-              className={suggestButtonClass}
-              aria-label={t("Suggest a slug")}
+            <SuggestButton
+              label="Suggest a slug"
+              hint={slugHint === "title" ? "Suggested from the page title." : slugHint === "page" ? "Suggested from the page." : null}
               disabled={!ready || suggesting === "slug"}
               onClick={() => void suggest("slug")}
-            >
-              <Sparkles size={16} />
-            </button>
+            />
           ) : null}
         </div>
       </Field>
-      {slugHint ? (
-        <p className="text-sm text-muted-foreground">
-          {t(slugHint === "title" ? "Suggested from the page title." : "Suggested from the page.")}
-        </p>
-      ) : null}
       {slugError ? <p className="text-sm text-destructive">{t(slugError)}</p> : null}
     </>
   );
@@ -724,19 +713,15 @@ export function LinkSuggestFields({
             }}
           />
           {aiAvailable ? (
-            <button
-              type="button"
-              className={suggestButtonClass}
-              aria-label={t("Suggest a title")}
+            <SuggestButton
+              label="Suggest a title"
+              hint={titleHint ? "Suggested from the page title." : null}
               disabled={!ready || suggesting === "title"}
               onClick={() => void suggest("title")}
-            >
-              <Sparkles size={16} />
-            </button>
+            />
           ) : null}
         </div>
       </Field>
-      {titleHint ? <p className="text-sm text-muted-foreground">{t("Suggested from the page title.")}</p> : null}
       {titleError ? <p className="text-sm text-destructive">{t(titleError)}</p> : null}
     </>
   );

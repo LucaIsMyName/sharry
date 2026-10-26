@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Sparkles } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { Link } from "react-router";
 import type { ChatBlock, ChatFormLink } from "@sharry/shared";
 import { ApiError, api } from "../api.ts";
@@ -7,6 +7,7 @@ import { Breakdown, ClickChart } from "./analytics.tsx";
 import { downloadAnalyticsPdf } from "./analytics-pdf.ts";
 import { clampWindow, inclusiveDays, initialWindow, maxAnalyticsDays, trackStartFor, utcToday } from "./analytics-range.ts";
 import { DateRangeSlider } from "./date-range-slider.tsx";
+import { SuggestButton } from "../components/suggest-button.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
@@ -211,33 +212,53 @@ function LinkForm({
   const [utmMedium, setUtmMedium] = useState(typeof prefill.utmMedium === "string" ? prefill.utmMedium : "");
   const [utmCampaign, setUtmCampaign] = useState(typeof prefill.utmCampaign === "string" ? prefill.utmCampaign : "");
   const [createQr, setCreateQr] = useState(false);
-  const [suggesting, setSuggesting] = useState(false);
+  const [suggesting, setSuggesting] = useState<"slug" | "title" | null>(null);
   const [suggested, setSuggested] = useState(prefill.suggested === true);
   const [fromTitle, setFromTitle] = useState(prefill.fromTitle === true);
   const [suggestError, setSuggestError] = useState("");
+  const [titleSuggested, setTitleSuggested] = useState(false);
+  const [titleError, setTitleError] = useState("");
   const done = block.status === "submitted";
-  async function suggestSlug() {
+  async function suggest(field: "slug" | "title") {
     if (!destinationUrl.trim() || suggesting) return;
-    setSuggesting(true);
-    setSuggestError("");
+    setSuggesting(field);
+    if (field === "slug") setSuggestError("");
+    else setTitleError("");
     try {
-      const result = await api<{ slug: string | null; fromTitle: boolean }>("/api/ai/suggest-slug", {
+      const result = await api<{ slug: string | null; title?: string; fromTitle: boolean }>("/api/ai/suggest-slug", {
         method: "POST",
         body: JSON.stringify({ destinationUrl }),
       });
-      if (!result.slug) {
-        setSuggested(false);
-        setSuggestError("Could not suggest a slug for that page.");
+      if (field === "slug") {
+        if (!result.slug) {
+          setSuggested(false);
+          setSuggestError("Could not suggest a slug for that page.");
+          return;
+        }
+        setSlug(result.slug);
+        setSuggested(true);
+        setFromTitle(result.fromTitle);
         return;
       }
-      setSlug(result.slug);
-      setSuggested(true);
-      setFromTitle(result.fromTitle);
+      if (!result.title?.trim()) {
+        setTitleSuggested(false);
+        setTitleError("Could not suggest a title for that page.");
+        return;
+      }
+      setTitle(result.title);
+      setTitleSuggested(true);
     } catch (caught) {
-      setSuggested(false);
-      setSuggestError(caught instanceof ApiError ? caught.message : "Could not suggest a slug for that page.");
+      const fallback = field === "slug" ? "Could not suggest a slug for that page." : "Could not suggest a title for that page.";
+      const message = caught instanceof ApiError ? caught.message : fallback;
+      if (field === "slug") {
+        setSuggested(false);
+        setSuggestError(message);
+      } else {
+        setTitleSuggested(false);
+        setTitleError(message);
+      }
     } finally {
-      setSuggesting(false);
+      setSuggesting(null);
     }
   }
   return (
@@ -257,8 +278,26 @@ function LinkForm({
               <Input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
             </Field>
             <Field label="Title">
-              <Input value={title} onChange={(event) => setTitle(event.target.value)} />
+              <div className="relative">
+                <Input
+                  className={aiAvailable ? "pr-10" : undefined}
+                  value={title}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setTitleSuggested(false);
+                  }}
+                />
+                {aiAvailable ? (
+                  <SuggestButton
+                    label="Suggest a title"
+                    hint={titleSuggested ? "Suggested from the page title." : null}
+                    disabled={suggesting !== null || !destinationUrl.trim()}
+                    onClick={() => void suggest("title")}
+                  />
+                ) : null}
+              </div>
             </Field>
+            {titleError ? <p className="text-sm text-destructive">{t(titleError)}</p> : null}
             <Field label="Custom slug">
               <div className="relative">
                 <Input
@@ -270,25 +309,16 @@ function LinkForm({
                   }}
                 />
                 {aiAvailable ? (
-                  <button
-                    type="button"
-                    className="absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
-                    aria-label={t("Suggest a slug")}
-                    disabled={suggesting || !destinationUrl.trim()}
-                    onClick={() => void suggestSlug()}
-                  >
-                    <Sparkles size={16} />
-                  </button>
+                  <SuggestButton
+                    label="Suggest a slug"
+                    hint={suggested ? (fromTitle ? "Suggested from the page title." : "Suggested from the page.") : null}
+                    disabled={suggesting !== null || !destinationUrl.trim()}
+                    onClick={() => void suggest("slug")}
+                  />
                 ) : null}
               </div>
             </Field>
-            {suggested ? (
-              <p className="text-sm text-muted-foreground">
-                {t(fromTitle ? "Suggested from the page title." : "Suggested from the page.")}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("The slug can be skipped.")}</p>
-            )}
+            <p className="text-sm text-muted-foreground">{t("The slug can be skipped.")}</p>
             <Field label="UTM source">
               <Input value={utmSource} onChange={(event) => setUtmSource(event.target.value)} />
             </Field>

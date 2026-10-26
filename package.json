@@ -2,7 +2,7 @@
   "name": "sharry",
   "private": true,
   "type": "module",
-    "version": "0.0.61",
+    "version": "0.0.63",
   "engines": {
     "node": ">=22.23.4"
   },

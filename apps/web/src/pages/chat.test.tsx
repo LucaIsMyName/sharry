@@ -6,13 +6,20 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import type { AiProposal, ChatBlock } from "@sharry/shared";
+import { api } from "../api.ts";
 import { setActiveLocale } from "../i18n/index.tsx";
 import { addDays, dayNumber, initialWindow, utcToday } from "./analytics-range.ts";
 import { ChatConversation, chatToOpen, type ChatMessage } from "./chat.tsx";
 
+vi.mock("../api.ts", async () => {
+  const actual = await vi.importActual<typeof import("../api.ts")>("../api.ts");
+  return { ...actual, api: vi.fn() };
+});
+
 afterEach(() => {
   cleanup();
   setActiveLocale("en");
+  vi.clearAllMocks();
 });
 
 function renderConversation(
@@ -97,13 +104,18 @@ describe("chat conversation", () => {
       { id: "m2", role: "assistant", content: "", proposal: null, blocks: [analyticsForm] },
     ]);
     const destination = screen.getByRole("textbox", { name: "Destination" });
+    const title = screen.getByRole("textbox", { name: "Title" });
     const slug = screen.getByRole("textbox", { name: "Custom slug" });
+    const suggestTitle = screen.getByRole("button", { name: "Suggest a title" });
     const suggest = screen.getByRole("button", { name: "Suggest a slug" });
     expect(destination).toBeTruthy();
+    expect(title.parentElement).toBe(suggestTitle.parentElement);
     expect(slug.parentElement).toBe(suggest.parentElement);
     expect(suggest.hasAttribute("disabled")).toBe(true);
+    expect(suggestTitle.hasAttribute("disabled")).toBe(true);
     fireEvent.change(destination, { target: { value: "https://ipstack.com/pricing/" } });
     expect(suggest.hasAttribute("disabled")).toBe(false);
+    expect(suggestTitle.hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("checkbox", { name: "Create a QR code" })).toBeTruthy();
     fireEvent.click(screen.getByRole("combobox", { name: "Report" }));
     const oneLink = screen.getByRole("option", { name: "One link" });
@@ -119,7 +131,25 @@ describe("chat conversation", () => {
     const linkForm: ChatBlock = { type: "form", id: "form-1", form: "link", status: "pending" };
     renderConversation(false, [{ id: "m1", role: "assistant", content: "", proposal: null, blocks: [linkForm] }]);
     expect(screen.queryByRole("button", { name: "Suggest a slug" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Suggest a title" })).toBeNull();
     expect(screen.getByRole("textbox", { name: "Custom slug" })).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Title" })).toBeTruthy();
+  });
+
+  it("fills the title from the page suggestion", async () => {
+    vi.mocked(api).mockResolvedValue({ slug: "pricing-ipstack", title: "Pricing | ipstack", fromTitle: true });
+    const linkForm: ChatBlock = { type: "form", id: "form-1", form: "link", status: "pending" };
+    renderConversation(true, [{ id: "m1", role: "assistant", content: "", proposal: null, blocks: [linkForm] }]);
+    fireEvent.change(screen.getByRole("textbox", { name: "Destination" }), {
+      target: { value: "https://ipstack.com/pricing/" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest a title" }));
+    expect(await screen.findByDisplayValue("Pricing | ipstack")).toBeTruthy();
+    expect(screen.getByText("Suggested from the page title.")).toBeTruthy();
+    expect(api).toHaveBeenCalledWith("/api/ai/suggest-slug", {
+      method: "POST",
+      body: JSON.stringify({ destinationUrl: "https://ipstack.com/pricing/" }),
+    });
   });
 
   it("renders a heading and a table in the answer", () => {

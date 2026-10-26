@@ -22,7 +22,7 @@ Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht
 
 Ein neuer Link braucht ein `http`- oder `https`-Ziel, höchstens 4096 Zeichen. Titel und Beschreibung sind optional. Wähle einen Weiterleitungstyp oder lass die Kontovorgabe aus den Einstellungen. Eine neue Installation nutzt 302. Die anderen Möglichkeiten sind 301, 307 und 308.
 
-Wenn die KI in den Einstellungen eingeschaltet ist, zeigen die Felder für Slug und Titel bei einem neuen und bei einem gespeicherten Link je einen Knopf. Er liest die Zielseite und schlägt einen freien Slug oder den Seitentitel vor, sobald das Ziel eine gültige URL ist. Beides kannst du ändern. Gespeichert wird erst, wenn du den Link speicherst. Die Knöpfe bleiben verborgen, solange die KI aus ist.
+Wenn die KI in den Einstellungen eingeschaltet ist, zeigen die Felder für Slug und Titel bei einem neuen und bei einem gespeicherten Link je einen Knopf. Er liest die Zielseite und schlägt einen freien Slug oder den Seitentitel vor, sobald das Ziel eine gültige URL ist. Ein Tooltip sagt, woher der Vorschlag kommt. Beides kannst du ändern. Gespeichert wird erst, wenn du den Link speicherst. Die Knöpfe bleiben verborgen, solange die KI aus ist.
 
 Das Ablaufdatum wird in deiner lokalen Zeit eingegeben und in UTC gespeichert. Ein leeres Ablaufdatum läuft nie ab. Ein abgelaufener Link leitet nicht mehr weiter.
 
