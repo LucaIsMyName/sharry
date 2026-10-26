@@ -48,6 +48,7 @@ export const routingRulesSchema = z
   .array(
     z.object({
       id: z.string().uuid(),
+      name: z.string().trim().max(80, 'Use at most 80 characters').optional(),
       destinationUrl: destinationSchema,
       conditions: z
         .array(routingConditionSchema)

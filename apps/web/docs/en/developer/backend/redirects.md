@@ -34,7 +34,7 @@ UTM values from the link, and from a `v` variant or a `qr` code when it belongs 
 
 ## Routing
 
-Before that merge, `matchRoute` in `packages/shared` reads `links.routing_rules`. The visit is the parsed user agent, the referrer hostname, the geo country when `GEOIP_DB_PATH` is set, and `utm_*` parameters on the short link. Rules run in array order. A rule matches only when every condition matches. The first match replaces the destination. Link and variant UTM values are then applied to that URL.
+Before that merge, `matchRoute` in `packages/shared` reads `links.routing_rules`. The visit is the parsed user agent, the referrer hostname, the geo country when `GEOIP_DB_PATH` is set, and `utm_*` parameters on the short link. Rules run in array order. A rule matches only when every condition matches. The first match replaces the destination. Link and variant UTM values are then applied to that URL. A rule may store a `name`. Matching ignores it, and a blank name is left out.
 
 Browser, device, operating system, and country come from shared catalogs. Referrer presets and UTM source and medium do too, and those fields also accept custom values. Campaign, id, term, and content are free strings, with saved values offered in the list. Comparison is case-insensitive. A referrer preset or a custom host matches that hostname or a subdomain, so Google matches `news.google.com`.
 

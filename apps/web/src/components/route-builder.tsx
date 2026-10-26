@@ -116,7 +116,14 @@ function RouteCard({
   return (
     <div className="grid gap-3 rounded-lg border border-border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">{t("Route {number}", { number: index + 1 })}</h3>
+        <Input
+          value={rule.name ?? ""}
+          placeholder={t("Route {number}", { number: index + 1 })}
+          aria-label={t("Route name")}
+          maxLength={80}
+          className="h-8 max-w-sm border-transparent bg-transparent px-2 font-medium shadow-none focus-visible:border-ring"
+          onChange={(event) => onChange({ ...rule, name: event.target.value })}
+        />
         <div className="flex items-center gap-1">
           <Button type="button" variant="outline" size="icon-sm" aria-label={t("Move route up")} disabled={index === 0} onClick={() => onMove(-1)}>
             <ChevronUp />

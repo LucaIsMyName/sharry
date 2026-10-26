@@ -32,6 +32,7 @@ export type RoutingCondition = {
 
 export type RoutingRule = {
   id: string
+  name?: string
   destinationUrl: string
   conditions: RoutingCondition[]
 }
@@ -242,8 +243,10 @@ export function normalizeRoutingRules(rules: unknown): RoutingRule[] {
     if (typeof candidate.id !== 'string' || typeof candidate.destinationUrl !== 'string' || !Array.isArray(candidate.conditions)) {
       continue
     }
+    const name = typeof candidate.name === 'string' ? candidate.name.trim().slice(0, 80) : ''
     normalized.push({
       id: candidate.id,
+      ...(name ? { name } : {}),
       destinationUrl: candidate.destinationUrl,
       conditions: candidate.conditions.flatMap((condition) => {
         if (!condition || typeof condition !== 'object' || !Array.isArray(condition.values)) return []

@@ -34,7 +34,7 @@ UTM-Werte vom Link und von einer `v`-Variante oder einem `qr`-Code, wenn sie zu 
 
 ## Routing
 
-Vor diesem Zusammenführen liest `matchRoute` in `packages/shared` `links.routing_rules`. Der Besuch besteht aus dem ausgewerteten User-Agent, dem Referrer-Hostnamen, dem Geo-Land wenn `GEOIP_DB_PATH` gesetzt ist, und den `utm_*`-Parametern am Kurzlink. Regeln laufen in der Reihenfolge des Arrays. Eine Regel passt nur, wenn jede Bedingung passt. Der erste Treffer ersetzt das Ziel. UTM-Werte von Link und Variante werden danach auf diese URL gelegt.
+Vor diesem Zusammenführen liest `matchRoute` in `packages/shared` `links.routing_rules`. Der Besuch besteht aus dem ausgewerteten User-Agent, dem Referrer-Hostnamen, dem Geo-Land wenn `GEOIP_DB_PATH` gesetzt ist, und den `utm_*`-Parametern am Kurzlink. Regeln laufen in der Reihenfolge des Arrays. Eine Regel passt nur, wenn jede Bedingung passt. Der erste Treffer ersetzt das Ziel. UTM-Werte von Link und Variante werden danach auf diese URL gelegt. Eine Regel kann einen `name` speichern. Der Abgleich ignoriert ihn, und ein leerer Name wird weggelassen.
 
 Browser, Gerät, Betriebssystem und Land kommen aus gemeinsamen Katalogen. Referrer-Vorgaben sowie UTM-Quelle und Medium ebenfalls, und diese Felder akzeptieren auch eigene Werte. Kampagne, ID, Begriff und Inhalt sind freie Zeichenfolgen, und gespeicherte Werte stehen in der Liste. Der Vergleich ignoriert die Großschreibung. Eine Referrer-Vorgabe oder ein eigener Host trifft diesen Hostnamen oder eine Subdomain, deshalb trifft Google `news.google.com`.
 

@@ -87,6 +87,20 @@ describe("RouteBuilder", () => {
     expect(screen.getByRole("option", { name: "podcast" })).toBeTruthy();
   });
 
+  it("names a route and shows Route 1 when the name is empty", () => {
+    function Harness() {
+      const [rules, setRules] = useState([stale]);
+      return <RouteBuilder rules={rules} choices={emptyRoutingChoices()} utm={{}} locale="en" onChange={setRules} />;
+    }
+    render(<Harness />);
+    const name = screen.getByRole("textbox", { name: "Route name" });
+    expect(name.getAttribute("placeholder")).toBe("Route 1");
+    fireEvent.change(name, { target: { value: "Phones" } });
+    expect(screen.getByRole("textbox", { name: "Route name" }).getAttribute("value")).toBe("Phones");
+    fireEvent.change(screen.getByRole("textbox", { name: "Route name" }), { target: { value: "" } });
+    expect(screen.getByRole("textbox", { name: "Route name" }).getAttribute("placeholder")).toBe("Route 1");
+  });
+
   it("warns when a saved value is no longer recognized", () => {
     render(
       <RouteBuilder rules={[stale]} choices={emptyRoutingChoices()} utm={{}} locale="en" onChange={() => {}} />,

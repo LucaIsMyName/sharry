@@ -34,7 +34,7 @@ Save link is in the page header and again at the end of the form. Both buttons s
 
 Routes are optional. Leave the list empty and every visit uses the destination.
 
-Add a route to send some visits to a different `http` or `https` URL. Each route can have as many conditions as you need, and every condition on that route has to match. Routes run from top to bottom. The first matching route is used. Move a route up or down to change which one is checked first.
+Add a route to send some visits to a different `http` or `https` URL. Each route can have as many conditions as you need, and every condition on that route has to match. Routes run from top to bottom. The first matching route is used. Move a route up or down to change which one is checked first. A route can have a name. Leave it empty and the route is shown as Route 1, Route 2, and so on.
 
 Choose one or more values from the list: browser, device, operating system, country, referrer, and UTM source, medium, campaign, id, term, and content. **is** matches when the visit is any of the chosen values. **is not** matches when it is none of them. Search narrows the list. Campaign, id, term, and content also offer values already saved on the link, on its variants, and on its clicks. Referrer and every UTM field can include several custom values beside the presets. A custom referrer matches that host and its subdomains, the same way Google matches `news.google.com`. Country choices need the geo database; without it, a country route is skipped.
 

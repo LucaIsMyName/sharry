@@ -247,4 +247,39 @@ describe('routing catalogs', () => {
     ).toBe(false)
     expect(routingRulesSchema.safeParse(Array.from({ length: 51 }, () => retired)).success).toBe(false)
   })
+
+  it('keeps a route name and drops a blank one', () => {
+    const named = rule({
+      name: '  Phones  ',
+      destinationUrl: 'https://example.com/phone',
+      conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }],
+    })
+    const blank = rule({
+      name: '   ',
+      destinationUrl: 'https://example.com/phone',
+      conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }],
+    })
+    expect(normalizeRoutingRules([named, blank])).toEqual([
+      rule({
+        name: 'Phones',
+        destinationUrl: 'https://example.com/phone',
+        conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }],
+      }),
+      rule({
+        destinationUrl: 'https://example.com/phone',
+        conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }],
+      }),
+    ])
+    expect(routingRulesSchema.safeParse([named]).success).toBe(true)
+    expect(
+      routingRulesSchema.safeParse([
+        rule({
+          name: 'p'.repeat(81),
+          destinationUrl: 'https://example.com/phone',
+          conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }],
+        }),
+      ]).success,
+    ).toBe(false)
+    expect(matchRoute([named], context)).toBe('https://example.com/phone')
+  })
 })

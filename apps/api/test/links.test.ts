@@ -806,14 +806,16 @@ describe('short links', () => {
       headers: { cookie: user.cookie },
       payload: {
         routingRules: [
-          route('11111111-1111-4111-8111-111111111111', 'https://example.com/phone', [{ field: 'browser', operator: 'is', values: ['chrome'] }]),
-          route('22222222-2222-4222-8222-222222222222', 'https://example.com/search', [{ field: 'referrer', operator: 'is', values: ['google'] }]),
+          { ...route('11111111-1111-4111-8111-111111111111', 'https://example.com/phone', [{ field: 'browser', operator: 'is', values: ['chrome'] }]), name: 'Phones' },
+          { ...route('22222222-2222-4222-8222-222222222222', 'https://example.com/search', [{ field: 'referrer', operator: 'is', values: ['google'] }]), name: '   ' },
           route('33333333-3333-4333-8333-333333333333', 'https://example.com/newsletter', [{ field: 'utm_source', operator: 'is', values: ['newsletter'] }]),
         ],
       },
     })
     expect(saved.statusCode).toBe(200)
     expect(saved.json().routingRules).toHaveLength(3)
+    expect(saved.json().routingRules[0].name).toBe('Phones')
+    expect(saved.json().routingRules[1].name).toBeUndefined()
     const phone = await ctx.app.inject({ method: 'GET', url: '/s/routed', headers: { 'user-agent': chrome } })
     expect(phone.headers.location).toBe('https://example.com/phone?utm_medium=email')
     const search = await ctx.app.inject({

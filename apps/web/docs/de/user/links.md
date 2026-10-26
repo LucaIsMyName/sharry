@@ -34,7 +34,7 @@ Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formular
 
 Routen sind optional. Lass die Liste leer, dann nutzt jeder Besuch das Ziel.
 
-Füge eine Route hinzu, um manche Besuche an eine andere `http`- oder `https`-URL zu schicken. Jede Route kann so viele Bedingungen haben, wie du brauchst, und jede Bedingung dieser Route muss passen. Routen laufen von oben nach unten. Die erste passende Route wird verwendet. Schiebe eine Route nach oben oder unten, um die Reihenfolge zu ändern.
+Füge eine Route hinzu, um manche Besuche an eine andere `http`- oder `https`-URL zu schicken. Jede Route kann so viele Bedingungen haben, wie du brauchst, und jede Bedingung dieser Route muss passen. Routen laufen von oben nach unten. Die erste passende Route wird verwendet. Schiebe eine Route nach oben oder unten, um die Reihenfolge zu ändern. Eine Route kann einen Namen haben. Lass ihn leer, dann wird die Route als Route 1, Route 2 und so weiter angezeigt.
 
 Wähle einen oder mehrere Werte aus der Liste: Browser, Gerät, Betriebssystem, Land, Verweis und UTM-Quelle, Medium, Kampagne, ID, Begriff und Inhalt. **is** passt, wenn der Besuch einem der gewählten Werte entspricht. **is not** passt, wenn er keinem davon entspricht. Die Suche grenzt die Liste ein. Kampagne, ID, Begriff und Inhalt bieten zusätzlich Werte, die schon am Link, an seinen Varianten oder an seinen Klicks gespeichert sind. Verweis und jedes UTM-Feld können mehrere eigene Werte neben den Vorgaben enthalten. Ein eigener Verweis trifft diesen Host und seine Subdomains, so wie Google `news.google.com` trifft. Länder brauchen die Geo-Datenbank; ohne sie wird eine Länder-Route übersprungen.
 
