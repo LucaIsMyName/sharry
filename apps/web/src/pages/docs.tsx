@@ -35,7 +35,7 @@ export function DocsPage() {
   return (
     <div className="grid items-start gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
       <PageTitle title={documentTitle} literal />
-      <div className="hidden md:block">
+      <div className="hidden self-stretch md:block">
         <DocsNav
           slug={slug}
           userPages={userPages}

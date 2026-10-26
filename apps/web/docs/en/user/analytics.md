@@ -16,7 +16,7 @@ Country and region stay empty unless `GEOIP_DB_PATH` points at a local MaxMind d
 
 ## Filters
 
-The bar under the heading filters the cards, the chart, the breakdowns, the summary, and the counts in the link table. It is there whether or not AI is on.
+The bar under the heading filters the cards, the chart, the breakdowns, the summary, and the counts in the link table. It is there whether or not AI is on. The filters stay on one line and the bar scrolls sideways when they do not fit.
 
 Links is a multiselect of the links you can see. Leave it empty for every visible link. Several links match any of them. One link keeps that link’s name in the heading. A row in the table selects that one link. All links clears only the link choice.
 

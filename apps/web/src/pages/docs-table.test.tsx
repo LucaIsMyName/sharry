@@ -38,6 +38,9 @@ describe("Docs markdown tables", () => {
       </HelmetProvider>,
     );
 
+    const nav = await screen.findByRole("navigation");
+    expect(nav.parentElement?.className).toContain("self-stretch");
+    expect(nav.className).toContain("md:sticky");
     const tables = await screen.findAllByRole("table");
     expect(tables.length).toBeGreaterThan(0);
     for (const table of tables) {

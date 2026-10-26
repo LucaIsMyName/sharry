@@ -99,6 +99,14 @@ describe("analytics page", () => {
     );
     const heading = await screen.findByRole("heading", { name: "Analytics" });
     const links = screen.getByRole("button", { name: "Links" });
+    const bar = links.closest(".overflow-x-auto");
+    expect(bar?.className).toContain("overflow-x-auto");
+    expect(bar?.className).not.toContain("flex-wrap");
+    expect(bar?.querySelector(".flex-nowrap")).toBeTruthy();
+    expect(screen.getByLabelText("From").getAttribute("type")).toBe("date");
+    expect(screen.getByLabelText("To").getAttribute("type")).toBe("date");
+    expect(screen.queryByText("From")).toBeNull();
+    expect(screen.queryByText("To")).toBeNull();
     expect(await screen.findByText("42")).toBeTruthy();
     const clicks = screen.getAllByText("Clicks")[0];
     if (!clicks) throw new Error("missing clicks");

@@ -16,7 +16,7 @@ Land und Region bleiben leer, außer `GEOIP_DB_PATH` zeigt auf eine lokale MaxMi
 
 ## Filter
 
-Die Leiste unter der Überschrift filtert die Karten, das Diagramm, die Aufschlüsselungen, die Zusammenfassung und die Zählungen in der Linktabelle. Sie ist da, ob die KI an ist oder nicht.
+Die Leiste unter der Überschrift filtert die Karten, das Diagramm, die Aufschlüsselungen, die Zusammenfassung und die Zählungen in der Linktabelle. Sie ist da, ob die KI an ist oder nicht. Die Filter bleiben in einer Zeile, und die Leiste scrollt seitwärts, wenn sie nicht passen.
 
 Links ist eine Mehrfachauswahl der Links, die du sehen kannst. Leer heißt jeder sichtbare Link. Mehrere Links passen, wenn einer davon stimmt. Ein Link behält den Namen dieses Links in der Überschrift. Eine Zeile in der Tabelle wählt genau diesen Link. Alle Links löscht nur die Linkauswahl.
 

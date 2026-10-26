@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n/index.tsx";
 import { Button } from "./button.tsx";
 import { Checkbox } from "./checkbox.tsx";
@@ -19,8 +19,27 @@ export function MultiSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const root = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
   const listId = useId();
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
   const shown = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
+
+  function placeList() {
+    const rect = button.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPlace({ top: rect.bottom + 4, left: rect.left });
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    placeList();
+    window.addEventListener("resize", placeList);
+    window.addEventListener("scroll", placeList, true);
+    return () => {
+      window.removeEventListener("resize", placeList);
+      window.removeEventListener("scroll", placeList, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,8 +63,9 @@ export function MultiSelect({
   }
 
   return (
-    <div className="relative" ref={root}>
+    <div className="relative shrink-0" ref={root}>
       <Button
+        ref={button}
         type="button"
         variant="outline"
         aria-expanded={open}
@@ -55,12 +75,13 @@ export function MultiSelect({
       >
         {values.length === 0 ? label : t("{count} selected", { count: values.length })}
       </Button>
-      {open ? (
+      {open && place ? (
         <div
           id={listId}
           role="listbox"
           aria-label={label}
-          className="absolute z-20 mt-1 grid w-64 gap-2 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md"
+          className="fixed z-20 grid w-64 gap-2 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md"
+          style={{ top: place.top, left: place.left }}
         >
           <Input
             value={query}
