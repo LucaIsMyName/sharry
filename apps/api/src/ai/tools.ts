@@ -427,10 +427,14 @@ async function submitAnalyticsForm(
       totalClicks: data.totalClicks,
       uniqueVisitors: data.uniqueVisitors,
     }
-    const content = analyticsSentence(locale, result, !dates.from && !dates.to)
+    const content = analyticsSentence(locale, result, !dates.from && !dates.to, parsed.data.scope)
     const chosen = block.links?.find((link) => link.id === parsed.data.linkId)
     const scopeText = parsed.data.scope === 'all' ? 'all links' : `the link ${chosen?.title || chosen?.slug || parsed.data.linkId}`
-    const brief = `The person submitted the analytics form for ${scopeText}. Range ${result.from} to ${result.to}: ${result.totalClicks} clicks, ${result.uniqueVisitors} unique visitors. Write a short report in ${locale === 'de' ? 'German' : 'English'} with one markdown heading. Use only these numbers. Say the range. Do not call tools.`
+    const tableText =
+      parsed.data.scope === 'all'
+        ? 'a table of links with name, clicks, and unique visitors'
+        : 'a table of referrers and their clicks'
+    const brief = `The person submitted the analytics form for ${scopeText}. Range ${result.from} to ${result.to}: ${result.totalClicks} clicks, ${result.uniqueVisitors} unique visitors. The chat will draw a clicks-by-day chart and ${tableText} below your text. Write a short opening section in ${locale === 'de' ? 'German' : 'English'} with one markdown heading. Explain the date range, these totals, what the chart shows, and what the table lists. Use only these numbers. Do not draw a table or a chart. Do not call tools.`
     return {
       block: { ...block, status: 'submitted', result },
       report: { content, blocks: blocksFromAnalyticsResult(report), brief },
@@ -449,17 +453,30 @@ function labelTo(requested: string | undefined, rangeEnd: string): string {
   return rangeEnd
 }
 
-function analyticsSentence(locale: string, result: ChatFormResult, last30: boolean): string {
+export function analyticsSentence(
+  locale: string,
+  result: ChatFormResult,
+  last30: boolean,
+  scope: 'all' | 'link',
+): string {
   const from = result.from ?? ''
   const to = result.to ?? ''
   const clicks = result.totalClicks ?? 0
   const visitors = result.uniqueVisitors ?? 0
   if (locale === 'de') {
     const range = last30 ? `Letzte 30 Tage (${from} bis ${to})` : `Von ${from} bis ${to}`
-    return `${range}: ${clicks} Klicks, ${visitors} eindeutige Besucher.`
+    const table =
+      scope === 'all'
+        ? 'Die Tabelle listet jeden Link mit Klicks und eindeutigen Besuchern.'
+        : 'Die Tabelle listet die Verweise.'
+    return `${range}: ${clicks} Klicks, ${visitors} eindeutige Besucher. Das Diagramm zeigt die Klicks pro Tag. ${table}`
   }
   const range = last30 ? `Last 30 days (${from} to ${to})` : `From ${from} to ${to}`
-  return `${range}: ${clicks} clicks, ${visitors} unique visitors.`
+  const table =
+    scope === 'all'
+      ? 'The table lists each link with its clicks and unique visitors.'
+      : 'The table lists referrers.'
+  return `${range}: ${clicks} clicks, ${visitors} unique visitors. The chart shows clicks by day. ${table}`
 }
 
 async function visibleLinkChoices(db: Database, actor: Actor, settings: AppSettings) {

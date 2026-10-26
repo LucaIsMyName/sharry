@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import type { ChatBlock, ChatFormLink } from "@sharry/shared";
 import { ClickChart } from "./analytics.tsx";
 import { Button } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
@@ -23,7 +22,7 @@ export function ChatBlocks({
   const { t } = useI18n();
   const path = blocks.find((block) => block.type === "chart" || block.type === "table")?.path;
   return (
-    <div className="grid w-full max-w-[40rem] gap-3">
+    <div className="grid gap-4">
       {blocks.map((block, index) => {
         if (block.type === "form") {
           return (
@@ -32,38 +31,34 @@ export function ChatBlocks({
         }
         if (block.type === "chart") {
           return (
-            <Card key={`chart-${index}`}>
-              <CardContent className="grid gap-2">
-                <h2 className="font-medium">{t(block.title)}</h2>
-                <ClickChart series={block.series} />
-              </CardContent>
-            </Card>
+            <section key={`chart-${index}`} className="grid gap-2">
+              <h2 className="font-medium">{t(block.title)}</h2>
+              <ClickChart series={block.series} />
+            </section>
           );
         }
         return (
-          <Card key={`table-${index}`}>
-            <CardContent className="grid gap-2">
-              <h2 className="font-medium">{t(block.title)}</h2>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {block.columns.map((column) => (
-                      <TableHead key={column}>{t(column)}</TableHead>
+          <section key={`table-${index}`} className="grid gap-2">
+            <h2 className="font-medium">{t(block.title)}</h2>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {block.columns.map((column) => (
+                    <TableHead key={column}>{t(column)}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {block.rows.map((row, rowIndex) => (
+                  <TableRow key={rowIndex}>
+                    {row.map((cell, cellIndex) => (
+                      <TableCell key={cellIndex}>{cell}</TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {block.rows.map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {row.map((cell, cellIndex) => (
-                        <TableCell key={cellIndex}>{cell}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </section>
         );
       })}
       {path ? (
@@ -105,9 +100,8 @@ function LinkForm({
   const [createQr, setCreateQr] = useState(false);
   const done = block.status === "submitted";
   return (
-    <Card>
-      <CardContent className="grid gap-3">
-        <h2 className="font-medium">{t("Short link")}</h2>
+    <div className="grid gap-3">
+      <h2 className="font-medium">{t("Short link")}</h2>
         {done ? (
           <FormResult block={block} />
         ) : (
@@ -138,8 +132,7 @@ function LinkForm({
             </Button>
           </form>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -158,9 +151,8 @@ function AnalyticsForm({
   const done = block.status === "submitted";
   const chosen = block.links?.find((link) => link.id === block.result?.linkId);
   return (
-    <Card>
-      <CardContent className="grid gap-3">
-        <h2 className="font-medium">{t("Analytics report")}</h2>
+    <div className="grid gap-3">
+      <h2 className="font-medium">{t("Analytics report")}</h2>
         {done ? (
           <p className="text-sm">{scope === "all" ? t("All links") : linkLabel(chosen)}</p>
         ) : (
@@ -214,8 +206,7 @@ function AnalyticsForm({
             </Button>
           </form>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
@@ -235,9 +226,8 @@ function CampaignForm({
   const [variantName, setVariantName] = useState("");
   const done = block.status === "submitted";
   return (
-    <Card>
-      <CardContent className="grid gap-3">
-        <h2 className="font-medium">{t("Campaign")}</h2>
+    <div className="grid gap-3">
+      <h2 className="font-medium">{t("Campaign")}</h2>
         {done ? (
           <FormResult block={block} />
         ) : (
@@ -284,8 +274,7 @@ function CampaignForm({
             </Button>
           </form>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

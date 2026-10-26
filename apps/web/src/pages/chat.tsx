@@ -1,18 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
-import { MessageSquarePlus, Trash2 } from "lucide-react";
+import { Menu, MessageSquarePlus, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Link, NavLink, useNavigate, useParams } from "react-router";
+import { Link, NavLink, useLocation, useNavigate, useParams } from "react-router";
 import { chatStarters, type AiProposal, type ChatBlock } from "@sharry/shared";
 import { cn } from "cn";
 import { ApiError, api } from "../api.ts";
 import { useI18n } from "../i18n/index.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { Textarea } from "../components/ui/textarea.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { ChatBlocks } from "./chat-blocks.tsx";
+
+export const lastChatStorageKey = "sharry.lastChat";
+
+export function chatToOpen(chatIds: string[], storedId: string | null, fresh: boolean): string | null {
+  if (fresh || chatIds.length === 0) return null;
+  if (storedId && chatIds.includes(storedId)) return storedId;
+  return chatIds[0] ?? null;
+}
+
+function isNewChat(state: unknown): boolean {
+  return Boolean(state && typeof state === "object" && "newChat" in state && state.newChat === true);
+}
 
 type ChatSummary = {
   id: string;
@@ -31,15 +44,19 @@ export type ChatMessage = {
 
 export function ChatPage() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
   const [available, setAvailable] = useState<boolean | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [chatsLoaded, setChatsLoaded] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [submittingForm, setSubmittingForm] = useState<string | null>(null);
   const skipLoad = useRef<string | null>(null);
+  const fresh = isNewChat(location.state);
 
   useEffect(() => {
     void api<{ available: boolean }>("/api/ai/status")
@@ -47,8 +64,23 @@ export function ChatPage() {
       .catch((caught: unknown) => toastCaught(caught, t("Could not load chat")));
     void api<{ chats: ChatSummary[] }>("/api/chats")
       .then((result) => setChats(result.chats))
-      .catch((caught: unknown) => toastCaught(caught, t("Could not load chat")));
+      .catch((caught: unknown) => toastCaught(caught, t("Could not load chat")))
+      .finally(() => setChatsLoaded(true));
   }, [t]);
+
+  useEffect(() => {
+    if (id) {
+      localStorage.setItem(lastChatStorageKey, id);
+      return;
+    }
+    if (!chatsLoaded) return;
+    const next = chatToOpen(
+      chats.map((chat) => chat.id),
+      localStorage.getItem(lastChatStorageKey),
+      fresh,
+    );
+    if (next) void navigate(`/chat/${next}`, { replace: true });
+  }, [id, chats, chatsLoaded, fresh, navigate]);
 
   useEffect(() => {
     if (!id) {
@@ -99,11 +131,21 @@ export function ChatPage() {
     }
   }
 
+  function openNewChat() {
+    setListOpen(false);
+    void navigate("/chat", { state: { newChat: true } });
+  }
+
   async function removeChat(chatId: string) {
     try {
       await api(`/api/chats/${chatId}`, { method: "DELETE" });
-      setChats((current) => current.filter((chat) => chat.id !== chatId));
-      if (id === chatId) await navigate("/chat");
+      const remaining = chats.filter((chat) => chat.id !== chatId);
+      setChats(remaining);
+      if (localStorage.getItem(lastChatStorageKey) === chatId) localStorage.removeItem(lastChatStorageKey);
+      if (id !== chatId) return;
+      const next = remaining[0];
+      if (next) await navigate(`/chat/${next.id}`, { replace: true });
+      else await navigate("/chat", { replace: true, state: { newChat: true } });
     } catch (caught) {
       toastCaught(caught, t("Could not delete the chat"));
     }
@@ -148,41 +190,42 @@ export function ChatPage() {
 
   return (
     <section className="grid items-stretch gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="grid content-start gap-2">
-        <Button type="button" variant="outline" onClick={() => void navigate("/chat")}>
-          <MessageSquarePlus /> {t("New chat")}
-        </Button>
-        <div className="grid gap-1">
-          {chats.map((chat) => (
-            <div key={chat.id} className="flex items-center gap-1">
-              <NavLink
-                to={`/chat/${chat.id}`}
-                className={({ isActive }) =>
-                  cn(
-                    "min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-sm hover:bg-muted",
-                    isActive && "bg-muted font-medium",
-                  )
-                }
-              >
-                {chat.title === "New chat" ? t("New chat") : chat.title}
-              </NavLink>
-              <button
-                type="button"
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label={t("Delete chat")}
-                onClick={() => void removeChat(chat.id)}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
+      <aside className="hidden md:sticky md:top-7 md:flex md:h-[calc(100svh-3.5rem)] md:max-h-[calc(100svh-3.5rem)] md:flex-col md:self-start md:border-r md:border-border md:pr-4">
+        <ChatList
+          chats={chats}
+          tone="page"
+          onNew={openNewChat}
+          onPick={() => setListOpen(false)}
+          onDelete={(chatId) => void removeChat(chatId)}
+        />
       </aside>
       <ChatConversation
         available={available}
         messages={messages}
         draft={draft}
         sending={sending}
+        menu={
+          <div className="md:hidden">
+            <Sheet open={listOpen} onOpenChange={setListOpen}>
+              <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
+                <Menu /> {t("Chats")}
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
+              >
+                <SheetTitle className="pr-8 text-sidebar-foreground">{t("Chats")}</SheetTitle>
+                <ChatList
+                  chats={chats}
+                  tone="sidebar"
+                  onNew={openNewChat}
+                  onPick={() => setListOpen(false)}
+                  onDelete={(chatId) => void removeChat(chatId)}
+                />
+              </SheetContent>
+            </Sheet>
+          </div>
+        }
         onDraft={setDraft}
         onSubmit={(event) => {
           event.preventDefault();
@@ -198,12 +241,76 @@ export function ChatPage() {
   );
 }
 
+function ChatList({
+  chats,
+  tone,
+  onNew,
+  onPick,
+  onDelete,
+}: {
+  chats: ChatSummary[];
+  tone: "page" | "sidebar";
+  onNew: () => void;
+  onPick: () => void;
+  onDelete: (chatId: string) => void;
+}) {
+  const { t } = useI18n();
+  const { pathname } = useLocation();
+  const sidebar = tone === "sidebar";
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto">
+        {chats.map((chat) => {
+          const active = pathname === `/chat/${chat.id}`;
+          return (
+            <div
+              key={chat.id}
+              className={cn(
+                "flex items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
+                sidebar
+                  ? "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
+                  : "hover:bg-primary/20",
+                active &&
+                  (sidebar ? "bg-sidebar-accent font-medium text-white" : "bg-primary font-medium text-primary-foreground"),
+              )}
+            >
+              <NavLink to={`/chat/${chat.id}`} onClick={onPick} className="min-w-0 flex-1 truncate">
+                {chat.title === "New chat" ? t("New chat") : chat.title}
+              </NavLink>
+              <button
+                type="button"
+                className="rounded-md p-1"
+                aria-label={t("Delete chat")}
+                onClick={() => onDelete(chat.id)}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <Button
+        className={cn(
+          "shrink-0",
+          sidebar && "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
+        )}
+        type="button"
+        variant="outline"
+        onClick={onNew}
+      >
+        <MessageSquarePlus /> {t("New chat")}
+      </Button>
+    </div>
+  );
+}
+
 export function ChatConversation({
   available,
   messages,
   draft,
   sending,
   submittingForm,
+  menu,
   onDraft,
   onSubmit,
   onStarter,
@@ -216,6 +323,7 @@ export function ChatConversation({
   draft: string;
   sending: boolean;
   submittingForm: string | null;
+  menu?: ReactNode;
   onDraft: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStarter: (prompt: string) => void;
@@ -243,7 +351,10 @@ export function ChatConversation({
   return (
     <div className="flex min-h-[calc(100svh-5.5rem)] min-w-0 flex-col md:min-h-[calc(100svh-3.5rem)]">
       <div className="grid content-start gap-4">
-        <h1 className="font-heading text-2xl font-medium tracking-tight">{t("Chat")}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-heading text-2xl font-medium tracking-tight">{t("Chat")}</h1>
+          {menu}
+        </div>
         {available === false ? (
           <Card>
             <CardContent className="grid gap-1">
@@ -270,23 +381,20 @@ export function ChatConversation({
         ) : null}
         <div className="grid gap-3 pb-4">
           {visible.map((message) => (
-            <article key={message.id} className={cn("grid gap-2", message.role === "user" && "justify-items-end")}>
-              {message.content ? (
-                <div
-                  className={cn(
-                    "max-w-[40rem] rounded-xl px-3 py-2 text-sm",
-                    message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
-                  )}
-                >
-                  {message.role === "assistant" ? <AssistantText text={message.content} /> : <p className="whitespace-pre-wrap">{message.content}</p>}
+            <article key={message.id} className={cn("grid", message.role === "user" && "justify-items-end")}>
+              {message.role === "user" ? (
+                <div className="max-w-[40rem] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">
+                  <p className="whitespace-pre-wrap">{message.content}</p>
                 </div>
-              ) : null}
-              {message.blocks && message.blocks.length > 0 ? (
-                <ChatBlocks blocks={message.blocks} submitting={submittingForm} onSubmit={onSubmitForm} />
-              ) : null}
-              {message.proposal ? (
-                <ProposalCard proposal={message.proposal} onConfirm={onConfirm} onDismiss={onDismiss} />
-              ) : null}
+              ) : (
+                <AssistantReply
+                  message={message}
+                  submittingForm={submittingForm}
+                  onConfirm={onConfirm}
+                  onDismiss={onDismiss}
+                  onSubmitForm={onSubmitForm}
+                />
+              )}
             </article>
           ))}
         </div>
@@ -308,6 +416,36 @@ export function ChatConversation({
         </Button>
       </form>
     </div>
+  );
+}
+
+function AssistantReply({
+  message,
+  submittingForm,
+  onConfirm,
+  onDismiss,
+  onSubmitForm,
+}: {
+  message: ChatMessage;
+  submittingForm: string | null;
+  onConfirm: (proposalId: string) => void;
+  onDismiss: (proposalId: string) => void;
+  onSubmitForm: (formId: string, body: Record<string, unknown>) => void;
+}) {
+  const hasBlocks = Boolean(message.blocks && message.blocks.length > 0);
+  if (!message.content && !hasBlocks && !message.proposal) return null;
+  return (
+    <Card className="w-full max-w-[40rem]">
+      <CardContent className="grid gap-3">
+        {message.content ? <AssistantText text={message.content} /> : null}
+        {hasBlocks ? (
+          <ChatBlocks blocks={message.blocks ?? []} submitting={submittingForm} onSubmit={onSubmitForm} />
+        ) : null}
+        {message.proposal ? (
+          <ProposalCard proposal={message.proposal} onConfirm={onConfirm} onDismiss={onDismiss} />
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -352,45 +490,43 @@ export function ProposalCard({
   const slug = typeof proposal.args.slug === "string" ? proposal.args.slug : "";
   const openLabel = proposal.tool === "propose_link" ? "Open link" : "Open campaign";
   return (
-    <Card className="w-full max-w-[40rem]">
-      <CardContent className="grid gap-2">
-        <h2 className="font-medium">{proposal.tool === "propose_link" ? t("Short link") : t("Campaign")}</h2>
-        {destination ? <p className="text-sm break-all">{destination}</p> : null}
-        {name ? <p className="text-sm">{name}</p> : null}
-        {title ? <p className="text-sm text-muted-foreground">{title}</p> : null}
-        {slug ? <p className="text-sm text-muted-foreground">{slug}</p> : null}
-        {proposal.status === "pending" ? (
-          <p className="text-sm text-muted-foreground">{t("Nothing is created until you confirm.")}</p>
-        ) : null}
-        {proposal.status === "confirmed" && proposal.result?.shortUrl ? (
-          <p className="text-sm break-all">{proposal.result.shortUrl}</p>
-        ) : null}
-        {proposal.status === "confirmed" && proposal.result?.path ? (
-          <Link className="text-sm underline" to={proposal.result.path}>
-            {t(openLabel)}
-          </Link>
-        ) : null}
-        {proposal.status === "failed" && proposal.result?.error ? (
-          <p className="text-sm text-destructive">{t(proposal.result.error)}</p>
-        ) : null}
-        {proposal.status === "dismissed" ? <p className="text-sm text-muted-foreground">{t("Dismissed")}</p> : null}
-        {proposal.result?.variants?.map((variant) => (
-          <p key={variant.name} className="text-sm text-muted-foreground">
-            {variant.error ? `${variant.name}: ${t(variant.error)}` : variant.name}
-          </p>
-        ))}
-        {proposal.status === "pending" ? (
-          <div className="flex gap-2">
-            <Button type="button" onClick={() => onConfirm(proposal.id)}>
-              {t("Confirm")}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onDismiss(proposal.id)}>
-              {t("Dismiss")}
-            </Button>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+    <div className="grid gap-2">
+      <h2 className="font-medium">{proposal.tool === "propose_link" ? t("Short link") : t("Campaign")}</h2>
+      {destination ? <p className="text-sm break-all">{destination}</p> : null}
+      {name ? <p className="text-sm">{name}</p> : null}
+      {title ? <p className="text-sm text-muted-foreground">{title}</p> : null}
+      {slug ? <p className="text-sm text-muted-foreground">{slug}</p> : null}
+      {proposal.status === "pending" ? (
+        <p className="text-sm text-muted-foreground">{t("Nothing is created until you confirm.")}</p>
+      ) : null}
+      {proposal.status === "confirmed" && proposal.result?.shortUrl ? (
+        <p className="text-sm break-all">{proposal.result.shortUrl}</p>
+      ) : null}
+      {proposal.status === "confirmed" && proposal.result?.path ? (
+        <Link className="text-sm underline" to={proposal.result.path}>
+          {t(openLabel)}
+        </Link>
+      ) : null}
+      {proposal.status === "failed" && proposal.result?.error ? (
+        <p className="text-sm text-destructive">{t(proposal.result.error)}</p>
+      ) : null}
+      {proposal.status === "dismissed" ? <p className="text-sm text-muted-foreground">{t("Dismissed")}</p> : null}
+      {proposal.result?.variants?.map((variant) => (
+        <p key={variant.name} className="text-sm text-muted-foreground">
+          {variant.error ? `${variant.name}: ${t(variant.error)}` : variant.name}
+        </p>
+      ))}
+      {proposal.status === "pending" ? (
+        <div className="flex gap-2">
+          <Button type="button" onClick={() => onConfirm(proposal.id)}>
+            {t("Confirm")}
+          </Button>
+          <Button type="button" variant="outline" onClick={() => onDismiss(proposal.id)}>
+            {t("Dismiss")}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

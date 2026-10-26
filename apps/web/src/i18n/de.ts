@@ -715,6 +715,7 @@ export const de: Record<string, string> = {
   "Chat": "Chat",
   "Chat id": "Chat-ID",
   "Chat not found": "Chat nicht gefunden",
+  "Chats": "Chats",
   "Clear saved key": "Gespeicherten Schlüssel löschen",
   "Could not add this variant.": "Diese Variante konnte nicht hinzugefügt werden.",
   "Could not create the campaign.": "Die Kampagne konnte nicht angelegt werden.",

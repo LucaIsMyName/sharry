@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import type { AiProposal, ChatBlock } from "@sharry/shared";
 import { setActiveLocale } from "../i18n/index.tsx";
-import { ChatConversation, type ChatMessage } from "./chat.tsx";
+import { ChatConversation, chatToOpen, type ChatMessage } from "./chat.tsx";
 
 afterEach(() => {
   cleanup();
@@ -38,6 +38,15 @@ function renderConversation(
     </MemoryRouter>,
   );
 }
+
+describe("chat to open", () => {
+  it("restores the stored chat, then the newest, and leaves a new chat blank", () => {
+    expect(chatToOpen(["older", "newest"], "older", false)).toBe("older");
+    expect(chatToOpen(["older", "newest"], "missing", false)).toBe("older");
+    expect(chatToOpen(["older"], "older", true)).toBeNull();
+    expect(chatToOpen([], "older", false)).toBeNull();
+  });
+});
 
 describe("chat conversation", () => {
   it("offers three starters on a blank chat", () => {
@@ -108,8 +117,12 @@ describe("chat conversation", () => {
         blocks: [table],
       },
     ]);
-    expect(screen.getByRole("heading", { name: "Weekly clicks" })).toBeTruthy();
-    expect(screen.getByRole("cell", { name: "Spring" })).toBeTruthy();
+    const heading = screen.getByRole("heading", { name: "Weekly clicks" });
+    const card = heading.closest("[data-slot=card]");
+    expect(card?.getAttribute("data-slot")).toBe("card");
+    expect(card?.querySelector("[data-slot=card]")).toBeNull();
+    expect(card?.textContent).toContain("Spring");
+    expect(document.querySelectorAll("[data-slot=card]")).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Open analytics" }).getAttribute("href")).toBe("/analytics");
   });
 
