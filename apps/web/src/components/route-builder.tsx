@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import {
   MAX_ROUTING_CONDITIONS,
   MAX_ROUTING_RULES,
+  MAX_ROUTING_VALUES,
   ROUTING_FIELDS,
   ROUTING_FIELD_LABELS,
   ROUTING_OPERATORS,
@@ -18,18 +19,14 @@ import {
   type RoutingChoices,
   type RoutingCondition,
   type RoutingField,
-  type RoutingOperator,
   type RoutingRule,
   type UtmParams,
 } from "@sharry/shared";
 import { Button } from "./ui/button.tsx";
-import { Checkbox } from "./ui/checkbox.tsx";
 import { Select } from "./ui/choice-select.tsx";
 import { Field } from "./ui/field.tsx";
 import { Input } from "./ui/input.tsx";
 import { useI18n } from "../i18n/index.tsx";
-
-const CUSTOM = "__custom__";
 
 export function RouteBuilder({
   rules,
@@ -181,7 +178,6 @@ function ConditionRow({
   onRemove: () => void;
 }) {
   const { t } = useI18n();
-  const [draft, setDraft] = useState<string | null>(null);
   const field = isRoutingField(condition.field) ? condition.field : null;
   const operator = isRoutingOperator(condition.operator) ? condition.operator : null;
   const fieldOptions = [
@@ -195,7 +191,6 @@ function ConditionRow({
 
   function changeField(next: string) {
     if (!isRoutingField(next)) return;
-    setDraft(null);
     onChange(conditionForField(next, choices, locale));
   }
 
@@ -204,14 +199,12 @@ function ConditionRow({
       onChange({ ...condition, operator: next });
       return;
     }
-    setDraft(null);
     const fallback = firstRoutingValue(field, choices, locale);
-    if (next === "any_of") {
-      onChange({ ...condition, operator: next, values: condition.values.length > 0 ? condition.values : fallback ? [fallback] : [] });
-      return;
-    }
-    const single = condition.values[0] ?? fallback ?? "";
-    onChange({ ...condition, operator: next, values: single ? [single] : [] });
+    onChange({
+      ...condition,
+      operator: next,
+      values: condition.values.length > 0 ? condition.values : fallback ? [fallback] : [],
+    });
   }
 
   return (
@@ -219,25 +212,13 @@ function ConditionRow({
       <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
         <Select value={condition.field} options={fieldOptions} onValueChange={changeField} />
         <Select value={condition.operator} options={operatorOptions} onValueChange={changeOperator} />
-        {operator === "any_of" && field ? (
-          <ValueChecks
-            field={field}
-            values={condition.values}
-            choices={choices}
-            locale={locale}
-            onChange={(values) => onChange({ ...condition, values })}
-          />
-        ) : (
-          <SingleValue
-            field={field}
-            values={condition.values}
-            choices={choices}
-            locale={locale}
-            draft={draft}
-            onDraft={setDraft}
-            onChange={(values) => onChange({ ...condition, values })}
-          />
-        )}
+        <MultiValue
+          field={field}
+          values={condition.values}
+          choices={choices}
+          locale={locale}
+          onChange={(values) => onChange({ ...condition, values })}
+        />
       </div>
       <Button type="button" variant="outline" size="icon-sm" aria-label={t("Remove condition")} disabled={!canRemove} onClick={onRemove}>
         <Trash2 />
@@ -246,137 +227,130 @@ function ConditionRow({
   );
 }
 
-function SingleValue({
+function MultiValue({
   field,
   values,
   choices,
   locale,
-  draft,
-  onDraft,
   onChange,
 }: {
   field: RoutingField | null;
   values: string[];
   choices: RoutingChoices;
   locale: string;
-  draft: string | null;
-  onDraft: (draft: string | null) => void;
   onChange: (values: string[]) => void;
 }) {
   const { t } = useI18n();
-  const options = field ? valueOptions(field, values, choices, locale, true) : values.map((value) => ({ value, label: value }));
-  const selected = values[0] ?? "";
-  if (draft !== null || (field && isOpenRoutingField(field) && !selected && options.every((option) => option.value === CUSTOM))) {
-    return (
-      <Input
-        value={draft ?? ""}
-        placeholder={t("Enter a value")}
-        aria-label={t("Enter a value")}
-        onChange={(event) => onDraft(event.target.value)}
-        onBlur={() => commitDraft(draft ?? "", onChange, onDraft)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            commitDraft(draft ?? "", onChange, onDraft);
-          }
-        }}
-      />
-    );
-  }
-  return (
-    <Select
-      value={selected}
-      options={options}
-      onValueChange={(next) => {
-        if (next === CUSTOM) {
-          onDraft("");
-          return;
-        }
-        onChange([next]);
-      }}
-    />
-  );
-}
-
-function ValueChecks({
-  field,
-  values,
-  choices,
-  locale,
-  onChange,
-}: {
-  field: RoutingField;
-  values: string[];
-  choices: RoutingChoices;
-  locale: string;
-  onChange: (values: string[]) => void;
-}) {
-  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const options = valueOptions(field, values, choices, locale, false);
+  const draftRef = useRef("");
+  const rootRef = useRef<HTMLDivElement>(null);
+  const options = field ? valueOptions(field, values, choices, locale) : values.map((value) => ({ value, label: value }));
+  const summary = values
+    .map((value) => {
+      const option = options.find((item) => item.value.toLowerCase() === value.toLowerCase());
+      return option ? t(option.label) : value;
+    })
+    .join(", ");
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  function toggle(value: string) {
+    const selected = values.some((item) => item.toLowerCase() === value.toLowerCase());
+    if (selected) {
+      if (values.length === 1) return;
+      onChange(values.filter((item) => item.toLowerCase() !== value.toLowerCase()));
+      return;
+    }
+    if (values.length >= MAX_ROUTING_VALUES) return;
+    onChange([...values, value]);
+  }
+
+  function setDraftValue(value: string) {
+    draftRef.current = value;
+    setDraft(value);
+  }
+
+  function addCustom() {
+    const value = draftRef.current.trim();
+    setDraftValue("");
+    if (!value || values.some((item) => item.toLowerCase() === value.toLowerCase())) return;
+    if (values.length >= MAX_ROUTING_VALUES) return;
+    onChange([...values, value]);
+  }
+
   return (
-    <div className="grid max-h-48 gap-2 overflow-auto rounded-md border border-border p-2 md:col-span-3">
-      {options.map((option) => {
-        const checked = values.some((value) => value.toLowerCase() === option.value.toLowerCase());
-        return (
-          <label key={option.value} className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={checked}
-              onCheckedChange={(next) => {
-                const on = next === true;
-                if (!on && values.length === 1) return;
-                const without = values.filter((value) => value.toLowerCase() !== option.value.toLowerCase());
-                onChange(on ? [...without, option.value] : without);
+    <div ref={rootRef} className="relative" onKeyDown={(event) => event.key === "Escape" && setOpen(false)}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className="flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="truncate">{summary || t("Choose")}</span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+      </button>
+      {open ? (
+        <div
+          role="listbox"
+          aria-multiselectable="true"
+          className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+        >
+          {options.map((option) => {
+            const selected = values.some((value) => value.toLowerCase() === option.value.toLowerCase());
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                onClick={() => toggle(option.value)}
+              >
+                <span className="flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-input">
+                  {selected ? <Check className="size-3.5" /> : null}
+                </span>
+                {t(option.label)}
+              </button>
+            );
+          })}
+          {field && isOpenRoutingField(field) ? (
+            <Input
+              value={draft}
+              placeholder="Custom…"
+              aria-label="Custom…"
+              className="mt-1"
+              onChange={(event) => setDraftValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                addCustom();
               }}
+              onBlur={addCustom}
             />
-            {t(option.label)}
-          </label>
-        );
-      })}
-      {isOpenRoutingField(field) ? (
-        <div className="flex gap-2">
-          <Input
-            value={draft}
-            placeholder={t("Custom…")}
-            aria-label={t("Custom…")}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              const value = draft.trim();
-              if (!value || values.some((item) => item.toLowerCase() === value.toLowerCase())) return;
-              onChange([...values, value]);
-              setDraft("");
-            }}
-          />
+          ) : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-function valueOptions(
-  field: RoutingField,
-  selected: string[],
-  choices: RoutingChoices,
-  locale: string,
-  includeCustom: boolean,
-) {
+function valueOptions(field: RoutingField, selected: string[], choices: RoutingChoices, locale: string) {
   if (isOpenRoutingField(field)) {
-    const values = unique([...(choices[field] ?? []), ...selected]);
-    const options = values.map((value) => ({ value, label: value }));
-    return includeCustom ? [...options, { value: CUSTOM, label: "Custom…" }] : options;
+    return unique([...(choices[field] ?? []), ...selected]).map((value) => ({ value, label: value }));
   }
   const catalog = routingCatalog(field, locale).map((option) => ({ value: option.id, label: option.label }));
   const known = new Set(catalog.map((option) => option.value.toLowerCase()));
   const stale = selected.filter((value) => value.trim() && !known.has(value.trim().toLowerCase()));
   return [...catalog, ...stale.map((value) => ({ value, label: value }))];
-}
-
-function commitDraft(draft: string, onChange: (values: string[]) => void, onDraft: (draft: string | null) => void) {
-  const value = draft.trim();
-  onDraft(null);
-  if (value && value !== CUSTOM) onChange([value]);
 }
 
 function mergeChoices(choices: RoutingChoices | undefined, utm: UtmParams): RoutingChoices {

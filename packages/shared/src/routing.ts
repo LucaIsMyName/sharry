@@ -12,7 +12,7 @@ export const ROUTING_FIELDS = [
   'utm_content',
 ] as const
 
-export const ROUTING_OPERATORS = ['is', 'is_not', 'any_of'] as const
+export const ROUTING_OPERATORS = ['is', 'is_not'] as const
 
 export const OPEN_ROUTING_FIELDS = ['utm_campaign', 'utm_id', 'utm_term', 'utm_content'] as const
 
@@ -110,7 +110,6 @@ export const ROUTING_FIELD_LABELS: Record<RoutingField, string> = {
 export const ROUTING_OPERATOR_LABELS: Record<RoutingOperator, string> = {
   is: 'is',
   is_not: 'is not',
-  any_of: 'is any of',
 }
 
 const COUNTRY_CODE_LIST = `
@@ -208,7 +207,8 @@ export function canonicalRoutingValue(field: string, value: string): string | nu
 
 export function routeHasUnrecognizedValue(rule: RoutingRule): boolean {
   for (const condition of rule.conditions ?? []) {
-    if (!isRoutingField(condition.field) || !isRoutingOperator(condition.operator)) return true
+    const operator = canonicalOperator(condition.operator)
+    if (!isRoutingField(condition.field) || !isRoutingOperator(operator)) return true
     for (const value of condition.values ?? []) {
       if (!canonicalRoutingValue(condition.field, value)) return true
     }
@@ -244,7 +244,7 @@ export function normalizeRoutingRules(rules: unknown): RoutingRule[] {
           .filter((value): value is string => typeof value === 'string')
           .map((value) => canonicalRoutingValue(condition.field, value) ?? value.trim())
           .filter(Boolean)
-        return [{ field: condition.field, operator: condition.operator, values }]
+        return [{ field: condition.field, operator: canonicalOperator(condition.operator), values }]
       }),
     })
   }
@@ -290,8 +290,9 @@ function matchCondition(condition: unknown, context: RoutingContext): boolean | 
   if (!condition || typeof condition !== 'object') return 'skip'
   const candidate = condition as Partial<RoutingCondition>
   const field = candidate.field
-  const operator = candidate.operator
-  if (typeof field !== 'string' || typeof operator !== 'string') return 'skip'
+  const rawOperator = candidate.operator
+  if (typeof field !== 'string' || typeof rawOperator !== 'string') return 'skip'
+  const operator = canonicalOperator(rawOperator)
   if (!isRoutingField(field) || !isRoutingOperator(operator)) return 'skip'
   if (!Array.isArray(candidate.values) || candidate.values.length > MAX_ROUTING_VALUES) return 'skip'
   const recognized = candidate.values
@@ -305,6 +306,10 @@ function matchCondition(condition: unknown, context: RoutingContext): boolean | 
     : recognized.some((value) => value.toLowerCase() === actualValue(field, context))
   if (operator === 'is_not') return !matched
   return matched
+}
+
+function canonicalOperator(operator: string): RoutingOperator | string {
+  return operator === 'any_of' ? 'is' : operator
 }
 
 function actualValue(field: RoutingField, context: RoutingContext): string {

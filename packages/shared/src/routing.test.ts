@@ -5,6 +5,7 @@ import {
   countryOptions,
   emptyRoutingChoices,
   matchRoute,
+  normalizeRoutingRules,
   routeHasUnrecognizedValue,
   type RoutingContext,
   type RoutingRule,
@@ -54,7 +55,7 @@ describe('matchRoute', () => {
     expect(matchRoute(rules, { ...context, device: 'mobile' })).toBe('https://example.com/chrome-mobile')
   })
 
-  it('matches is not, any of, referrer suffixes, and query utm without case', () => {
+  it('matches a group of values, a stored any of, referrer suffixes, and query utm without case', () => {
     expect(
       matchRoute(
         [rule({ destinationUrl: 'https://example.com/other', conditions: [{ field: 'browser', operator: 'is_not', values: ['safari'] }] })],
@@ -63,10 +64,25 @@ describe('matchRoute', () => {
     ).toBe('https://example.com/other')
     expect(
       matchRoute(
-        [rule({ destinationUrl: 'https://example.com/browsers', conditions: [{ field: 'browser', operator: 'any_of', values: ['firefox', 'chrome'] }] })],
+        [rule({ destinationUrl: 'https://example.com/browsers', conditions: [{ field: 'browser', operator: 'is', values: ['firefox', 'chrome'] }] })],
         context,
       ),
     ).toBe('https://example.com/browsers')
+    expect(
+      matchRoute(
+        [rule({ destinationUrl: 'https://example.com/neither', conditions: [{ field: 'browser', operator: 'is_not', values: ['firefox', 'chrome'] }] })],
+        context,
+      ),
+    ).toBeNull()
+    expect(
+      matchRoute(
+        [rule({ destinationUrl: 'https://example.com/stored', conditions: [{ field: 'browser', operator: 'any_of', values: ['firefox', 'chrome'] }] })],
+        context,
+      ),
+    ).toBe('https://example.com/stored')
+    expect(normalizeRoutingRules([rule({ destinationUrl: 'https://example.com/stored', conditions: [{ field: 'browser', operator: 'any_of', values: ['Chrome'] }] })])).toEqual([
+      rule({ destinationUrl: 'https://example.com/stored', conditions: [{ field: 'browser', operator: 'is', values: ['chrome'] }] }),
+    ])
     expect(
       matchRoute(
         [rule({ destinationUrl: 'https://example.com/google', conditions: [{ field: 'referrer', operator: 'is', values: ['google'] }] })],
@@ -179,6 +195,14 @@ describe('routing catalogs', () => {
         rule({
           destinationUrl: 'https://example.com/one',
           conditions: [{ field: 'browser', operator: 'is', values: ['chrome', 'safari'] }],
+        }),
+      ]).success,
+    ).toBe(true)
+    expect(
+      routingRulesSchema.safeParse([
+        rule({
+          destinationUrl: 'https://example.com/old',
+          conditions: [{ field: 'browser', operator: 'any_of', values: ['chrome'] }],
         }),
       ]).success,
     ).toBe(false)

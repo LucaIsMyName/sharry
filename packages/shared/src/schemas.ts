@@ -38,17 +38,11 @@ export const redirectTypeSchema = z.enum(['301', '302', '307', '308'])
 
 const routingValueSchema = z.string().trim().min(1).max(200)
 
-export const routingConditionSchema = z
-  .object({
-    field: z.enum(ROUTING_FIELDS),
-    operator: z.enum(ROUTING_OPERATORS),
-    values: z.array(routingValueSchema).min(1, 'Choose a value').max(MAX_ROUTING_VALUES, 'Choose at most 30 values'),
-  })
-  .superRefine((condition, ctx) => {
-    if (condition.operator !== 'any_of' && condition.values.length !== 1) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Choose one value' })
-    }
-  })
+export const routingConditionSchema = z.object({
+  field: z.enum(ROUTING_FIELDS),
+  operator: z.enum(ROUTING_OPERATORS),
+  values: z.array(routingValueSchema).min(1, 'Choose a value').max(MAX_ROUTING_VALUES, 'Choose at most 30 values'),
+})
 
 export const routingRulesSchema = z
   .array(
