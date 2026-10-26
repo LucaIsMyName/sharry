@@ -8,6 +8,7 @@ import { downloadAnalyticsPdf } from "./analytics-pdf.ts";
 import { clampWindow, inclusiveDays, initialWindow, maxAnalyticsDays, trackStartFor, utcToday } from "./analytics-range.ts";
 import { DateRangeSlider } from "./date-range-slider.tsx";
 import { SuggestButton } from "../components/suggest-button.tsx";
+import { UtmSuggest } from "../components/utm-suggest.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
@@ -319,6 +320,15 @@ function LinkForm({
               </div>
             </Field>
             <p className="text-sm text-muted-foreground">{t("The slug can be skipped.")}</p>
+            <UtmSuggest
+              aiAvailable={aiAvailable}
+              destinationUrl={destinationUrl}
+              onApply={(utm) => {
+                if (utm.utm_source) setUtmSource(utm.utm_source);
+                if (utm.utm_medium) setUtmMedium(utm.utm_medium);
+                if (utm.utm_campaign) setUtmCampaign(utm.utm_campaign);
+              }}
+            />
             <Field label="UTM source">
               <Input value={utmSource} onChange={(event) => setUtmSource(event.target.value)} />
             </Field>

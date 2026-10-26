@@ -145,7 +145,7 @@ describe("chat conversation", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Suggest a title" }));
     expect(await screen.findByDisplayValue("Pricing | ipstack")).toBeTruthy();
-    expect(screen.getByText("Suggested from the page title.")).toBeTruthy();
+    expect(await screen.findByText("Suggested from the page title.")).toBeTruthy();
     expect(api).toHaveBeenCalledWith("/api/ai/suggest-slug", {
       method: "POST",
       body: JSON.stringify({ destinationUrl: "https://ipstack.com/pricing/" }),

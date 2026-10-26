@@ -123,6 +123,7 @@ export type Analytics = {
   utmContents: { name: string; clicks: number }[];
   campaigns: { name: string; clicks: number }[];
   qrCodes: { id: string; name: string; clicks: number }[];
+  earliestCreatedAt?: string;
 };
 
 export type QrCode = {

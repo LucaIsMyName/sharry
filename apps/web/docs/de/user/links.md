@@ -24,6 +24,10 @@ Ein neuer Link braucht ein `http`- oder `https`-Ziel, höchstens 4096 Zeichen. T
 
 Wenn die KI in den Einstellungen eingeschaltet ist, zeigen die Felder für Slug und Titel bei einem neuen und bei einem gespeicherten Link je einen Knopf. Er liest die Zielseite und schlägt einen freien Slug oder den Seitentitel vor, sobald das Ziel eine gültige URL ist. Ein Tooltip sagt, woher der Vorschlag kommt. Beides kannst du ändern. Gespeichert wird erst, wenn du den Link speicherst. Die Knöpfe bleiben verborgen, solange die KI aus ist.
 
+Derselbe Schalter zeigt UTM vorschlagen über den UTM-Feldern bei einem neuen Link, einem gespeicherten Link und im Kurzlink-Formular im Chat. Eine optionale Zeile sagt, wo du den Link teilst, zum Beispiel „October newsletter“ oder „Instagram bio“. UTM vorschlagen füllt Quelle, Medium und Kampagne. Die übrigen UTM-Felder bleiben, wie sie sind. Gespeichert wird erst, wenn du speicherst.
+
+In der Linkliste nimmt Mehrere hinzufügen bis zu 20 Ziel-URLs an, eine pro Zeile. Prüfen zeigt einen Titel und einen freien Slug für jede Seite. Ein fehlender Titel oder ein Titel, der nur der Seitenname ist, wird neu formuliert. Nimm das Häkchen von einer Zeile, um sie auszulassen. Links anlegen speichert die Zeilen, die du behältst.
+
 Das Ablaufdatum wird in deiner lokalen Zeit eingegeben und in UTC gespeichert. Ein leeres Ablaufdatum läuft nie ab. Ein abgelaufener Link leitet nicht mehr weiter.
 
 Pausieren setzt den Status auf deaktiviert. Ein pausierter Link leitet nicht weiter. Schalte ihn zurück auf Aktiv, um denselben Slug und die Klickhistorie wiederherzustellen.
@@ -35,6 +39,8 @@ Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formular
 ## Routen
 
 Routen sind optional. Lass die Liste leer, dann nutzt jeder Besuch das Ziel.
+
+Wenn die KI eingeschaltet ist, nimmt eine Zeile über den Routen einen Satz an, zum Beispiel „iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de“. Routen entwerfen hängt diese Regeln an die Liste. Du kannst sie ändern oder entfernen. Gespeichert werden sie erst, wenn du den Link speicherst.
 
 Füge eine Route hinzu, um manche Besuche an eine andere `http`- oder `https`-URL zu schicken. Jede Route kann so viele Bedingungen haben, wie du brauchst, und jede Bedingung dieser Route muss passen. Routen laufen von oben nach unten. Die erste passende Route wird verwendet. Schiebe eine Route nach oben oder unten, um die Reihenfolge zu ändern. Eine Route kann einen Namen haben. Lass ihn leer, dann wird die Route als Route 1, Route 2 und so weiter angezeigt.
 

@@ -119,6 +119,27 @@ export const suggestSlugSchema = z.object({
   linkId: z.string().uuid().optional(),
 })
 
+export const suggestUtmSchema = z.object({
+  destinationUrl: destinationSchema,
+  placement: z.string().trim().max(200).optional(),
+})
+
+export const suggestRoutesSchema = z.object({
+  instruction: z.string().trim().min(1, 'Describe the routes.').max(500),
+})
+
+export const summarizeAnalyticsSchema = queryAnalyticsSchema
+
+export const suggestVariantsSchema = z.object({
+  instruction: z.string().trim().min(1, 'Name the variants.').max(500),
+})
+
+export const bulkLinkLimit = 20
+
+export const suggestLinksSchema = z.object({
+  urls: z.array(z.string().trim().min(1).max(4096)).min(1).max(bulkLinkLimit),
+})
+
 export const analyticsFormPrefillSchema = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

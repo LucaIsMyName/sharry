@@ -14,6 +14,10 @@ A request is a bot when the user agent is empty or matches a crawler, preview fe
 
 Country and region stay empty unless `GEOIP_DB_PATH` points at a local MaxMind database on the server. Sharry does not call a GeoIP service.
 
+## A written summary
+
+When AI is turned on, Overview, Analytics, and the chart on a link each show a date range and Summarize. The range starts on the last 30 days. The slider runs from the oldest link you can see, or from 400 days ago when that day is unknown, through today. On a link, the slider starts on the day that link was created. A range longer than 400 days asks you to narrow it. Summarize writes two or three sentences for that range: the totals, whether the later half rose or fell, and the top referrer, country, or UTM value. Choosing one link on Analytics summarizes that link. The sentences are not stored.
+
 ## Date range
 
 `from` and `to` are UTC calendar days and both ends are included. `from=2026-10-20&to=2026-10-20` is that single day. Omit `to` to end at the current time. A range longer than 400 days is rejected so the daily series cannot drop days while the totals still count them. The start must be before the end.

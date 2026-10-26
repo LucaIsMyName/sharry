@@ -42,7 +42,12 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
     const settings = await getSettings(app.db, app.env)
     const filter = { visibility: visibleLinksWhere(actor, settings, 'links') }
     const analytics = await loadAnalytics(app.db, filter, range)
-    return { ...analytics, links: await loadLinkStats(app.db, visibleLinksWhere(actor, settings, 'l'), range) }
+    const earliestCreatedAt = await earliestLinkDay(app.db, filter.visibility)
+    return {
+      ...analytics,
+      ...(earliestCreatedAt ? { earliestCreatedAt } : {}),
+      links: await loadLinkStats(app.db, visibleLinksWhere(actor, settings, 'l'), range),
+    }
   })
 
   /**
@@ -65,6 +70,17 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
 }
 
 type ClickFilter = { linkId?: string; visibility: SQL | null }
+
+async function earliestLinkDay(db: Database, visibility: SQL | null): Promise<string | undefined> {
+  const rows = rowsOf<{ created_at: string | null }>(
+    await db.execute(sql`
+      select to_char(min(created_at) at time zone 'UTC', 'YYYY-MM-DD') as created_at
+      from links
+      where ${visibility ?? sql`true`}
+    `),
+  )
+  return rows[0]?.created_at || undefined
+}
 
 export async function recordClick(db: Database, draft: ClickDraft): Promise<void> {
   await db.insert(clickEvents).values({

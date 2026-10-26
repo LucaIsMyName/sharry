@@ -24,6 +24,10 @@ A new link needs an `http` or `https` destination, up to 4096 characters. Title 
 
 When AI is turned on in Settings, the slug and title fields on a new link and on a saved link each show a button. It reads the destination page and suggests a free slug or the page title once that destination is a valid URL. A tooltip says where the suggestion came from. You can change either value. Nothing is stored until you save the link. The buttons stay hidden when AI is off.
 
+The same switch shows Suggest UTM above the UTM fields on a new link, a saved link, and the short-link form in Chat. An optional line says where you will share the link, such as “October newsletter” or “Instagram bio”. Suggest UTM fills source, medium, and campaign. The other UTM fields stay as they are. Nothing is stored until you save.
+
+On the links list, Add several accepts up to 20 destination URLs, one per line. Review shows a title and a free slug for each page. A title that is missing or is only the site name is rewritten. Uncheck a row to leave it out. Create links stores the rows you keep.
+
 Expiry is entered in your local time and stored in UTC. A blank expiry never expires. An expired link stops redirecting.
 
 Pause sets the status to disabled. A paused link does not redirect. Switch it back to Active to restore the same slug and click history.
@@ -35,6 +39,8 @@ Save link is in the page header and again at the end of the form. Both buttons s
 ## Routes
 
 Routes are optional. Leave the list empty and every visit uses the destination.
+
+When AI is on, a line above the routes accepts one sentence, such as “iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de”. Draft routes adds those rules to the list. You can edit or remove them. They are stored only when you save the link.
 
 Add a route to send some visits to a different `http` or `https` URL. Each route can have as many conditions as you need, and every condition on that route has to match. Routes run from top to bottom. The first matching route is used. Move a route up or down to change which one is checked first. A route can have a name. Leave it empty and the route is shown as Route 1, Route 2, and so on.
 

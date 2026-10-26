@@ -374,6 +374,118 @@ describe('AI settings and chat', () => {
     }
   })
 
+  it('suggests UTM, routes, a summary, variants, and pasted links without storing them', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const blocked = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/ai/suggest-utm',
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/pricing' },
+    })
+    expect(blocked.statusCode).toBe(503)
+    await saveAi(admin.cookie, { aiApiKey: 'sk-test-secret' })
+    const lookup = pageIo.lookup
+    pageIo.lookup = async () => [{ address: '93.184.216.34', family: 4 }]
+    const replies = new Map<string, string>()
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const target = String(url)
+      if (target.includes('api.openai.com')) {
+        const prompt = String(init?.body ?? '')
+        const content = prompt.includes('routing rules')
+          ? JSON.stringify({
+              rules: [
+                {
+                  name: 'Germany',
+                  destinationUrl: 'https://example.com/de',
+                  conditions: [{ field: 'country', operator: 'is', values: ['DE'] }],
+                },
+              ],
+            })
+          : prompt.includes('campaign variants')
+            ? JSON.stringify({
+                description: 'Launch copies.',
+                variants: [{ name: 'Newsletter', utm_source: 'newsletter', utm_medium: 'email', utm_campaign: 'launch' }],
+              })
+            : prompt.includes('name Sharry short links')
+              ? JSON.stringify({ titles: ['October pricing'] })
+              : prompt.includes('summarize Sharry analytics')
+                ? 'From the range: 0 clicks.'
+                : JSON.stringify({ utm_source: 'newsletter', utm_medium: 'email', utm_campaign: 'october' })
+        replies.set(prompt.slice(0, 80), content)
+        return sse([{ choices: [{ delta: { content } }] }])
+      }
+      if (target.includes('/guide')) {
+        return new Response('<html><title>Pricing guide</title></html>', { status: 200, headers: { 'content-type': 'text/html' } })
+      }
+      return new Response('<html><title>Example</title></html>', { status: 200, headers: { 'content-type': 'text/html' } })
+    })
+    try {
+      const utm = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-utm',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'https://example.com/pricing', placement: 'October newsletter' },
+      })
+      expect(utm.statusCode).toBe(200)
+      expect(utm.json()).toEqual({ utm: { utm_source: 'newsletter', utm_medium: 'email', utm_campaign: 'october' } })
+
+      const routes = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-routes',
+        headers: { cookie: user.cookie },
+        payload: { instruction: 'Germany goes to https://example.com/de' },
+      })
+      expect(routes.statusCode).toBe(200)
+      expect(routes.json().rules[0]).toMatchObject({
+        name: 'Germany',
+        destinationUrl: 'https://example.com/de',
+        conditions: [{ field: 'country', operator: 'is', values: ['DE'] }],
+      })
+
+      const summary = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/summarize-analytics',
+        headers: { cookie: user.cookie },
+        payload: { from: '2026-10-01', to: '2026-10-20' },
+      })
+      expect(summary.statusCode).toBe(200)
+      expect(summary.json().summary).toBe('From the range: 0 clicks.')
+      expect(summary.json().from).toBe('2026-10-01')
+      expect(summary.json().to).toBe('2026-10-20')
+
+      const variants = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-variants',
+        headers: { cookie: user.cookie },
+        payload: { instruction: 'newsletter' },
+      })
+      expect(variants.statusCode).toBe(200)
+      expect(variants.json()).toEqual({
+        description: 'Launch copies.',
+        variants: [{ name: 'Newsletter', utm: { utm_source: 'newsletter', utm_medium: 'email', utm_campaign: 'launch' } }],
+      })
+
+      const pasted = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-links',
+        headers: { cookie: user.cookie },
+        payload: { urls: ['https://example.com/pricing', 'https://example.com/guide', 'not a url'] },
+      })
+      expect(pasted.statusCode).toBe(200)
+      expect(pasted.json().rows).toEqual([
+        { destinationUrl: 'https://example.com/pricing', title: 'October pricing', slug: 'october-pricing' },
+        { destinationUrl: 'https://example.com/guide', title: 'Pricing guide', slug: 'pricing-guide' },
+        { destinationUrl: 'not a url', title: '', slug: '', error: 'Enter a valid http or https URL' },
+      ])
+      expect(await ctx.db.select().from(links)).toHaveLength(0)
+      expect(replies.size).toBeGreaterThan(0)
+    } finally {
+      pageIo.lookup = lookup
+    }
+  })
+
   it('lists only the caller links on an analytics form and charts stored clicks', async () => {
     const ctx = await getContext()
     const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })

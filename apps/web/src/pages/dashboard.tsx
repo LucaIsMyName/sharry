@@ -18,6 +18,8 @@ import {
   TableRow,
 } from "../components/ui/table.tsx";
 import { useI18n } from "../i18n/index.tsx";
+import { AnalyticsSummary, useReportRange } from "../components/analytics-summary.tsx";
+import { useAiAvailable } from "../components/use-ai.ts";
 import { ClickChart } from "./analytics.tsx";
 
 export function DashboardPage() {
@@ -26,22 +28,30 @@ export function DashboardPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [earliest, setEarliest] = useState<string | undefined>();
+  const aiAvailable = useAiAvailable();
+  const report = useReportRange(earliest);
 
   useEffect(() => {
+    const analyticsPath = aiAvailable
+      ? `/api/analytics?from=${report.range.from}&to=${report.range.to}`
+      : "/api/analytics";
     void Promise.all([
       api<{ links: LinkSummary[] }>("/api/links?limit=5"),
-      api<Analytics>("/api/analytics"),
+      api<Analytics>(analyticsPath),
     ])
       .then(([linkData, analyticsData]) => {
         setLinks(linkData.links);
         setAnalytics(analyticsData);
+        setFailed(false);
+        if (analyticsData.earliestCreatedAt) setEarliest(analyticsData.earliestCreatedAt);
       })
       .catch((caught: unknown) => {
         setFailed(true);
         toastCaught(caught, t("Could not load the overview"));
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [aiAvailable, report.range.from, report.range.to]);
 
   return (
     <section>
@@ -93,7 +103,14 @@ export function DashboardPage() {
       </div>
       {failed ? null : (
         <Card className="mt-4">
-          <CardContent>
+          <CardContent className="grid gap-4">
+            {aiAvailable && analytics ? (
+              <AnalyticsSummary
+                earliest={earliest}
+                range={report.range}
+                onRange={(from, to) => report.setRange({ from, to })}
+              />
+            ) : null}
             {analytics ? (
               <ClickChart series={analytics.series} />
             ) : null}

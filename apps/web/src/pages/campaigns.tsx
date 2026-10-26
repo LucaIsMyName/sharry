@@ -8,7 +8,9 @@ import { EmptyState } from "../components/empty-state.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
+import { useAiAvailable } from "../components/use-ai.ts";
 import { UtmFields, utmSummary } from "../components/utm-fields.tsx";
+import { VariantDrafts } from "../components/variant-drafts.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
@@ -182,6 +184,7 @@ export function CampaignDetailPage() {
   const [savingVariant, setSavingVariant] = useState(false);
   const campaignLoad = useRef(0);
   const linkLoad = useRef(0);
+  const aiAvailable = useAiAvailable();
 
   function rememberLinks(rows: ShortLink[]) {
     setKnownLinks((current) => {
@@ -486,6 +489,19 @@ export function CampaignDetailPage() {
               ) : null}
             </div>
           </form>
+          {aiAvailable && !editingId ? (
+            <VariantDrafts
+              campaignId={id}
+              linkId={linkId}
+              description={campaignDescription}
+              onDescription={setCampaignDescription}
+              onUse={(draft) => {
+                setName(draft.name);
+                setUtm(draft.utm);
+              }}
+              onSaved={loadCampaign}
+            />
+          ) : null}
         </CardContent>
       </Card>
       <Card>

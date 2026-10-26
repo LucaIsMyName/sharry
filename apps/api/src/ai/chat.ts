@@ -7,7 +7,12 @@ import {
   aiConnectionTestSchema,
   aiIsAvailable,
   sendChatMessageSchema,
+  suggestLinksSchema,
+  suggestRoutesSchema,
   suggestSlugSchema,
+  suggestUtmSchema,
+  suggestVariantsSchema,
+  summarizeAnalyticsSchema,
   type AiConnectionTestInput,
   type AiProposal,
   type ChatBlock,
@@ -19,6 +24,13 @@ import { AppError, decryptString, parseBody } from '../support.ts'
 import { aiSystemPrompt } from './prompt.ts'
 import { mistralCompletionsBase, streamCompletion, type AiToolCall, type AiTurnMessage, type ProviderConfig } from './provider.ts'
 import { suggestFreeSlug } from './page-slug.ts'
+import {
+  suggestLinkRows,
+  suggestRouteRules,
+  suggestUtmValues,
+  suggestVariantDrafts,
+  summarizeAnalyticsForActor,
+} from './assist.ts'
 import {
   aiToolDefs,
   applyFormSubmission,
@@ -55,6 +67,82 @@ export function registerAiRoutes(app: FastifyInstance): void {
     const suggested = await suggestFreeSlug(app.db, body.destinationUrl, { exceptLinkId: body.linkId })
     if (!suggested) throw new AppError(422, 'Could not suggest a slug for that page.')
     return suggested
+  })
+
+  /**
+   * Suggest utm_source, utm_medium, and utm_campaign from a destination page and an optional placement line. Nothing is stored.
+   * @route POST /api/ai/suggest-utm
+   * @tag AI
+   * @auth api-key or session
+   * @body JSON { destinationUrl, placement? }
+   * @response 200 { utm }
+   */
+  app.post('/api/ai/suggest-utm', async (request) => {
+    await requireUser(app, request, ['full'])
+    const ready = await requireAi(app)
+    const body = parseBody(suggestUtmSchema, request.body ?? {})
+    return suggestUtmValues(ready.config, body)
+  })
+
+  /**
+   * Draft routing rules from one sentence. Nothing is stored.
+   * @route POST /api/ai/suggest-routes
+   * @tag AI
+   * @auth api-key or session
+   * @body JSON { instruction }
+   * @response 200 { rules }
+   */
+  app.post('/api/ai/suggest-routes', async (request) => {
+    await requireUser(app, request, ['full'])
+    const ready = await requireAi(app)
+    const body = parseBody(suggestRoutesSchema, request.body ?? {})
+    return suggestRouteRules(ready.config, body.instruction)
+  })
+
+  /**
+   * Write two or three sentences for the analytics the caller can see. Nothing is stored.
+   * @route POST /api/ai/summarize-analytics
+   * @tag AI
+   * @auth api-key or session
+   * @body JSON { from?, to?, linkId?, slug? }
+   * @response 200 { summary, from, to }
+   */
+  app.post('/api/ai/summarize-analytics', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const ready = await requireAi(app)
+    const body = parseBody(summarizeAnalyticsSchema, request.body ?? {})
+    const locale = await userLocale(app.db, actor.id)
+    return summarizeAnalyticsForActor(app.db, actor, ready.settings, locale, ready.config, body)
+  })
+
+  /**
+   * Draft campaign variants and a description from one sentence. Nothing is stored.
+   * @route POST /api/ai/suggest-variants
+   * @tag AI
+   * @auth api-key or session
+   * @body JSON { instruction }
+   * @response 200 { description, variants }
+   */
+  app.post('/api/ai/suggest-variants', async (request) => {
+    await requireUser(app, request, ['full'])
+    const ready = await requireAi(app)
+    const body = parseBody(suggestVariantsSchema, request.body ?? {})
+    return suggestVariantDrafts(ready.config, body.instruction)
+  })
+
+  /**
+   * Suggest a title and a free slug for up to 20 destination URLs. Nothing is stored.
+   * @route POST /api/ai/suggest-links
+   * @tag AI
+   * @auth api-key or session
+   * @body JSON { urls }
+   * @response 200 { rows }
+   */
+  app.post('/api/ai/suggest-links', async (request) => {
+    await requireUser(app, request, ['full'])
+    const ready = await requireAi(app)
+    const body = parseBody(suggestLinksSchema, request.body ?? {})
+    return suggestLinkRows(app.db, body.urls, { config: ready.config })
   })
 
   /**
@@ -546,6 +634,14 @@ function savedApiKey(settings: AppSettings, encryptionKey: string): string {
   } catch {
     return ''
   }
+}
+
+async function requireAi(app: FastifyInstance): Promise<{ settings: AppSettings; config: ProviderConfig }> {
+  const settings = await getSettings(app.db, app.env)
+  if (!configured(settings)) throw new AppError(503, 'AI is not available.', 'ai_unavailable')
+  const config = providerConfig(settings, app.env.ENCRYPTION_KEY)
+  if (!config) throw new AppError(503, 'AI is not available.', 'ai_unavailable')
+  return { settings, config }
 }
 
 function providerConfig(settings: AppSettings, encryptionKey: string): ProviderConfig | null {

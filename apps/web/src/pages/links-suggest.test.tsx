@@ -75,7 +75,7 @@ describe("link editor suggestions", () => {
     fireEvent.click(slugButton);
     expect(await screen.findByDisplayValue("pricing-ipstack")).toBeTruthy();
     expect(screen.getByDisplayValue("Old")).toBeTruthy();
-    expect(screen.getByText("Suggested from the page title.")).toBeTruthy();
+    expect(await screen.findByText("Suggested from the page title.")).toBeTruthy();
     expect(api).toHaveBeenCalledWith("/api/ai/suggest-slug", {
       method: "POST",
       body: JSON.stringify({ destinationUrl: "https://ipstack.com/pricing/", linkId }),
@@ -85,7 +85,7 @@ describe("link editor suggestions", () => {
     fireEvent.click(titleButton);
     expect(await screen.findByDisplayValue("Pricing | ipstack")).toBeTruthy();
     expect(screen.getByDisplayValue("mine")).toBeTruthy();
-    expect(screen.getByText("Suggested from the page title.")).toBeTruthy();
+    expect(await screen.findByText("Suggested from the page title.")).toBeTruthy();
   });
 
   it("suggests from a new link once the destination is a URL", async () => {

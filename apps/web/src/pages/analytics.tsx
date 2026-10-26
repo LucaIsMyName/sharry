@@ -28,6 +28,8 @@ import {
 } from "../components/ui/table.tsx";
 import { cn } from "cn";
 import { chartDayLabel } from "../chart-day.ts";
+import { AnalyticsSummary, useReportRange } from "../components/analytics-summary.tsx";
+import { useAiAvailable } from "../components/use-ai.ts";
 import { useI18n } from "../i18n/index.tsx";
 
 export function AnalyticsPage() {
@@ -37,23 +39,28 @@ export function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [links, setLinks] = useState<LinkStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [earliest, setEarliest] = useState<string | undefined>();
+  const aiAvailable = useAiAvailable();
+  const report = useReportRange(linkId ? undefined : earliest);
   const selected = links.find((link) => link.id === linkId) ?? null;
 
   useEffect(() => {
     let cancelled = false;
     setAnalytics(null);
     setLoading(true);
-    const overview = api<Analytics & { links: LinkStat[] }>("/api/analytics")
+    const rangeQuery = aiAvailable ? `?from=${report.range.from}&to=${report.range.to}` : "";
+    const overview = api<Analytics & { links: LinkStat[] }>(`/api/analytics${rangeQuery}`)
       .then((combined) => {
         if (cancelled) return;
         setLinks(combined.links);
+        if (combined.earliestCreatedAt) setEarliest(combined.earliestCreatedAt);
         if (!linkId) setAnalytics(combined);
       })
       .catch((caught: unknown) => {
         if (!cancelled) toastCaught(caught, t("Could not load analytics"));
       });
     if (linkId) {
-      void api<Analytics>(`/api/links/${linkId}/analytics`)
+      void api<Analytics>(`/api/links/${linkId}/analytics${rangeQuery}`)
         .then((result) => {
           if (!cancelled) setAnalytics(result);
         })
@@ -71,7 +78,7 @@ export function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, [linkId]);
+  }, [linkId, aiAvailable, report.range.from, report.range.to]);
 
   return (
     <section>
@@ -129,7 +136,15 @@ export function AnalyticsPage() {
             </Card>
           </div>
           <Card>
-            <CardContent>
+            <CardContent className="grid gap-4">
+              {aiAvailable ? (
+                <AnalyticsSummary
+                  linkId={linkId ?? undefined}
+                  earliest={linkId ? undefined : earliest}
+                  range={report.range}
+                  onRange={(from, to) => report.setRange({ from, to })}
+                />
+              ) : null}
               <ClickChart series={analytics.series} />
             </CardContent>
           </Card>

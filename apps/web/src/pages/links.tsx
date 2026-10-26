@@ -17,6 +17,7 @@ import {
   defaultQrStyle,
   destinationSchema,
   emptyRoutingChoices,
+  MAX_ROUTING_RULES,
   qrWarnings,
   utmConflicts,
   type QrStyle,
@@ -36,7 +37,12 @@ import {
 } from "../api.ts";
 import { useAppName } from "../brand.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { AnalyticsSummary, useReportRange } from "../components/analytics-summary.tsx";
+import { BulkLinks } from "../components/bulk-links.tsx";
+import { RouteSuggest } from "../components/route-suggest.tsx";
 import { SuggestButton } from "../components/suggest-button.tsx";
+import { useAiAvailable } from "../components/use-ai.ts";
+import { UtmSuggest } from "../components/utm-suggest.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
@@ -199,10 +205,13 @@ export function LinksPage() {
   const [links, setLinks] = useState<LinkSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
+  const [reload, setReload] = useState(0);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const requestId = useRef(0);
+  const aiAvailable = useAiAvailable();
 
   useEffect(() => {
     const current = ++requestId.current;
@@ -227,7 +236,7 @@ export function LinksPage() {
         });
     }, 200);
     return () => clearTimeout(handle);
-  }, [query]);
+  }, [query, reload]);
 
   async function loadMore() {
     const current = requestId.current;
@@ -259,11 +268,19 @@ export function LinksPage() {
         title={t("Links")}
         lede={t("The slug stays put when you edit where it goes.")}
         action={
-          <Link className={buttonVariants({ size: "sm" })} to="/links/new">
-            <Plus /> {t("New link")}
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {aiAvailable ? (
+              <Button variant="outline" size="sm" type="button" onClick={() => setBulkOpen((open) => !open)}>
+                {bulkOpen ? t("Close") : t("Add several")}
+              </Button>
+            ) : null}
+            <Link className={buttonVariants({ size: "sm" })} to="/links/new">
+              <Plus /> {t("New link")}
+            </Link>
+          </div>
         }
       />
+      {aiAvailable && bulkOpen ? <BulkLinks onCreated={() => setReload((value) => value + 1)} /> : null}
       <Field label="Search">
         <Input
           value={query}
@@ -476,24 +493,6 @@ function RedirectDomainField({
   );
 }
 
-function useAiAvailable() {
-  const [aiAvailable, setAiAvailable] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    void api<{ available: boolean }>("/api/ai/status")
-      .then((status) => {
-        if (!cancelled) setAiAvailable(status.available);
-      })
-      .catch(() => {
-        if (!cancelled) setAiAvailable(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return aiAvailable;
-}
-
 export function LinkFormPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -582,6 +581,11 @@ export function LinkFormPage() {
               />
               {/* <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">{choiceNote(redirectOptions, redirectType)}</p> */}
             </Field>
+            <UtmSuggest
+              aiAvailable={aiAvailable}
+              destinationUrl={destinationUrl}
+              onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
+            />
             <UtmFields utm={utm} onChange={setUtm} />
             {settings ? (
               <p className="text-sm text-muted-foreground">
@@ -775,6 +779,8 @@ export function LinkDetailPage() {
   const [copied, setCopied] = useState(false);
   const logoRequest = useRef(0);
   const aiAvailable = useAiAvailable();
+  const earliest = link?.createdAt.slice(0, 10);
+  const report = useReportRange(earliest);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const copiedTimer = useRef<number | null>(null);
@@ -801,10 +807,9 @@ export function LinkDetailPage() {
     setLogoFile(null);
     void (async () => {
       try {
-        const [next, codes, stats, variantData] = await Promise.all([
+        const [next, codes, variantData] = await Promise.all([
           api<ShortLink>(`/api/links/${id}`),
           api<{ qrCodes: QrCode[] }>(`/api/links/${id}/qr`),
-          api<Analytics>(`/api/links/${id}/analytics`),
           api<{ variants: LinkVariant[] }>(`/api/links/${id}/variants`),
         ]);
         if (cancelled) return;
@@ -820,7 +825,6 @@ export function LinkDetailPage() {
         setRoutingChoices(next.routingChoices ?? emptyRoutingChoices());
         setRedirectDomainId(next.redirectDomainId ?? defaultRedirectDomain);
         setQrCodes(codes.qrCodes);
-        setAnalytics(stats);
         setVariants(variantData.variants);
         const saved = codes.qrCodes[0];
         if (saved) await showQr(saved, () => cancelled);
@@ -835,6 +839,24 @@ export function LinkDetailPage() {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    const path = aiAvailable
+      ? `/api/links/${id}/analytics?from=${report.range.from}&to=${report.range.to}`
+      : `/api/links/${id}/analytics`;
+    void api<Analytics>(path)
+      .then((stats) => {
+        if (!cancelled) setAnalytics(stats);
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) toastCaught(caught, t("Could not load this link"));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, aiAvailable, report.range.from, report.range.to]);
 
   useEffect(() => {
     if (!logoUrl?.startsWith("blob:")) return;
@@ -1200,12 +1222,24 @@ export function LinkDetailPage() {
                   <Trash2 /> {t("Remove password")}
                 </Button>
               ) : null}
+              <UtmSuggest
+                aiAvailable={aiAvailable && !locked}
+                destinationUrl={destinationUrl}
+                onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
+              />
               <UtmFields utm={utm} onChange={setUtm} />
               <p className="text-sm text-muted-foreground truncate">
                 {t("Tracked URL: {url}", {
                   url: previewDestination(destinationUrl, utm),
                 })}
               </p>
+              {aiAvailable && !locked ? (
+                <RouteSuggest
+                  onAppend={(drafts) =>
+                    setRoutes((current) => [...current, ...drafts].slice(0, MAX_ROUTING_RULES))
+                  }
+                />
+              ) : null}
               <RouteBuilder
                 rules={routes}
                 choices={routingChoices}
@@ -1497,7 +1531,15 @@ export function LinkDetailPage() {
       {analytics ? (
         <div className="grid gap-4">
           <Card>
-            <CardContent>
+            <CardContent className="grid gap-4">
+              {aiAvailable ? (
+                <AnalyticsSummary
+                  linkId={id}
+                  earliest={earliest}
+                  range={report.range}
+                  onRange={(from, to) => report.setRange({ from, to })}
+                />
+              ) : null}
               <ClickChart series={analytics.series} />
             </CardContent>
           </Card>
