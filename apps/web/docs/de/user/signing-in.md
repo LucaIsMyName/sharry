@@ -8,6 +8,17 @@ Melde dich mit einem Benutzernamen oder einer E-Mail-Adresse und dem Passwort an
 
 Nach einem richtigen Passwort führt Sharry zum nächsten nötigen Schritt:
 
+```mermaid
+flowchart TD
+  accTitle: Anmeldeschritte
+  accDescr: Nach einem richtigen Passwort öffnet Sharry den nächsten nötigen Schritt.
+  Password[Passwort akzeptiert] --> Next{Nächster Schritt}
+  Next --> Change[Passwort ändern]
+  Next --> Code[Authenticator-Code]
+  Next --> Enroll[Zwei-Faktor einrichten]
+  Next --> Dashboard[Dashboard]
+```
+
 - Ein vorläufiges Passwort öffnet die Seite zum Passwort ändern. Das Dashboard bleibt geschlossen, bis das neue Passwort gespeichert ist. Passwort erzeugen baut ein 16-stelliges Passwort aus Buchstaben, Ziffern und Zeichen. Du kannst es anzeigen und kopieren, bevor du weitergehst.
 - Wenn die Zwei-Faktor-Authentifizierung schon an ist, fragt die nächste Seite nach einem Authenticator-Code oder einem Wiederherstellungscode.
 - Wenn eine Administratorin oder ein Administrator die Zwei-Faktor-Authentifizierung verlangt und dieses Konto noch nicht eingerichtet ist, folgt die Einrichtung.

@@ -4,6 +4,20 @@ Dashboard requests send a session cookie named from `APP_NAME`. The default `Sha
 
 The session row stores a hash of the token, not the token. The hash uses `SESSION_SECRET`.
 
+```mermaid
+flowchart TD
+  accTitle: Session scope and API keys
+  accDescr: A password opens one of four session scopes. A bearer token outside the account routes acts as that user. Account routes reject the key.
+  Password[Password accepted] --> Scope{Scope}
+  Scope --> Change[Password change]
+  Scope --> Challenge[Authenticator challenge]
+  Scope --> Enroll[Two-factor enrollment]
+  Scope --> Full[Full session]
+  Key[Bearer token] --> Account{Account route?}
+  Account -->|Yes| Reject[Rejected]
+  Account -->|No| Actor[Acts as that user]
+```
+
 ## Session scope
 
 Sign-in creates one of four scopes. The dashboard loaders only allow `full`.

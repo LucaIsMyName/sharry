@@ -4,6 +4,17 @@ QR-Codes kodieren die Kurz-URL plus eine `qr`-ID, deshalb braucht eine Zielände
 
 Die kodierte Adresse sieht so aus: `https://share.example.com/s/summer-sale?qr=<qr id>`. Wenn eine Variante gewählt ist, enthält sie auch `v=<variant id>`. Ein Scan wird diesem Code zugeordnet. Eine Varianten-ID oder QR-ID, die zu einem anderen Link gehört, wird ignoriert, und der Besuch nutzt die eigenen UTM-Werte des Links.
 
+```mermaid
+flowchart TD
+  accTitle: Was ein QR-Scan öffnet
+  accDescr: Ein Scan öffnet die Kurz-URL mit einer qr-ID und, wenn gesetzt, einer Varianten-ID. Das Ziel kommt weiter vom Link.
+  Scan[Code scannen] --> Url["Kurz-URL mit qr-ID"]
+  Url --> Variant{Variante gewählt?}
+  Variant -->|Ja| Both[Auch v anhängen]
+  Variant -->|Nein| Link[Ziel vom Link]
+  Both --> Link
+```
+
 ## Editor
 
 Öffne einen Link und nutze den Abschnitt QR-Code unter den Linkfeldern. Die Vorschau steht auf einem schmalen Bildschirm über diesen Steuerelementen und auf einem breiten rechts daneben.

@@ -4,6 +4,17 @@ Domains is available to administrators. A redirect domain is a hostname people c
 
 ## Add a domain
 
+```mermaid
+flowchart TD
+  accTitle: Adding a redirect domain
+  accDescr: Save a hostname, publish the TXT and A records, verify, then open the host once so the certificate can be issued.
+  Host[Save the hostname] --> Dns[Publish TXT and A records]
+  Dns --> Verify[Verify]
+  Verify --> Visit[Open the host once]
+  Visit --> Cert[Certificate is issued]
+  Cert --> Menu[Host appears in the redirect menu]
+```
+
 Enter a hostname such as `go.brand.com`. The name has no scheme, port, or path. Saving opens a dialog with the two DNS records.
 
 1. Add a TXT record. The dialog shows the name and the token. The name is `_<slug>-challenge.go.brand.com`, where the slug comes from `APP_NAME`. The default `Sharry` uses `_sharry-challenge.go.brand.com`. Copy sits next to each value.

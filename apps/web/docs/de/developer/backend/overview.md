@@ -22,6 +22,19 @@ In Produktion liefert derselbe Prozess `apps/web/dist`. Dateien mit Hash liegen 
 
 ## Anfragepfad
 
+```mermaid
+flowchart TD
+  accTitle: Wie eine Anfrage ausgeliefert wird
+  accDescr: In Produktion schickt Caddy die Anfrage an den Node-Prozess. In der Entwicklung leitet Vite die API, den Health-Check und das Standardpräfix weiter.
+  Prod[Produktionsanfrage] --> Caddy[Caddy]
+  Caddy --> Node[Node-Prozess]
+  Node --> Api["/api"]
+  Node --> Short[Kurzlink]
+  Node --> Html[Dashboard-HTML]
+  Dev[Entwicklungsanfrage] --> Vite[Vite auf Port 5173]
+  Vite --> Proxy["Proxy für /api, /health und /s/"]
+```
+
 Eine Anfrage unter `/api` kann sich mit dem Sitzungscookie authentifizieren (`sharry_session`, wenn `APP_NAME` `Sharry` ist) oder, außerhalb von `/api/auth`, mit `Authorization: Bearer`. Kontorouten lehnen einen Bearer-Token ab, bevor der Handler läuft. Aufrufe mit API-Schlüssel sind auf etwa 120 pro Minute und Schlüssel begrenzt.
 
 Zustandsändernde `/api`-Anfragen mit einem `Origin`-Header müssen zu `APP_URL` oder `SHORT_URL_BASE` passen. `GET`, `HEAD` und `OPTIONS` überspringen diese Prüfung. Außerhalb der Produktion ist ein Origin auf `localhost` oder `127.0.0.1` ebenfalls erlaubt.

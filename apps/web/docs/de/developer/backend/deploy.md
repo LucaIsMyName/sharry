@@ -7,6 +7,19 @@ Zwei Dinge bleiben außerhalb des Skripts:
 - Der VPS läuft schon mit Ubuntu oder Debian und akzeptiert SSH mit dem Schlüssel in `.env.production`. `DEPLOY_USER` ist `root` oder ein Benutzer, der `sudo -n` ausführen kann.
 - Der A-Eintrag der Domain zeigt auf die IPv4-Adresse des VPS. Die Firewall des Anbieters erlaubt die Ports 22, 80 und 443. Eine Cloud-Firewall ist nicht die eigene Firewall der Maschine, deshalb kann das Skript sie nicht öffnen.
 
+```mermaid
+flowchart TD
+  accTitle: Deploy-Pfad
+  accDescr: Ein Laptop führt npm run deploy über SSH aus. Der Server baut, migriert und startet systemd hinter Caddy neu. Danach wird der Health-Check abgefragt.
+  Laptop[Laptop] --> Deploy["npm run deploy"]
+  Deploy --> Ssh[SSH]
+  Ssh --> Build[Bauen]
+  Build --> Migrate[Migrieren]
+  Migrate --> Restart[systemd neu starten]
+  Restart --> Caddy[Caddy]
+  Caddy --> Health[Health-Check]
+```
+
 Caddy fordert das Zertifikat für `DOMAIN` an und erneuert es, weil der Sitename ein Hostname ist und die Ports 80 und 443 den Server erreichen. Sharry ruft keine Zertifikat-API auf. Die Caddyfile erlaubt auch Zertifikate auf Abruf für Weiterleitungsdomains, die eine Administratorin oder ein Administrator verifiziert hat. Caddy fragt vorher `http://127.0.0.1:3000/internal/caddy/ask`, und Sharry erlaubt das nur für eine verifizierte Weiterleitungsdomain. Provision fügt diese Blöcke hinzu, wenn sie fehlen, entfernt die ausgemusterten Optionen `interval` und `burst`, die Caddy 2.11 ablehnt, und lädt Caddy neu. Es lässt den vorhandenen Site-Block für `DOMAIN` stehen. Eine Datei, die schon eine `https://`-Site hat, bekommt keine zweite.
 
 ## `.env.production` ausfüllen

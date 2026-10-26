@@ -27,7 +27,7 @@ import { useAppName } from "../brand.ts";
 import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { setTheme, useTheme, type ThemeChoice } from "../theme.ts";
 import { Button } from "./ui/button.tsx";
-import { sidebarBevel } from "./ui/card.tsx";
+import { cardBevel } from "./ui/card.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { CommandMenu } from "./command-menu.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
@@ -70,7 +70,7 @@ export function Shell() {
 
   return (
     <div className="min-h-svh">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
         <p className="font-heading text-2xl font-medium tracking-tight">
           {appName}
         </p>
@@ -202,11 +202,11 @@ function Item({
       end={end}
       className={({ isActive }) =>
         cn(
-          "flex min-w-0 items-center  border rounded-md border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
+          "flex min-w-0 items-center  border rounded-md border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
           compact
             ? "gap-2 px-2.5 py-1.5 text-sm md:text-xs"
             : "gap-2.5 px-2.5 py-2 text-base md:text-sm",
-          isActive && cn("border-muted-foreground bg-sidebar-accent text-white", sidebarBevel),
+          isActive && cn("border-muted-foreground bg-sidebar-accent text-sidebar-accent-foreground", cardBevel),
           className,
         )
       }
@@ -224,7 +224,7 @@ function SearchButton({ onOpen }: { onOpen: () => void }) {
       type="button"
       aria-label={t("Search")}
       onClick={onOpen}
-      className="flex min-w-0 items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-base text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white md:text-sm"
+      className="flex min-w-0 items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-base text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:text-sm"
     >
       <SearchIcon size={18} />
       <span className="truncate">{t("Search")}</span>
@@ -260,7 +260,7 @@ function ThemeSwitch() {
       size="icon-sm"
       variant="outline"
       aria-label={`${t("Appearance")}, ${t(mode)}`}
-      className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+      className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       onClick={() => {
         const index = order.indexOf(choice);
         const next = order[(index + 1) % order.length] ?? "system";
@@ -290,7 +290,7 @@ function AccountFoot({
       className="size-[18px] rounded-md object-cover"
     />
   ) : (
-    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] leading-none font-medium text-white">
+    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] leading-none font-medium text-sidebar-accent-foreground">
       {initial}
     </span>
   );
@@ -302,9 +302,9 @@ function AccountFoot({
           to="/account"
           className={({ isActive }) =>
             cn(
-              "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-white md:h-7 md:text-xs",
-              sidebarBevel,
-              isActive && "bg-sidebar-accent text-white",
+              "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-7 md:text-xs",
+              cardBevel,
+              isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
             )
           }
         >
@@ -319,7 +319,7 @@ function AccountFoot({
                 size="icon-sm"
                 type="button"
                 aria-label={t("Sign out")}
-                className="shrink-0 border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white"
+                className="shrink-0 border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 onClick={onLogout}
               />
             }

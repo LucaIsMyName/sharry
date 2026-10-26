@@ -2,6 +2,21 @@
 
 `tryShortLink` in `apps/api/src/redirect.ts` handles `GET`, `HEAD`, and `POST` paths with two segments, such as `/s/summer-sale`. The first segment must be the active prefix or an enabled legacy prefix. Anything else falls through to the dashboard.
 
+```mermaid
+flowchart TD
+  accTitle: Short-link redirect
+  accDescr: tryShortLink checks the prefix, a password, and route rules, then merges UTM values. The click is recorded after the response.
+  Path[Request path] --> Prefix{Known prefix?}
+  Prefix -->|No| Dash[Dashboard or 404]
+  Prefix -->|Yes| Password{Password required?}
+  Password -->|Yes| Form[Password form]
+  Password -->|No| Rules[First matching route or the destination]
+  Form --> Rules
+  Rules --> Utm[Merge UTM values]
+  Utm --> Redirect[Redirect]
+  Redirect --> Click[Record the click]
+```
+
 The catch-all route is registered for `GET`, `HEAD`, and `POST`. It tries a short link first. A handled short link ends the response. A `POST` that is not a short link, and any path under `/api` that reached the catch-all, returns 404. Other `GET` and `HEAD` requests receive the dashboard HTML in production, or a development hint when Vite is serving the UI.
 
 ## Prefix and slug

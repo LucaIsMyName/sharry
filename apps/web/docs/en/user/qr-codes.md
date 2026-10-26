@@ -4,6 +4,17 @@ QR codes encode the short URL plus a `qr` id, so a destination change does not r
 
 The encoded address looks like `https://share.example.com/s/summer-sale?qr=<qr id>`. When a variant is selected it also includes `v=<variant id>`. A scan is counted on that code. A variant id or QR id that belongs to a different link is ignored, and the visit uses the link’s own UTM values.
 
+```mermaid
+flowchart TD
+  accTitle: What a QR scan opens
+  accDescr: A scan opens the short URL with a qr id and, when set, a variant id. The destination still comes from the link.
+  Scan[Scan the code] --> Url["Short URL with qr id"]
+  Url --> Variant{Variant selected?}
+  Variant -->|Yes| Both[Also include v]
+  Variant -->|No| Link[Destination from the link]
+  Both --> Link
+```
+
 ## Editor
 
 Open a link and use the QR code section under the link fields. The preview sits above those controls on a narrow screen and to their right on a wide one.

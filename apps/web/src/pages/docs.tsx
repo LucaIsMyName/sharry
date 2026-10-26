@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { isValidElement, useState, type ReactNode } from "react";
 import { appSlug } from "@sharry/shared";
+import { Menu } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { useParams } from "react-router";
 import remarkGfm from "remark-gfm";
@@ -7,7 +8,10 @@ import { cn } from "cn";
 import apiDocs, { type ApiDoc } from "virtual:api-docs";
 import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
+import { Button } from "../components/ui/button.tsx";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { useI18n } from "../i18n/index.tsx";
+import { docsCodeBlockClass, MermaidBlock } from "./docs-mermaid.tsx";
 import { DocsNav } from "./docs-nav.tsx";
 import { docsForLocale } from "./docs-pages.ts";
 import { TestResultsPage } from "./test-results-page.tsx";
@@ -18,6 +22,10 @@ export function DocsPage() {
   const slug = params["*"] ?? "";
   const visible = docsForLocale(locale);
   const page = visible.find((item) => item.slug === slug);
+  const [navOpen, setNavOpen] = useState(false);
+  const userPages = visible.filter((item) => item.group === "User");
+  const backendPages = visible.filter((item) => item.section === "Backend");
+  const frontendPages = visible.filter((item) => item.section === "Frontend");
   const documentTitle =
     slug === "api"
       ? t("API reference")
@@ -27,13 +35,37 @@ export function DocsPage() {
   return (
     <div className="grid items-start gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
       <PageTitle title={documentTitle} literal />
-      <DocsNav
-        slug={slug}
-        userPages={visible.filter((item) => item.group === "User")}
-        backendPages={visible.filter((item) => item.section === "Backend")}
-        frontendPages={visible.filter((item) => item.section === "Frontend")}
-      />
+      <div className="hidden md:block">
+        <DocsNav
+          slug={slug}
+          userPages={userPages}
+          backendPages={backendPages}
+          frontendPages={frontendPages}
+        />
+      </div>
       <article className="min-w-0">
+        <div className="mb-4 md:hidden">
+          <Sheet open={navOpen} onOpenChange={setNavOpen}>
+            <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
+              <Menu /> {t("Docs")}
+            </SheetTrigger>
+            <SheetContent
+              side="left"
+              className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
+            >
+              <SheetTitle className="pr-8 text-sidebar-foreground">{t("Docs")}</SheetTitle>
+              {navOpen ? (
+                <DocsNav
+                  slug={slug}
+                  userPages={userPages}
+                  backendPages={backendPages}
+                  frontendPages={frontendPages}
+                  onNavigate={() => setNavOpen(false)}
+                />
+              ) : null}
+            </SheetContent>
+          </Sheet>
+        </div>
         {slug === "api" ? (
           <ApiReference />
         ) : slug === "developer/tests" ? (
@@ -215,11 +247,11 @@ const markdownComponents: Components = {
   code: ({ className, children }) => (
     <CodeBlock className={cn(className)}>{children}</CodeBlock>
   ),
-  pre: ({ children }) => (
-    <pre className="mt-3 overflow-x-auto border rounded-md bg-sidebar p-3 text-base text-sidebar-foreground md:text-sm">
-      {children}
-    </pre>
-  ),
+  pre: ({ children }) => {
+    const chart = mermaidSource(children);
+    if (chart !== null) return <MermaidBlock source={chart} />;
+    return <pre className={docsCodeBlockClass}>{children}</pre>;
+  },
   blockquote: ({ children }) => (
     <blockquote className="mt-3 border-l-2 border-border pl-3 text-base text-muted-foreground md:text-sm">
       {children}
@@ -237,6 +269,13 @@ const markdownComponents: Components = {
     <td className="border-b px-2 py-1 align-top">{children}</td>
   ),
 };
+
+function mermaidSource(children: ReactNode): string | null {
+  const node = Array.isArray(children) ? children[0] : children;
+  if (!isValidElement<{ className?: string; children?: ReactNode }>(node)) return null;
+  if (!node.props.className?.includes("language-mermaid")) return null;
+  return String(node.props.children ?? "").replace(/\n$/, "");
+}
 
 function CodeBlock({
   className,

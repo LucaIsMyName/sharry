@@ -11,7 +11,7 @@ import { RelativeTime } from "../components/relative-time.tsx";
 import { useI18n } from "../i18n/index.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
-import { Card, CardContent, cardBevel, sidebarBevel } from "../components/ui/card.tsx";
+import { Card, CardContent, cardBevel } from "../components/ui/card.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { ChatListSkeleton, ChatThreadSkeleton, WritingSkeleton } from "../components/ui/skeleton.tsx";
@@ -367,7 +367,7 @@ function ChatList({
       <Button
         className={cn(
           "w-full min-w-0 shrink-0",
-          sidebar && "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
+          sidebar && "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
         type="button"
         variant="outline"
@@ -387,9 +387,9 @@ function ChatList({
                   className={cn(
                     "flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
                     sidebar
-                      ? cn("border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white", sidebarBevel)
+                      ? cn("border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", cardBevel)
                       : cn("hover:bg-muted", cardBevel),
-                    active && (sidebar ? "bg-sidebar-accent font-medium text-white" : "bg-muted font-medium"),
+                    active && (sidebar ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "bg-muted font-medium"),
                   )}
                 >
                   <NavLink to={`/chat/${chat.id}`} onClick={onPick} className="min-w-0 flex-1">

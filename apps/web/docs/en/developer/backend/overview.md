@@ -22,6 +22,19 @@ In production the same process serves `apps/web/dist`. Hashed files are under `/
 
 ## Request path
 
+```mermaid
+flowchart TD
+  accTitle: How a request is served
+  accDescr: In production Caddy sends the request to the Node process. In development Vite proxies the API, the health check, and the default short-link prefix.
+  Prod[Production request] --> Caddy[Caddy]
+  Caddy --> Node[Node process]
+  Node --> Api["/api"]
+  Node --> Short[Short link]
+  Node --> Html[Dashboard HTML]
+  Dev[Development request] --> Vite[Vite on port 5173]
+  Vite --> Proxy["Proxy /api, /health, and /s/"]
+```
+
 A request under `/api` can authenticate with the session cookie (`sharry_session` when `APP_NAME` is `Sharry`) or, outside `/api/auth`, with `Authorization: Bearer`. Account routes reject a bearer token before the handler runs. API-key calls are limited to about 120 per minute per key.
 
 State-changing `/api` requests that include an `Origin` header must match `APP_URL` or `SHORT_URL_BASE`. `GET`, `HEAD`, and `OPTIONS` skip that check. Outside production, an origin on `localhost` or `127.0.0.1` is allowed as well.

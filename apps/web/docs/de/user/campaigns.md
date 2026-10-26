@@ -10,6 +10,19 @@ Du siehst deine eigenen Kampagnen. Eine Administratorin oder ein Administrator s
 
 ## Varianten
 
+```mermaid
+flowchart TD
+  accTitle: Wie eine Variante gewählt wird
+  accDescr: Der Link besitzt das Ziel. Eine Variante überschreibt nur UTM-Werte. Ein Abfrageparameter oder ein QR-Code wählt sie. Eine ID von einem anderen Link wird ignoriert.
+  Link[Link besitzt das Ziel] --> Visit{Wie der Besuch ankommt}
+  Visit -->|v-Parameter| Variant[Variante überschreibt UTM]
+  Visit -->|QR-Code| Variant
+  Visit -->|Schlichter Kurzlink| Own[UTM-Werte des Links]
+  Variant --> Foreign{ID gehört zu diesem Link?}
+  Foreign -->|Ja| Apply[UTM der Variante anwenden]
+  Foreign -->|Nein| Own
+```
+
 Eine Variante gehört zu einem Kurzlink und kann dessen UTM-Parameter überschreiben. Leere Felder behalten die Werte des Links. Setze nur die Schlüssel, die abweichen sollen, zum Beispiel `utm_content=poster`, während `utm_source` am Link bleibt.
 
 Die Variante gilt, wenn der Kurzlink mit `?v=<variant id>` geöffnet wird oder ein QR-Code mit dieser Variante gespeichert ist. Eine Varianten-ID von einem anderen Link wird ignoriert. Der Besuch nutzt dann die eigenen UTM-Werte des Links.

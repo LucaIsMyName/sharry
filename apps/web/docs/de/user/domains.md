@@ -4,6 +4,17 @@ Domains steht Administratorinnen und Administratoren zur Verfügung. Eine Weiter
 
 ## Eine Domain hinzufügen
 
+```mermaid
+flowchart TD
+  accTitle: Eine Weiterleitungsdomain hinzufügen
+  accDescr: Hostname speichern, TXT- und A-Einträge veröffentlichen, verifizieren, dann den Host einmal öffnen, damit das Zertifikat ausgestellt wird.
+  Host[Hostname speichern] --> Dns[TXT- und A-Einträge veröffentlichen]
+  Dns --> Verify[Verifizieren]
+  Verify --> Visit[Host einmal öffnen]
+  Visit --> Cert[Zertifikat wird ausgestellt]
+  Cert --> Menu[Host erscheint im Weiterleitungsmenü]
+```
+
 Gib einen Hostnamen wie `go.brand.com` ein. Der Name hat kein Schema, keinen Port und keinen Pfad. Das Speichern öffnet einen Dialog mit den zwei DNS-Einträgen.
 
 1. Füge einen TXT-Eintrag hinzu. Der Dialog zeigt den Namen und den Token. Der Name ist `_<slug>-challenge.go.brand.com`, und der Slug kommt aus `APP_NAME`. Die Vorgabe `Sharry` nutzt `_sharry-challenge.go.brand.com`. Kopieren steht neben jedem Wert.

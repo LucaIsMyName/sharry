@@ -10,6 +10,19 @@ You see your own campaigns. An administrator sees every campaign. Deleting a cam
 
 ## Variants
 
+```mermaid
+flowchart TD
+  accTitle: How a variant is chosen
+  accDescr: The link owns the destination. A variant only overrides UTM values. A query parameter or a QR code selects it. An id from another link is ignored.
+  Link[Link owns the destination] --> Visit{How the visit arrives}
+  Visit -->|v parameter| Variant[Variant overrides UTM]
+  Visit -->|QR code| Variant
+  Visit -->|Plain short URL| Own[Link UTM values]
+  Variant --> Foreign{Id belongs to this link?}
+  Foreign -->|Yes| Apply[Apply the variant UTM]
+  Foreign -->|No| Own
+```
+
 A variant belongs to one short link and can override that link’s UTM parameters. Blank fields keep the link’s values. Set only the keys that should differ, such as `utm_content=poster` while `utm_source` stays on the link.
 
 The variant is used when the short link is opened with `?v=<variant id>`, or when a QR code is saved with that variant. A variant id from another link is ignored. The visit then uses the link’s own UTM values.

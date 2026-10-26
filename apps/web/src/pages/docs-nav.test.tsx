@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import { setActiveLocale } from "../i18n/index.tsx";
 import {
@@ -78,6 +78,24 @@ describe("DocsNav", () => {
     ).toBe("true");
     expect(screen.queryByRole("link", { name: "Signing in" })).toBeNull();
     expect(localStorage.getItem(docsNavStorageKey)).toBe("developer");
+  });
+
+  it("tells the page when a link is chosen", () => {
+    const onNavigate = vi.fn();
+    render(
+      <MemoryRouter initialEntries={["/docs/user/signing-in"]}>
+        <DocsNav
+          slug="user/signing-in"
+          userPages={userPages}
+          backendPages={backendPages}
+          frontendPages={frontendPages}
+          onNavigate={onNavigate}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Links" }));
+    expect(onNavigate).toHaveBeenCalledOnce();
   });
 
   it("opens the section that contains the current page", () => {

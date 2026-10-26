@@ -2,6 +2,20 @@
 
 A short link keeps its slug when you change the destination, so printed QR codes and saved addresses keep working. Slugs are unique without regard to case. A taken slug returns: "This short URL is already in use. Please choose a different slug."
 
+```mermaid
+flowchart TD
+  accTitle: Opening a short URL
+  accDescr: The first matching route is used. Otherwise the visit uses the destination. A password is asked when the link requires one, and UTM values are added to the chosen URL.
+  Open[Open the short URL] --> Route{A route matches?}
+  Route -->|Yes| Chosen[Use that route URL]
+  Route -->|No| Dest[Use the destination]
+  Chosen --> Password{Password required?}
+  Dest --> Password
+  Password -->|Yes| Form[Show the password form]
+  Password -->|No| Utm[Add the link UTM values]
+  Form --> Utm
+```
+
 ## The public address
 
 The public path uses the prefix stored in Settings, for example `https://share.example.com/s/summer-sale`. Changing the prefix updates every displayed link. Enable legacy prefixes to keep resolving the previous path. That change asks for confirmation.

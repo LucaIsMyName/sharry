@@ -2,6 +2,20 @@
 
 Ein Kurzlink behält seinen Slug, wenn du das Ziel änderst. Gedruckte QR-Codes und gespeicherte Adressen funktionieren weiter. Slugs sind unabhängig von der Großschreibung eindeutig. Ein vergebener Slug antwortet: "This short URL is already in use. Please choose a different slug."
 
+```mermaid
+flowchart TD
+  accTitle: Einen Kurzlink öffnen
+  accDescr: Die erste passende Route wird genutzt. Sonst geht der Besuch zum Ziel. Ein Passwort wird verlangt, wenn der Link eines hat, und die UTM-Werte werden an die gewählte URL gehängt.
+  Open[Kurzlink öffnen] --> Route{Passt eine Route?}
+  Route -->|Ja| Chosen[Diese Routen-URL nutzen]
+  Route -->|Nein| Dest[Das Ziel nutzen]
+  Chosen --> Password{Passwort nötig?}
+  Dest --> Password
+  Password -->|Ja| Form[Passwortformular zeigen]
+  Password -->|Nein| Utm[UTM-Werte des Links anhängen]
+  Form --> Utm
+```
+
 ## Die öffentliche Adresse
 
 Der öffentliche Pfad nutzt das Präfix aus den Einstellungen, zum Beispiel `https://share.example.com/s/summer-sale`. Eine Änderung des Präfixes aktualisiert jeden angezeigten Link. Schalte alte Präfixe ein, damit der bisherige Pfad weiter aufgelöst wird. Diese Änderung verlangt eine Bestätigung.

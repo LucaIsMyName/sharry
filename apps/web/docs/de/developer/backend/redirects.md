@@ -2,6 +2,21 @@
 
 `tryShortLink` in `apps/api/src/redirect.ts` behandelt `GET`-, `HEAD`- und `POST`-Pfade mit zwei Segmenten, zum Beispiel `/s/summer-sale`. Das erste Segment muss das aktive Präfix oder ein eingeschaltetes altes Präfix sein. Alles andere fällt zum Dashboard durch.
 
+```mermaid
+flowchart TD
+  accTitle: Kurzlink-Weiterleitung
+  accDescr: tryShortLink prüft Präfix, Passwort und Routenregeln und führt dann die UTM-Werte zusammen. Der Klick wird nach der Antwort aufgezeichnet.
+  Path[Anfragepfad] --> Prefix{Bekanntes Präfix?}
+  Prefix -->|Nein| Dash[Dashboard oder 404]
+  Prefix -->|Ja| Password{Passwort nötig?}
+  Password -->|Ja| Form[Passwortformular]
+  Password -->|Nein| Rules[Erste passende Route oder das Ziel]
+  Form --> Rules
+  Rules --> Utm[UTM-Werte zusammenführen]
+  Utm --> Redirect[Weiterleiten]
+  Redirect --> Click[Klick aufzeichnen]
+```
+
 Die Auffangroute ist für `GET`, `HEAD` und `POST` registriert. Sie versucht zuerst einen Kurzlink. Ein behandelter Kurzlink beendet die Antwort. Ein `POST`, das kein Kurzlink ist, und jeder Pfad unter `/api`, der die Auffangroute erreicht hat, geben 404 zurück. Andere `GET`- und `HEAD`-Anfragen erhalten in Produktion das Dashboard-HTML oder in der Entwicklung einen Hinweis, wenn Vite die Oberfläche liefert.
 
 ## Präfix und Slug

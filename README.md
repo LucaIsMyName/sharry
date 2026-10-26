@@ -450,7 +450,7 @@ No migration is required. `users.locale` is plain text, and the API rejects a co
 
 ### Docs
 
-User and developer guides are markdown under `apps/web/docs/en` and `apps/web/docs/de`. Vite loads them with `import.meta.glob`. The order is the `pageOrder` array in `apps/web/src/pages/docs-pages.ts`. A file that is not in that array still appears, at the end. Update both languages when a behavior change belongs in the guides. The API reference itself is generated. Do not hand-write it.
+User and developer guides are markdown under `apps/web/docs/en` and `apps/web/docs/de`. Vite loads them with `import.meta.glob`. The order is the `pageOrder` array in `apps/web/src/pages/docs-pages.ts`. A file that is not in that array still appears, at the end. Update both languages when a behavior change belongs in the guides. A fenced `mermaid` block renders as a diagram. The API reference itself is generated. Do not hand-write it.
 
 ### Tests
 

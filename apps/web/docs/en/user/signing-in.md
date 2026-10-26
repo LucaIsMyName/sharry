@@ -8,6 +8,17 @@ Sign in with a username or an email address, plus the password. The match ignore
 
 After a correct password, Sharry sends you to the next required step:
 
+```mermaid
+flowchart TD
+  accTitle: Sign-in steps
+  accDescr: After a correct password, Sharry opens the next required step.
+  Password[Password accepted] --> Next{Next step}
+  Next --> Change[Change password]
+  Next --> Code[Authenticator code]
+  Next --> Enroll[Enroll two-factor]
+  Next --> Dashboard[Dashboard]
+```
+
 - A temporary password opens the change-password page. The dashboard stays closed until the new password is saved. Generate password builds a 16-character password with letters, digits, and symbols. You can show it and copy it before you continue.
 - If two-factor authentication is already on, the next page asks for an authenticator code or a recovery code.
 - If an administrator requires two-factor authentication and this account has not enrolled, the next page is enrollment.

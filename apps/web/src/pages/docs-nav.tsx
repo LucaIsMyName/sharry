@@ -36,11 +36,13 @@ export function DocsNav({
   userPages,
   backendPages,
   frontendPages,
+  onNavigate,
 }: {
   slug: string;
   userPages: DocsNavPage[];
   backendPages: DocsNavPage[];
   frontendPages: DocsNavPage[];
+  onNavigate?: () => void;
 }) {
   const { t } = useI18n();
   const [section, setSection] = useState<DocsSection>(() =>
@@ -69,7 +71,7 @@ export function DocsNav({
         onOpen={() => open("user")}
       >
         {userPages.map((page) => (
-          <DocLink key={page.slug} to={`/docs/${page.slug}`}>
+          <DocLink key={page.slug} to={`/docs/${page.slug}`} onNavigate={onNavigate}>
             {page.title}
           </DocLink>
         ))}
@@ -79,12 +81,13 @@ export function DocsNav({
         open={section === "developer"}
         onOpen={() => open("developer")}
       >
-        <Chapter label={t("Backend")} pages={backendPages} />
-        <Chapter label={t("Frontend")} pages={frontendPages} />
-        <Chapter label={t("API")} pages={[{ slug: "api", title: t("Reference") }]} />
+        <Chapter label={t("Backend")} pages={backendPages} onNavigate={onNavigate} />
+        <Chapter label={t("Frontend")} pages={frontendPages} onNavigate={onNavigate} />
+        <Chapter label={t("API")} pages={[{ slug: "api", title: t("Reference") }]} onNavigate={onNavigate} />
         <Chapter
           label={t("Tests")}
           pages={[{ slug: "developer/tests", title: t("Last run") }]}
+          onNavigate={onNavigate}
         />
       </Accordion>
     </nav>
@@ -120,13 +123,21 @@ function Accordion({
   );
 }
 
-function Chapter({ label, pages }: { label: string; pages: DocsNavPage[] }) {
+function Chapter({
+  label,
+  pages,
+  onNavigate,
+}: {
+  label: string;
+  pages: DocsNavPage[];
+  onNavigate?: () => void;
+}) {
   if (pages.length === 0) return null;
   return (
     <div className="grid gap-1">
       <p className="px-2.5 pt-2 text-base font-medium md:text-sm">{label}</p>
       {pages.map((page) => (
-        <DocLink key={page.slug} to={`/docs/${page.slug}`} nested>
+        <DocLink key={page.slug} to={`/docs/${page.slug}`} nested onNavigate={onNavigate}>
           {page.title}
         </DocLink>
       ))}
@@ -137,15 +148,18 @@ function Chapter({ label, pages }: { label: string; pages: DocsNavPage[] }) {
 function DocLink({
   to,
   nested = false,
+  onNavigate,
   children,
 }: {
   to: string;
   nested?: boolean;
+  onNavigate?: () => void;
   children: string;
 }) {
   return (
     <NavLink
       to={to}
+      onClick={onNavigate}
       className={({ isActive }) =>
         cn(
           "rounded-md text-foreground hover:bg-accent",

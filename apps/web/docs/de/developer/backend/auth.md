@@ -4,6 +4,20 @@ Dashboard-Anfragen senden ein Sitzungscookie, dessen Name aus `APP_NAME` kommt. 
 
 Die Sitzungszeile speichert einen Hash des Tokens, nicht den Token. Der Hash nutzt `SESSION_SECRET`.
 
+```mermaid
+flowchart TD
+  accTitle: Sitzungs-Scope und API-Schlüssel
+  accDescr: Ein Passwort öffnet einen von vier Sitzungs-Scopes. Ein Bearer-Token außerhalb der Kontorouten handelt als diese Person. Kontorouten lehnen den Schlüssel ab.
+  Password[Passwort akzeptiert] --> Scope{Scope}
+  Scope --> Change[Passwortwechsel]
+  Scope --> Challenge[Authenticator-Abfrage]
+  Scope --> Enroll[Zwei-Faktor einrichten]
+  Scope --> Full[Volle Sitzung]
+  Key[Bearer-Token] --> Account{Kontoroute?}
+  Account -->|Ja| Reject[Abgelehnt]
+  Account -->|Nein| Actor[Handelt als diese Person]
+```
+
 ## Sitzungs-Scope
 
 Die Anmeldung erzeugt einen von vier Scopes. Die Dashboard-Loader erlauben nur `full`.
