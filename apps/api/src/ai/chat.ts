@@ -115,7 +115,7 @@ export function registerAiRoutes(app: FastifyInstance): void {
    * @route POST /api/ai/summarize-analytics
    * @tag AI
    * @auth api-key or session
-   * @body JSON { from?, to?, linkId?, slug? }
+   * @body JSON { from?, to?, linkId?, slug?, linkIds?, country?, browser?, os?, utm_source?, utm_medium?, utm_campaign?, utm_id?, utm_term?, utm_content? }
    * @response 200 { summary, from, to }
    */
   app.post('/api/ai/summarize-analytics', async (request) => {

@@ -59,10 +59,15 @@ const quiet = "22222222-2222-4222-8222-222222222222";
 describe("analytics page", () => {
   it("puts the filter bar between the heading and the cards, and the summary above the slider", async () => {
     const calls: string[] = [];
-    vi.mocked(api).mockImplementation((path: string) => {
+    const bodies: string[] = [];
+    vi.mocked(api).mockImplementation((path: string, init?: RequestInit) => {
       calls.push(path);
+      if (typeof init?.body === "string") bodies.push(init.body);
       if (path.startsWith("/api/ai/status")) {
         return Promise.resolve({ available: true, provider: "openai", model: "gpt-4.1-mini" });
+      }
+      if (path === "/api/ai/summarize-analytics") {
+        return Promise.resolve({ summary: "Filtered.", from: "2026-10-01", to: "2026-10-26" });
       }
       if (path.startsWith("/api/analytics")) {
         return Promise.resolve({
@@ -115,5 +120,12 @@ describe("analytics page", () => {
       expect(last).toContain(`link=${quiet}`);
       expect(last).toContain("country=DE");
     });
+    fireEvent.click(screen.getByRole("button", { name: "Summarize" }));
+    await waitFor(() => {
+      const body = JSON.parse(bodies.at(-1) ?? "{}") as { linkIds?: string[]; country?: string[] };
+      expect(body.linkIds).toEqual([busy, quiet]);
+      expect(body.country).toEqual(["DE"]);
+    });
+    expect(await screen.findByText("Filtered.")).toBeTruthy();
   });
 });

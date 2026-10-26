@@ -119,6 +119,41 @@ type ClickFilter = {
   dimensions?: DimensionFilters
 }
 
+export type AnalyticsSelection = {
+  linkIds?: string[]
+  country?: string[]
+  browser?: string[]
+  os?: string[]
+  utm_source?: string[]
+  utm_medium?: string[]
+  utm_campaign?: string[]
+  utm_id?: string[]
+  utm_term?: string[]
+  utm_content?: string[]
+}
+
+export function analyticsSelectionFilter(visibility: SQL | null, selection: AnalyticsSelection): ClickFilter {
+  const requested = uniqueValues(selection.linkIds ?? [])
+  if (requested.length > maxFilterValues) throw new AppError(400, 'Choose 50 values or fewer')
+  const linkIds = requested.filter((id) => uuidPattern.test(id))
+  const dimensions: DimensionFilters = {}
+  for (const key of Object.keys(dimensionColumns) as DimensionKey[]) {
+    const values = uniqueValues(selection[key] ?? [])
+    if (values.length > maxFilterValues) throw new AppError(400, 'Choose 50 values or fewer')
+    if (values.length > 0) dimensions[key] = values
+  }
+  return {
+    visibility,
+    linkIds,
+    unmatchedLinks: requested.length > 0 && linkIds.length === 0,
+    dimensions,
+  }
+}
+
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))]
+}
+
 function readClickQuery(url: string): { linkIds: string[]; unmatchedLinks: boolean; dimensions: DimensionFilters } {
   const query = url.includes('?') ? url.slice(url.indexOf('?') + 1) : ''
   const params = new URLSearchParams(query)

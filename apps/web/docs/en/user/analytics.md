@@ -26,7 +26,7 @@ Country, browser, operating system, and each UTM field are multiselects. Leave a
 
 ## A written summary
 
-When AI is turned on, Analytics shows Summarize in its own card above the chart. Overview and a link’s chart still put the date range and Summarize together. The range starts on the last 30 days. The slider runs from the oldest link you can see, or from 400 days ago when that day is unknown, through today. On a link, the slider starts on the day that link was created. A range longer than 400 days asks you to narrow it. Summarize writes two or three sentences for that range: the totals, whether the later half rose or fell, and the top referrer, country, or UTM value. Choosing one link on Analytics summarizes that link, for the same days as the chart. The sentences are not stored.
+When AI is turned on, Analytics shows Summarize in its own card above the chart. Overview and a link’s chart still put the date range and Summarize together. The range starts on the last 30 days. The slider runs from the oldest link you can see, or from 400 days ago when that day is unknown, through today. On a link, the slider starts on the day that link was created. A range longer than 400 days asks you to narrow it. Summarize writes two or three sentences for that range: the totals, whether the later half rose or fell, and the top referrer, country, or UTM value. Summarize uses the same filters as the cards, including several links, for the same days as the chart. The sentences are not stored.
 
 ## Date range
 

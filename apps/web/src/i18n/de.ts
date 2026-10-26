@@ -888,6 +888,8 @@ export const de: Record<string, string> = {
   "iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de": "iPhone-Besucher gehen zu https://apps.example.com, Deutschland geht zu https://example.com/de",
   "JSON { destinationUrl, placement? }": "JSON { destinationUrl, placement? }",
   "JSON { from?, to?, linkId?, slug? }": "JSON { from?, to?, linkId?, slug? }",
+  "JSON { from?, to?, linkId?, slug?, linkIds?, country?, browser?, os?, utm_source?, utm_medium?, utm_campaign?, utm_id?, utm_term?, utm_content? }":
+    "JSON { from?, to?, linkId?, slug?, linkIds?, country?, browser?, os?, utm_source?, utm_medium?, utm_campaign?, utm_id?, utm_term?, utm_content? }",
   "JSON { instruction }": "JSON { instruction }",
   "JSON { urls }": "JSON { urls }",
   "Keep {url}": "{url} behalten",

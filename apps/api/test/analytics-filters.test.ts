@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { clickEvents } from '@sharry/database'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
 
@@ -79,6 +79,57 @@ describe('analytics filters', () => {
     })
     expect(rejected.statusCode).toBe(400)
   })
+
+  it('summarizes two links and a country as that filtered click count', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'mina', email: 'mina@example.com', role: 'admin' })
+    const owner = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const other = await createSessionUser(ctx, { username: 'grace', email: 'grace@example.com' })
+    const saved = await ctx.app.inject({
+      method: 'PATCH',
+      url: '/api/admin/settings',
+      headers: { cookie: admin.cookie },
+      payload: { aiProvider: 'openai', aiModel: 'gpt-4.1-mini', aiApiKey: 'sk-test-secret' },
+    })
+    expect(saved.statusCode).toBe(200)
+    const alpha = await createLink(owner.cookie, 'alpha')
+    const beta = await createLink(owner.cookie, 'beta')
+    const extra = await createLink(owner.cookie, 'extra')
+    const hidden = await createLink(other.cookie, 'hidden')
+    await ctx.db.insert(clickEvents).values([
+      click(alpha, 'a1', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(alpha, 'a2', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(alpha, 'a3', { countryCode: 'US', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(beta, 'b1', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(extra, 'e1', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(extra, 'e2', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(extra, 'e3', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(extra, 'e4', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(hidden, 'h1', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(hidden, 'h2', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(hidden, 'h3', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(hidden, 'h4', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+      click(hidden, 'h5', { countryCode: 'DE', browser: 'Chrome', operatingSystem: 'macOS', utmSource: 'newsletter' }),
+    ])
+    vi.stubGlobal(
+      'fetch',
+      async () => sse([{ choices: [{ delta: { content: 'A quiet week.' } }] }]),
+    )
+    try {
+      const summary = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/summarize-analytics',
+        headers: { cookie: owner.cookie },
+        payload: { linkIds: [alpha, beta, hidden], country: ['DE'] },
+      })
+      expect(summary.statusCode).toBe(200)
+      expect(summary.json().summary).toContain('3 clicks')
+      expect(summary.json().summary).not.toContain('7 clicks')
+      expect(summary.json().summary).not.toContain('8 clicks')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })
 
 async function createLink(cookie: string, slug: string): Promise<string> {
@@ -91,6 +142,11 @@ async function createLink(cookie: string, slug: string): Promise<string> {
   })
   expect(created.statusCode).toBe(200)
   return created.json().id as string
+}
+
+function sse(events: unknown[]): Response {
+  const body = events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('') + 'data: [DONE]\n\n'
+  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } })
 }
 
 function click(

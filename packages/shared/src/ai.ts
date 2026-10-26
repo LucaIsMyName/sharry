@@ -128,7 +128,20 @@ export const suggestRoutesSchema = z.object({
   instruction: z.string().trim().min(1, 'Describe the routes.').max(500),
 })
 
-export const summarizeAnalyticsSchema = queryAnalyticsSchema
+const summaryFilter = z.array(z.string().trim().min(1).max(200)).max(50, 'Choose 50 values or fewer')
+
+export const summarizeAnalyticsSchema = queryAnalyticsSchema.extend({
+  linkIds: z.array(z.string().uuid()).max(50, 'Choose 50 values or fewer').optional(),
+  country: summaryFilter.optional(),
+  browser: summaryFilter.optional(),
+  os: summaryFilter.optional(),
+  utm_source: summaryFilter.optional(),
+  utm_medium: summaryFilter.optional(),
+  utm_campaign: summaryFilter.optional(),
+  utm_id: summaryFilter.optional(),
+  utm_term: summaryFilter.optional(),
+  utm_content: summaryFilter.optional(),
+})
 
 export const suggestVariantsSchema = z.object({
   instruction: z.string().trim().min(1, 'Name the variants.').max(500),

@@ -167,10 +167,21 @@ export function AnalyticsPage() {
               <CardContent>
                 <AnalyticsSummary
                   showRange={false}
-                  linkId={linkIds.length === 1 ? linkIds[0] : undefined}
                   earliest={linkIds.length === 1 ? undefined : earliest}
                   range={window}
                   onRange={setDates}
+                  filters={{
+                    linkIds,
+                    country: params.getAll("country"),
+                    browser: params.getAll("browser"),
+                    os: params.getAll("os"),
+                    utm_source: params.getAll("utm_source"),
+                    utm_medium: params.getAll("utm_medium"),
+                    utm_campaign: params.getAll("utm_campaign"),
+                    utm_id: params.getAll("utm_id"),
+                    utm_term: params.getAll("utm_term"),
+                    utm_content: params.getAll("utm_content"),
+                  }}
                 />
               </CardContent>
             </Card>

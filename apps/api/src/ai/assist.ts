@@ -13,7 +13,8 @@ import {
 } from '@sharry/shared'
 import type { Database } from '@sharry/database'
 import type { Actor } from '../auth.ts'
-import { findBySlug } from '../links.ts'
+import { analyticsSelectionFilter, loadAnalytics, parseAnalyticsRange, type AnalyticsSelection } from '../analytics.ts'
+import { findBySlug, visibleLinksWhere } from '../links.ts'
 import type { AppSettings } from '../settings-store.ts'
 import { AppError } from '../support.ts'
 import { clipPageTitle, pageIo, readPublicPage, slugify, suggestFreeSlug, type PageIo } from './page-slug.ts'
@@ -218,16 +219,63 @@ export async function suggestRouteRules(
   return { rules }
 }
 
+type SummarizeInput = AnalyticsSelection & { from?: string; to?: string; linkId?: string; slug?: string }
+
+function selectionActive(selection: AnalyticsSelection): boolean {
+  return Boolean(
+    selection.linkIds?.length ||
+      selection.country?.length ||
+      selection.browser?.length ||
+      selection.os?.length ||
+      selection.utm_source?.length ||
+      selection.utm_medium?.length ||
+      selection.utm_campaign?.length ||
+      selection.utm_id?.length ||
+      selection.utm_term?.length ||
+      selection.utm_content?.length,
+  )
+}
+
+async function filteredAnalyticsReport(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  input: SummarizeInput,
+): Promise<AnalyticsReport> {
+  const range = parseAnalyticsRange({ from: input.from, to: input.to })
+  const analytics = await loadAnalytics(
+    db,
+    analyticsSelectionFilter(visibleLinksWhere(actor, settings, 'links'), input),
+    range,
+  )
+  return {
+    from: range.from.toISOString().slice(0, 10),
+    to: range.to.toISOString().slice(0, 10),
+    totalClicks: analytics.totalClicks,
+    uniqueVisitors: analytics.uniqueVisitors,
+    series: analytics.series.slice(-45),
+    referrers: analytics.referrers,
+    countries: analytics.countries,
+    utmSources: analytics.utmSources,
+    utmMediums: analytics.utmMediums,
+    utmCampaigns: analytics.utmCampaigns,
+  }
+}
+
 export async function summarizeAnalyticsForActor(
   db: Database,
   actor: Actor,
   settings: AppSettings,
   locale: string,
   config: ProviderConfig,
-  input: { from?: string; to?: string; linkId?: string; slug?: string },
+  input: SummarizeInput,
   options: { complete?: TextComplete; fetchImpl?: typeof fetch; onModelUse?: ModelUse } = {},
 ): Promise<{ summary: string; from: string; to: string }> {
-  const report = (await queryAnalyticsForActor(db, actor, settings, input)) as AnalyticsReport
+  const report = (
+    selectionActive(input)
+      ? await filteredAnalyticsReport(db, actor, settings, input)
+      : await queryAnalyticsForActor(db, actor, settings, input)
+  ) as AnalyticsReport
   if (!report || typeof report !== 'object') throw new AppError(422, 'Could not read analytics.')
   if (report.error) throw new AppError(422, report.error)
   const fallback = analyticsSummarySentences(locale, report, { from: input.from, to: input.to })
