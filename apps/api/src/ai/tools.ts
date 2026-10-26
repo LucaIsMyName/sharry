@@ -689,6 +689,7 @@ const pageCatalog: { path: string; label: string; admin: boolean; keywords: stri
   { path: '/docs/user/users', label: 'Users guide', admin: false, keywords: 'docs users' },
   { path: '/docs/user/settings', label: 'Settings guide', admin: false, keywords: 'docs settings' },
   { path: '/docs/user/chat', label: 'Chat guide', admin: false, keywords: 'docs assistant chat' },
+  { path: '/docs/user/search', label: 'Search guide', admin: false, keywords: 'docs search command' },
   { path: '/admin/users', label: 'Users', admin: true, keywords: 'admin accounts create user' },
   { path: '/admin/api-keys', label: 'API keys', admin: true, keywords: 'admin tokens' },
   { path: '/admin/settings', label: 'Settings', admin: true, keywords: 'admin mail prefix ai provider' },

@@ -54,6 +54,8 @@ import {
 import { choiceNote, redirectOptions } from "../choices.ts";
 import { t, useI18n } from "../i18n/index.tsx";
 import { Toggle } from "../components/ui/toggle.tsx";
+import { useSearchParams } from "react-router";
+import { focusRowId, rowFocusClass, useFocusRow } from "../components/focus-row.ts";
 
 type AdminUser = {
   id: string;
@@ -102,6 +104,8 @@ type AuditEntry = {
 
 export function AdminUsersPage() {
   const { t } = useI18n();
+  const [params] = useSearchParams();
+  const focus = params.get("focus");
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [form, setForm] = useState({
     username: "",
@@ -116,6 +120,7 @@ export function AdminUsersPage() {
   const [copied, setCopied] = useState(false);
   const [deleteFor, setDeleteFor] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
+  useFocusRow(focus, !loading);
 
   async function load() {
     setUsers((await api<{ users: AdminUser[] }>("/api/admin/users")).users);
@@ -274,7 +279,11 @@ export function AdminUsersPage() {
             </TableHeader>
             <TableBody>
               {users.map((user) => (
-                <TableRow key={user.id}>
+                <TableRow
+                  key={user.id}
+                  id={focusRowId(user.id)}
+                  className={rowFocusClass(user.id, focus)}
+                >
                   <TableCell className="whitespace-normal">
                     {user.username}
                     <div className="text-sm text-muted-foreground">
@@ -835,16 +844,23 @@ function smtpStatus(settings: Settings): string {
 
 export function AdminAuditPage() {
   const { t } = useI18n();
+  const [params] = useSearchParams();
+  const focus = params.get("entry");
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  useFocusRow(focus, !loading);
   useEffect(() => {
-    void api<{ entries: AuditEntry[] }>("/api/admin/audit")
+    const path = focus
+      ? `/api/admin/audit?entry=${encodeURIComponent(focus)}`
+      : "/api/admin/audit";
+    setLoading(true);
+    void api<{ entries: AuditEntry[] }>(path)
       .then((result) => setEntries(result.entries))
       .catch((caught: unknown) =>
         toastCaught(caught, t("Could not load the audit log")),
       )
       .finally(() => setLoading(false));
-  }, []);
+  }, [focus]);
   return (
     <section className="grid gap-4">
       <h1 className="font-heading text-2xl font-medium tracking-tight">
@@ -868,7 +884,11 @@ export function AdminAuditPage() {
             {entries.map((entry) => {
               const sentence = auditActionSentence(entry.action);
               return (
-                <TableRow key={entry.id}>
+                <TableRow
+                  key={entry.id}
+                  id={focusRowId(entry.id)}
+                  className={rowFocusClass(entry.id, focus)}
+                >
                   <TableCell>
                     <RelativeTime value={entry.createdAt} />
                   </TableCell>

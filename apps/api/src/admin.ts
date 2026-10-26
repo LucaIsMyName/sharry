@@ -274,14 +274,16 @@ export function registerAdminRoutes(app: FastifyInstance): void {
    * @auth admin api-key or admin session
    * @query limit number Page size, 1–200, default 50
    * @query offset number Number of rows to skip
+   * @query entry string Audit row id to include when it is outside this page
    * @response 200 { entries: AuditEntry[] }
    */
   app.get('/api/admin/audit', async (request) => {
     await requireAdmin(app, request)
-    const query = request.query as { limit?: string; offset?: string }
+    const query = request.query as { limit?: string; offset?: string; entry?: string }
     const limit = Math.min(200, Math.max(1, Number(query.limit) || 50))
     const offset = Math.max(0, Number(query.offset) || 0)
-    const rows = await app.db
+    const entryId = isUuid(query.entry) ? query.entry : ''
+    let rows = await app.db
       .select({
         id: auditLogs.id,
         actorUserId: auditLogs.actorUserId,
@@ -297,6 +299,24 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       .orderBy(desc(auditLogs.createdAt))
       .limit(limit)
       .offset(offset)
+    if (entryId && !rows.some((row) => row.id === entryId)) {
+      const extra = await app.db
+        .select({
+          id: auditLogs.id,
+          actorUserId: auditLogs.actorUserId,
+          actorUsername: users.username,
+          action: auditLogs.action,
+          entityType: auditLogs.entityType,
+          entityId: auditLogs.entityId,
+          metadata: auditLogs.metadata,
+          createdAt: auditLogs.createdAt,
+        })
+        .from(auditLogs)
+        .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+        .where(eq(auditLogs.id, entryId))
+        .limit(1)
+      if (extra[0]) rows = [extra[0], ...rows]
+    }
     return {
       entries: rows.map((row) => ({
         id: row.id,
@@ -685,6 +705,10 @@ function publicSettings(settings: AppSettings, admin: boolean) {
     legacyPrefixEnabled: admin ? settings.legacyPrefixEnabled : undefined,
     legacyPrefixes: admin ? settings.legacyPrefixes : undefined,
   }
+}
+
+function isUuid(value: string | undefined): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
 function publicAdminUser(user: UserRecord) {

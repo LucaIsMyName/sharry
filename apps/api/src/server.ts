@@ -24,6 +24,7 @@ import { isVerifiedRedirectHost, registerRedirectDomainRoutes, requestHostname }
 import { getSettings } from './settings-store.ts'
 import { AppError, hashToken } from './support.ts'
 import { registerAiRoutes } from './ai/chat.ts'
+import { registerSearchRoutes } from './search.ts'
 import { registerTrackingRoutes } from './tracking.ts'
 import type { ClickDraft } from './analytics.ts'
 
@@ -145,6 +146,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerRedirectDomainRoutes(app)
   registerSystemRoutes(app)
   registerAiRoutes(app)
+  registerSearchRoutes(app)
 
   if (options.env.NODE_ENV === 'production') {
     const assets = path.resolve(process.cwd(), 'apps/web/dist/assets')

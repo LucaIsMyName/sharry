@@ -46,6 +46,7 @@ export const docSlugs = [
   'api-keys',
   'users',
   'settings',
+  'search',
 ] as const
 
 export type DocSlug = (typeof docSlugs)[number]

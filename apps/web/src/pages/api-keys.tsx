@@ -21,6 +21,8 @@ import {
 import { Field } from "../components/ui/field.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
 import { useI18n } from "../i18n/index.tsx";
+import { useSearchParams } from "react-router";
+import { focusRowId, rowFocusClass, useFocusRow } from "../components/focus-row.ts";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -53,6 +55,8 @@ type CreatedKey = ApiKeyRow & { secret: string };
 
 export function ApiKeysPage() {
   const { t } = useI18n();
+  const [params] = useSearchParams();
+  const focus = params.get("focus");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
   const [name, setName] = useState("");
@@ -62,6 +66,7 @@ export function ApiKeysPage() {
   const [copied, setCopied] = useState(false);
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  useFocusRow(focus, !loading);
 
   async function load() {
     const [userResult, keyResult] = await Promise.all([
@@ -185,7 +190,11 @@ export function ApiKeysPage() {
             </TableHeader>
             <TableBody>
               {keys.map((key) => (
-                <TableRow key={key.id}>
+                <TableRow
+                  key={key.id}
+                  id={focusRowId(key.id)}
+                  className={rowFocusClass(key.id, focus)}
+                >
                   <TableCell className="whitespace-normal">
                     {key.name}
                   </TableCell>

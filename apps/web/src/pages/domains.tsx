@@ -28,6 +28,8 @@ import { Field, FieldMessage } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { useI18n } from "../i18n/index.tsx";
+import { useSearchParams } from "react-router";
+import { focusRowId, rowFocusClass, useFocusRow } from "../components/focus-row.ts";
 import {
   Table,
   TableBody,
@@ -54,6 +56,8 @@ type DomainList = {
 
 export function AdminDomainsPage() {
   const { t } = useI18n();
+  const [params] = useSearchParams();
+  const focus = params.get("focus");
   const [domains, setDomains] = useState<RedirectDomain[]>([]);
   const [serverAddresses, setServerAddresses] = useState<string[]>([]);
   const [hostname, setHostname] = useState("");
@@ -62,6 +66,7 @@ export function AdminDomainsPage() {
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [verifyingId, setVerifyingId] = useState("");
+  useFocusRow(focus, !loading);
 
   async function load() {
     const result = await api<DomainList>("/api/admin/redirect-domains");
@@ -173,7 +178,11 @@ export function AdminDomainsPage() {
           </TableHeader>
           <TableBody>
             {domains.map((domain) => (
-              <TableRow key={domain.id}>
+              <TableRow
+                key={domain.id}
+                id={focusRowId(domain.id)}
+                className={rowFocusClass(domain.id, focus)}
+              >
                 <TableCell className="whitespace-normal">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="font-mono text-sm">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
   BookOpen,
@@ -12,6 +12,7 @@ import {
   Megaphone,
   Menu,
   ScrollText,
+  Search as SearchIcon,
   Server,
   Settings,
   Users,
@@ -27,6 +28,7 @@ import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { setTheme, useTheme, type ThemeChoice } from "../theme.ts";
 import { Button } from "./ui/button.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
+import { CommandMenu } from "./command-menu.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
 export function Shell() {
@@ -38,7 +40,19 @@ export function Shell() {
   const { pathname } = useLocation();
   const chat = pathname === "/chat" || pathname.startsWith("/chat/");
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const admin = me.user.role === "admin";
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key.toLowerCase() !== "k" || event.altKey) return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      setSearchOpen((current) => !current);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST" });
@@ -46,7 +60,11 @@ export function Shell() {
   }
 
   const navigation = (
-    <Navigation admin={admin} onNavigate={() => setOpen(false)} />
+    <Navigation
+      admin={admin}
+      onNavigate={() => setOpen(false)}
+      onSearch={() => setSearchOpen(true)}
+    />
   );
 
   return (
@@ -88,6 +106,7 @@ export function Shell() {
           <Outlet context={{ admin }} />
         </div>
       </main>
+      <CommandMenu open={searchOpen} onOpenChange={setSearchOpen} admin={admin} />
     </div>
   );
 }
@@ -95,9 +114,11 @@ export function Shell() {
 function Navigation({
   admin,
   onNavigate,
+  onSearch,
 }: {
   admin: boolean;
   onNavigate: () => void;
+  onSearch: () => void;
 }) {
   const { t } = useI18n();
   return (
@@ -120,6 +141,7 @@ function Navigation({
       <Item to="/chat" icon={<MessageSquare size={18} />}>
         {t("Chat")}
       </Item>
+      <SearchButton onOpen={onSearch} />
       <hr className="my-2 border-0 border-t border-sidebar-border" />
       <Item compact to="/docs" icon={<BookOpen size={14} />}>
         {t("Docs")}
@@ -191,7 +213,32 @@ function Item({
       {icon}
       <span className="truncate">{children}</span>
     </NavLink>
+    );
+}
+
+function SearchButton({ onOpen }: { onOpen: () => void }) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      aria-label={t("Search")}
+      onClick={onOpen}
+      className="flex min-w-0 items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
+    >
+      <SearchIcon size={18} />
+      <span className="truncate">{t("Search")}</span>
+      <kbd className="ml-auto font-mono text-[10px] text-sidebar-foreground/60">
+        {commandShortcut()}
+      </kbd>
+    </button>
   );
+}
+
+function commandShortcut(): string {
+  const mac = "⌘K";
+  const other = "Ctrl+K";
+  const platform = typeof navigator === "undefined" ? "" : navigator.platform;
+  return /Mac|iPhone|iPad/.test(platform) ? mac : other;
 }
 
 const themeOptions: { value: ThemeChoice; label: string | ReactNode }[] = [

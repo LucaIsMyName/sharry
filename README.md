@@ -351,6 +351,8 @@ When Settings require two-factor authentication, a key works only after that use
 
 Admin routes add a loader that allows only the admin role. Anyone else is sent to `/`. Each route sets the browser title to `Page · APP_NAME`. The dashboard sends `noindex, nofollow`.
 
+Search is in the sidebar under Chat. Cmd+K on a Mac, and Ctrl+K elsewhere, opens the same palette. It lists the pages a person can open, then matches links, campaigns, chats, docs, and, for an administrator, users, domains, API keys, and audit rows.
+
 ## Short links and extra domains
 
 Public URLs look like `https://share.example.com/s/summer-sale`. `tryShortLink` in `apps/api/src/redirect.ts` handles `GET`, `HEAD`, and `POST` paths with two segments. The first segment must be the active prefix or an enabled legacy prefix. Anything else falls through to the dashboard on the deployment host.
@@ -416,7 +418,7 @@ Document the route with a JSDoc block directly above the `app.get` / `app.post` 
  */
 ```
 
-Tags in use are `Links`, `Campaigns`, `Analytics`, `QR codes`, `Account`, `Admin`, `Settings`, and `Domains`. Add a new tag to `TAG_ORDER` in `scripts/generate-api-docs.ts` if the reference should group it.
+Tags in use are `Links`, `Campaigns`, `Analytics`, `QR codes`, `Account`, `Admin`, `Settings`, `Domains`, and `Search`. Add a new tag to `TAG_ORDER` in `scripts/generate-api-docs.ts` if the reference should group it.
 
 The dashboard calls the route through `api()` in `apps/web/src/api.ts`. Put shared response types next to that function when more than one page needs them. A field error is a tooltip beside the field. A save, copy, or failed load is a toast. File uploads use `FormData` so the browser sets the multipart boundary.
 
@@ -447,7 +449,7 @@ No migration is required. `users.locale` is plain text, and the API rejects a co
 
 ### Docs
 
-User and developer guides are markdown under `apps/web/docs/en` and `apps/web/docs/de`. Vite loads them with `import.meta.glob`. The order is the `pageOrder` array in `apps/web/src/pages/docs.tsx`. A file that is not in that array still appears, at the end. Update both languages when a behavior change belongs in the guides. The API reference itself is generated. Do not hand-write it.
+User and developer guides are markdown under `apps/web/docs/en` and `apps/web/docs/de`. Vite loads them with `import.meta.glob`. The order is the `pageOrder` array in `apps/web/src/pages/docs-pages.ts`. A file that is not in that array still appears, at the end. Update both languages when a behavior change belongs in the guides. The API reference itself is generated. Do not hand-write it.
 
 ### Tests
 
@@ -564,7 +566,7 @@ A failed health check restores the previous release and restarts the service whe
 
 The in-app guides under `apps/web/docs/en` are the longer form of the product and of the API. Start with:
 
-- `user/signing-in.md`, `user/links.md`, `user/campaigns.md`, `user/qr-codes.md`, `user/analytics.md` for day-to-day use
+- `user/signing-in.md`, `user/links.md`, `user/campaigns.md`, `user/qr-codes.md`, `user/analytics.md`, `user/search.md` for day-to-day use
 - `user/domains.md`, `user/api-keys.md`, `user/settings.md`, `user/users.md`, `user/server.md` for administration
 - `developer/backend/overview.md`, `development.md`, `auth.md`, `redirects.md`, `deploy.md` for the server
 - `developer/frontend/overview.md`, `routing.md`, `api-client.md` for the dashboard
