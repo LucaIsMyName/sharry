@@ -81,7 +81,9 @@ describe("command menu", () => {
 
     fireEvent.click(search);
     expect(screen.queryByRole("option", { name: "Audit" })).toBeNull();
-    expect(screen.getByRole("option", { name: "Links" })).toBeTruthy();
+    const links = screen.getByRole("option", { name: "Links" });
+    expect(links.className).toContain("border");
+    expect(links.querySelector("svg")).toBeTruthy();
   });
 
   it("opens with the keyboard shortcut", async () => {
@@ -101,7 +103,7 @@ describe("command menu", () => {
               title: "Summer",
               slug: "summer",
               destinationUrl: "https://example.com/summer",
-              description: null,
+              description: "Poster link",
             },
           ],
           campaigns: [],
@@ -116,6 +118,9 @@ describe("command menu", () => {
       target: { value: "summer" },
     });
     const link = await screen.findByRole("option", { name: /^Summer/ });
+    expect(link.textContent).toContain("summer");
+    expect(link.textContent).toContain("https://example.com/summer");
+    expect(link.textContent).toContain("Poster link");
     fireEvent.click(link);
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/links/link-1"));
 

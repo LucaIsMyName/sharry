@@ -199,7 +199,7 @@ export function ApiKeysPage() {
                     {key.name}
                   </TableCell>
                   <TableCell>{key.username}</TableCell>
-                  <TableCell className="font-mono text-xs">
+                  <TableCell className="font-mono text-sm md:text-xs">
                     {key.tokenPrefix}
                   </TableCell>
                   <TableCell>

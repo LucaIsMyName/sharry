@@ -1,6 +1,6 @@
 # QR codes
 
-QR codes encode the short URL plus a `qr` id, so a destination change does not require a new code. A code can also carry a campaign variant. The preview and downloads follow the variant selected in the editor, including before you save. Saved codes are listed newest first, and choosing one loads that code’s center image.
+QR codes encode the short URL plus a `qr` id, so a destination change does not require a new code. A code can also carry a campaign variant. The preview and downloads follow the variant selected in the editor, including before you save. Saved codes are listed newest first in a table of name and URL. Choosing a row loads that code’s center image.
 
 The encoded address looks like `https://share.example.com/s/summer-sale?qr=<qr id>`. When a variant is selected it also includes `v=<variant id>`. A scan is counted on that code. A variant id or QR id that belongs to a different link is ignored, and the visit uses the link’s own UTM values.
 

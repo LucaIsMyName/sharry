@@ -597,7 +597,7 @@ export function AdminSettingsPage() {
                   setSettings({ ...settings, defaultRedirectType })
                 }
               />
-              <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+              <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
                 {t(choiceNote(redirectOptions, settings.defaultRedirectType))}
               </p>
             </Field>

@@ -1,6 +1,12 @@
 import * as React from "react";
 import { cn } from "cn";
 
+export const cardBevel =
+  "shadow-[inset_0_1px_1px_rgb(255_255_255/0.55),inset_0_-1px_1px_rgb(0_0_0/0.16),inset_1px_0_1px_rgb(255_255_255/0.22),inset_-1px_0_1px_rgb(0_0_0/0.12)] dark:shadow-[inset_0_1px_1px_rgb(255_255_255/0.16),inset_0_-1px_1px_rgb(0_0_0/0.45),inset_1px_0_1px_rgb(255_255_255/0.08),inset_-1px_0_1px_rgb(0_0_0/0.35)]";
+
+export const sidebarBevel =
+  "shadow-[inset_0_1px_1px_rgb(255_255_255/0.2),inset_0_-1px_1px_rgb(0_0_0/0.55),inset_1px_0_1px_rgb(255_255_255/0.1),inset_-1px_0_1px_rgb(0_0_0/0.4)]";
+
 function Card({
   className,
   size = "default",
@@ -12,6 +18,7 @@ function Card({
       data-size={size}
       className={cn(
         "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        cardBevel,
         className,
       )}
       {...props}
@@ -49,7 +56,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-base text-muted-foreground md:text-sm", className)}
       {...props}
     />
   );

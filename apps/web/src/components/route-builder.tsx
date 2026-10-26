@@ -320,7 +320,7 @@ function MultiValue({
         type="button"
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-md border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        className="flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-md border border-input bg-transparent py-2 pr-2 pl-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
         onClick={() => (open ? closeMenu() : setOpen(true))}
       >
         <span className="truncate">{summary || t("Choose")}</span>

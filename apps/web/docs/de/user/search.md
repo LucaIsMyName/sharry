@@ -2,7 +2,7 @@
 
 Die Suche sitzt in der Seitenleiste unter Chat. Auf einem Mac öffnet Befehlstaste+K sie. Auf anderen Systemen öffnet Strg+K sie.
 
-Ohne Eingabe listet die Palette die Seiten, die du öffnen kannst. Administratorinnen und Administratoren sehen außerdem Benutzer, API-Schlüssel, Einstellungen, Domains, Server und Audit. Anmelden und Passwort zurücksetzen bleiben draußen.
+Ohne Eingabe listet die Palette die Seiten, die du öffnen kannst. Administratorinnen und Administratoren sehen außerdem Benutzer, API-Schlüssel, Einstellungen, Domains, Server und Audit. Anmelden und Passwort zurücksetzen bleiben draußen. Jedes Ergebnis nutzt das Symbol der Seite, die es öffnet. Ein Kurzlink zeigt außerdem Slug, Ziel und Beschreibung.
 
 Tippen sucht weiter:
 

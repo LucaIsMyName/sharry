@@ -11,7 +11,7 @@ import { RelativeTime } from "../components/relative-time.tsx";
 import { useI18n } from "../i18n/index.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { Card, CardContent, cardBevel } from "../components/ui/card.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { ChatListSkeleton, ChatThreadSkeleton, WritingSkeleton } from "../components/ui/skeleton.tsx";
@@ -558,7 +558,7 @@ export function ChatConversation({
                     key={starter.id}
                     type="button"
                     aria-label={t(starter.label)}
-                    className="rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted"
+                    className={cn(cardBevel, "rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted")}
                     onClick={() => onStarter(t(starter.prompt))}
                   >
                     <span className="block">{t(starter.label)}</span>

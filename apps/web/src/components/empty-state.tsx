@@ -9,7 +9,7 @@ export function EmptyState({
 }) {
   return (
     <div className="grid justify-items-start gap-3 py-10">
-      <p className="text-sm text-muted-foreground">{children}</p>
+      <p className="text-base text-muted-foreground md:text-sm">{children}</p>
       {action}
     </div>
   );

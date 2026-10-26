@@ -1,6 +1,6 @@
 # QR-Codes
 
-QR-Codes kodieren die Kurz-URL plus eine `qr`-ID, deshalb braucht eine Zieländerung keinen neuen Code. Ein Code kann auch eine Kampagnenvariante tragen. Vorschau und Downloads folgen der im Editor gewählten Variante, auch vor dem Speichern. Gespeicherte Codes stehen mit dem neuesten zuerst, und die Auswahl lädt das Mittelbild dieses Codes.
+QR-Codes kodieren die Kurz-URL plus eine `qr`-ID, deshalb braucht eine Zieländerung keinen neuen Code. Ein Code kann auch eine Kampagnenvariante tragen. Vorschau und Downloads folgen der im Editor gewählten Variante, auch vor dem Speichern. Gespeicherte Codes stehen mit dem neuesten zuerst in einer Tabelle aus Name und URL. Die Auswahl einer Zeile lädt das Mittelbild dieses Codes.
 
 Die kodierte Adresse sieht so aus: `https://share.example.com/s/summer-sale?qr=<qr id>`. Wenn eine Variante gewählt ist, enthält sie auch `v=<variant id>`. Ein Scan wird diesem Code zugeordnet. Eine Varianten-ID oder QR-ID, die zu einem anderen Link gehört, wird ignoriert, und der Besuch nutzt die eigenen UTM-Werte des Links.
 

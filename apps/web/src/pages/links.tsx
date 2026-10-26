@@ -46,7 +46,7 @@ import { UtmFields } from "../components/utm-fields.tsx";
 import { RouteBuilder } from "../components/route-builder.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { Card, CardContent, cardBevel } from "../components/ui/card.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
@@ -155,7 +155,7 @@ function LinkCards({
         const name = link.title?.trim() || link.slug;
         const viewOnly = link.canEdit === false;
         return (
-          <li key={link.id} className="rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10">
+          <li key={link.id} className={cn(cardBevel, "rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10")}>
             <div className="flex items-start justify-between gap-3">
               <Link className="min-w-0 flex-1" to={`/links/${link.id}`}>
                 <span
@@ -166,10 +166,10 @@ function LinkCards({
                 >
                   {name}
                 </span>
-                <span className="mt-1 block text-sm text-muted-foreground">
+                <span className="mt-1 block text-base text-muted-foreground">
                   {t("Clicks")} <span className="tabular-nums">{link.clicks}</span>
                 </span>
-                <span className="mt-1 block truncate font-mono text-sm text-muted-foreground">{link.shortUrl}</span>
+                <span className="mt-1 block truncate font-mono text-base text-muted-foreground">{link.shortUrl}</span>
               </Link>
               <div className="grid justify-items-end gap-2">
                 <Badge variant={link.status === "active" ? "secondary" : "outline"}>
@@ -338,7 +338,7 @@ export function LinksPage() {
                       </TableCell>
                     ) : null}
                     <TableCell
-                      className="font-mono text-sm text-muted-foreground"
+                      className="font-mono text-muted-foreground"
                       title={link.shortUrl}
                     >
                       {link.shortUrl}
@@ -467,7 +467,7 @@ function RedirectDomainField({
         ]}
         onValueChange={onValueChange}
       />
-      <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+      <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
         {t(
           "The short URL uses this domain. A QR code downloaded later uses the domain saved on the link.",
         )}
@@ -580,7 +580,7 @@ export function LinkFormPage() {
                 options={[...redirectOptions]}
                 onValueChange={setRedirectType}
               />
-              {/* <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">{choiceNote(redirectOptions, redirectType)}</p> */}
+              {/* <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">{choiceNote(redirectOptions, redirectType)}</p> */}
             </Field>
             <UtmFields utm={utm} onChange={setUtm} />
             {settings ? (
@@ -1049,16 +1049,20 @@ export function LinkDetailPage() {
         title={link?.title?.trim() || link?.slug || "Link"}
         literal={Boolean(link?.title?.trim() || link?.slug)}
       />
-      <div className="sticky top-12 z-20 -mx-5 flex flex-wrap items-end justify-between gap-4 border-b border-border bg-background px-5 py-3 md:top-0 md:-mx-7 md:px-7">
-        <div>
-          <h1 className="font-heading text-3xl font-medium tracking-tight">
+      <div className="sticky top-12 z-20 -mx-5 flex min-w-0 flex-col items-stretch gap-4 border-b border-border bg-background px-5 py-3 md:top-0 md:-mx-7 md:flex-row md:items-end md:justify-between md:px-7">
+        <div className="min-w-0 md:flex-1">
+          <h1
+            className="truncate font-heading text-3xl font-medium tracking-tight"
+            title={link?.title?.trim() || link?.slug || undefined}
+          >
             {link?.title?.trim() || link?.slug || t("Link")}
           </h1>
           {link ? (
             <>
               <a
-                className="mt-1.5 block font-mono text-sm break-all text-muted-foreground underline-offset-3 hover:text-primary"
+                className="mt-1.5 block truncate font-mono text-base text-muted-foreground underline-offset-3 hover:text-primary md:text-sm"
                 href={link.shortUrl}
+                title={link.shortUrl}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -1074,14 +1078,14 @@ export function LinkDetailPage() {
                 </p>
               </div>
               {locked ? (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-base text-muted-foreground md:text-sm">
                   {t("You can view this link but not change it.")}
                 </p>
               ) : null}
             </>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
           {locked ? null : (
             <Button
               type="submit"
@@ -1164,7 +1168,7 @@ export function LinkDetailPage() {
                     }))}
                     onValueChange={setRedirectType}
                   />
-                  <p className="sr-only text-[13px] leading-snug font-normal text-muted-foreground">
+                  <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
                     {t(choiceNote(redirectOptions, redirectType))}
                   </p>
                 </Field>
@@ -1195,7 +1199,7 @@ export function LinkDetailPage() {
                   }
                   autoComplete="new-password"
                 />
-                <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+                <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
                   {t(
                     "Visitors must enter this password before the short link redirects.",
                   )}
@@ -1272,7 +1276,7 @@ export function LinkDetailPage() {
                     ]}
                     onValueChange={setTrackingVariantId}
                   />
-                  <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+                  <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
                     {t(
                       "The QR code uses this variant’s UTM values when someone scans it.",
                     )}
@@ -1368,7 +1372,7 @@ export function LinkDetailPage() {
                       setStyle({ ...style, errorCorrectionLevel })
                     }
                   />
-                  <p className="text-[13px] leading-snug font-normal text-muted-foreground">
+                  <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
                     {t(
                       choiceNote(correctionOptions, style.errorCorrectionLevel),
                     )}
@@ -1466,23 +1470,42 @@ export function LinkDetailPage() {
         <Card>
           <CardContent>
             <h2 className="mb-2 text-lg font-medium">{t("Saved codes")}</h2>
-            <ul className="grid gap-2">
-              {qrCodes.map((code) => (
-                <li key={code.id} className="flex flex-wrap items-center gap-2">
-                  <Button
-                    variant={activeQr?.id === code.id ? "default" : "outline"}
-                    type="button"
-                    aria-pressed={activeQr?.id === code.id}
-                    onClick={() => void showQr(code)}
-                  >
-                    {code.name}
-                  </Button>
-                  <span className="font-mono text-sm break-all text-muted-foreground">
-                    {code.url}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("Name")}</TableHead>
+                  <TableHead>{t("URL")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {qrCodes.map((code) => {
+                  const selected = activeQr?.id === code.id;
+                  return (
+                    <TableRow
+                      key={code.id}
+                      data-state={selected ? "selected" : undefined}
+                    >
+                      <TableCell className="font-medium">
+                        <button
+                          type="button"
+                          aria-pressed={selected}
+                          className="text-left font-medium"
+                          onClick={() => void showQr(code)}
+                        >
+                          {code.name}
+                        </button>
+                      </TableCell>
+                      <TableCell
+                        className="font-mono text-muted-foreground"
+                        title={code.url}
+                      >
+                        {code.url}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       ) : null}

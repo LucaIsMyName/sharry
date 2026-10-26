@@ -9,8 +9,17 @@ import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { UtmFields, utmSummary } from "../components/utm-fields.tsx";
+import { IconAction } from "../components/icon-action.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
@@ -482,64 +491,66 @@ export function CampaignDetailPage() {
       <Card>
         <CardContent>
           {(campaign?.variants.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No variants yet.")}</p>
+            <p className="text-base text-muted-foreground md:text-sm">{t("No variants yet.")}</p>
           ) : (
-            <ul className="grid gap-4">
-              {campaign?.variants.map((variant) => {
-                const link = knownLinks.find(
-                  (item) => item.id === variant.linkId,
-                );
-                const url = link ? variantUrl(link.shortUrl, variant.id) : "";
-                return (
-                  <li key={variant.id} className="grid gap-1.5">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span className="font-medium">{variant.name}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={() => editVariant(variant)}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("Name")}</TableHead>
+                  <TableHead>{t("Short URL")}</TableHead>
+                  <TableHead>{t("UTM")}</TableHead>
+                  <TableHead>
+                    <span className="sr-only">{t("Actions")}</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {campaign?.variants.map((variant) => {
+                  const link = knownLinks.find(
+                    (item) => item.id === variant.linkId,
+                  );
+                  const url = link ? variantUrl(link.shortUrl, variant.id) : "";
+                  const copied = copiedId === variant.id;
+                  return (
+                    <TableRow key={variant.id}>
+                      <TableCell className="font-medium">{variant.name}</TableCell>
+                      <TableCell
+                        className="font-mono text-muted-foreground"
+                        title={url || undefined}
                       >
-                        <Pencil /> {t("Edit")}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        disabled={!url}
-                        onClick={() => void copyVariant(variant)}
-                      >
-                        {copiedId === variant.id ? (
-                          <>
-                            <Check /> {t("Copied")}
-                          </>
-                        ) : (
-                          <>
-                            <Copy /> {t("Copy")}
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={() => setVariantToDelete(variant)}
-                      >
-                        <Trash2 /> {t("Delete")}
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {utmSummary(variant.utm)}
-                    </p>
-                    {url ? (
-                      <p className="font-mono text-sm break-all text-muted-foreground">
                         {url}
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {utmSummary(variant.utm)}
+                      </TableCell>
+                      <TableCell data-row-action>
+                        <div className="flex items-center gap-1">
+                          <IconAction
+                            label={t("Edit")}
+                            onClick={() => editVariant(variant)}
+                          >
+                            <Pencil />
+                          </IconAction>
+                          <IconAction
+                            label={copied ? t("Copied") : t("Copy")}
+                            disabled={!url}
+                            onClick={() => void copyVariant(variant)}
+                          >
+                            {copied ? <Check /> : <Copy />}
+                          </IconAction>
+                          <IconAction
+                            label={t("Delete")}
+                            onClick={() => setVariantToDelete(variant)}
+                          >
+                            <Trash2 />
+                          </IconAction>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

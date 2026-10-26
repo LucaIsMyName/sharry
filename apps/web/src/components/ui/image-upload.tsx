@@ -52,7 +52,7 @@ export function ImageUpload({
         <span className="block truncate font-medium">
           {fileName || t("Choose an image")}
         </span>
-        <span className="block text-[13px] font-normal text-muted-foreground">
+        <span className="block text-sm font-normal text-muted-foreground md:text-[13px]">
           {t("PNG, JPEG, or WebP")}
         </span>
       </span>

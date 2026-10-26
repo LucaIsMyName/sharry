@@ -16,4 +16,4 @@ The variant is used when the short link is opened with `?v=<variant id>`, or whe
 
 The tracked address looks like `https://share.example.com/s/summer-sale?v=<variant id>`.
 
-Create the campaign first, then add variants on its page. Each variant has a name, one link, and the UTM overrides. The link editor can also attach a saved variant to a QR code. The QR preview uses that variant’s UTM values before you save the code.
+Create the campaign first, then add variants on its page. Each variant has a name, one link, and the UTM overrides. The variants are listed in a table with the name, short URL, UTM values, and icon buttons to edit, copy, or delete. The link editor can also attach a saved variant to a QR code. The QR preview uses that variant’s UTM values before you save the code.

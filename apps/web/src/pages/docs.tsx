@@ -41,7 +41,7 @@ export function DocsPage() {
         ) : page ? (
           <Markdown source={page.markdown} />
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground md:text-sm">
             {t("That page is not in the docs.")}
           </p>
         )}
@@ -75,19 +75,19 @@ function ApiReference() {
         <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("API reference")}
         </h1>
-        <p className="mt-3 text-sm leading-6">
+        <p className="mt-3 text-base leading-6 md:text-sm">
           {withValues(
             t(
               "Call {url} with {header}. A key acts as the user it was created for. Routes marked session accept only the dashboard cookie.",
             ),
             {
               url: (
-                <code className="rounded bg-muted px-1 font-mono text-[13px]">
+                <code className="rounded bg-muted px-1 font-mono text-sm md:text-[13px]">
                   https://your-domain/api/...
                 </code>
               ),
               header: (
-                <code className="rounded bg-muted px-1 font-mono text-[13px]">
+                <code className="rounded bg-muted px-1 font-mono text-sm md:text-[13px]">
                   Authorization: Bearer {appSlug(appName)}_...
                 </code>
               ),
@@ -106,32 +106,32 @@ function ApiReference() {
               className="grid gap-2 rounded-md border bg-card p-4"
             >
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="font-mono text-xs font-medium text-primary">
+                <span className="font-mono text-sm font-medium text-primary md:text-xs">
                   {doc.method}
                 </span>
-                <code className="font-mono text-sm">{doc.path}</code>
+                <code className="font-mono text-base md:text-sm">{doc.path}</code>
               </div>
               {doc.summary ? (
-                <p className="text-sm leading-6">{t(doc.summary)}</p>
+                <p className="text-base leading-6 md:text-sm">{t(doc.summary)}</p>
               ) : null}
               {doc.auth ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground md:text-sm">
                   {t("Auth: {auth}", { auth: t(doc.auth) })}
                 </p>
               ) : null}
               <ParamList label={t("Path")} items={doc.params} />
               <ParamList label={t("Query")} items={doc.query} />
               {doc.body ? (
-                <p className="text-sm">
+                <p className="text-base md:text-sm">
                   <span className="font-medium">{t("Body. ")}</span>
                   {t(doc.body)}
                 </p>
               ) : null}
               {doc.responses.length > 0 ? (
-                <ul className="grid gap-1 text-sm">
+                <ul className="grid gap-1 text-base md:text-sm">
                   {doc.responses.map((response) => (
                     <li key={`${response.status} ${response.description}`}>
-                      <span className="font-mono text-xs">
+                      <span className="font-mono text-sm md:text-xs">
                         {response.status}
                       </span>{" "}
                       {t(response.description)}
@@ -158,11 +158,11 @@ function ParamList({
   if (items.length === 0) return null;
   return (
     <div className="grid gap-1">
-      <p className="text-sm font-medium">{t(label)}</p>
-      <ul className="grid gap-1 text-sm">
+      <p className="text-base font-medium md:text-sm">{t(label)}</p>
+      <ul className="grid gap-1 text-base md:text-sm">
         {items.map((item) => (
           <li key={item.name}>
-            <code className="font-mono text-[13px]">{item.name}</code>
+            <code className="font-mono text-sm md:text-[13px]">{item.name}</code>
             {item.type ? (
               <span className="text-muted-foreground"> {item.type}</span>
             ) : null}
@@ -196,14 +196,14 @@ const markdownComponents: Components = {
   h3: ({ children }) => (
     <h3 className="mt-6 text-lg font-medium">{children}</h3>
   ),
-  p: ({ children }) => <p className="mt-3 text-sm leading-6">{children}</p>,
+  p: ({ children }) => <p className="mt-3 text-base leading-6 md:text-sm">{children}</p>,
   ul: ({ children }) => (
-    <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-6">
+    <ul className="mt-3 list-disc space-y-1 pl-5 text-base leading-6 md:text-sm">
       {children}
     </ul>
   ),
   ol: ({ children }) => (
-    <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm leading-6">
+    <ol className="mt-3 list-decimal space-y-1 pl-5 text-base leading-6 md:text-sm">
       {children}
     </ol>
   ),
@@ -216,18 +216,18 @@ const markdownComponents: Components = {
     <CodeBlock className={cn(className)}>{children}</CodeBlock>
   ),
   pre: ({ children }) => (
-    <pre className="mt-3 overflow-x-auto border rounded-md bg-sidebar p-3 text-sm text-sidebar-foreground">
+    <pre className="mt-3 overflow-x-auto border rounded-md bg-sidebar p-3 text-base text-sidebar-foreground md:text-sm">
       {children}
     </pre>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="mt-3 border-l-2 border-border pl-3 text-sm text-muted-foreground">
+    <blockquote className="mt-3 border-l-2 border-border pl-3 text-base text-muted-foreground md:text-sm">
       {children}
     </blockquote>
   ),
   table: ({ children }) => (
     <div className="mt-3 min-w-0 max-w-full overflow-x-auto">
-      <table className="w-full text-left text-sm">{children}</table>
+      <table className="w-full text-left text-base md:text-sm">{children}</table>
     </div>
   ),
   th: ({ children }) => (
@@ -247,10 +247,10 @@ function CodeBlock({
 }) {
   if (className)
     return (
-      <code className={cn("font-mono text-[13px]", className)}>{children}</code>
+      <code className={cn("font-mono text-sm md:text-[13px]", className)}>{children}</code>
     );
   return (
-    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">
+    <code className="rounded bg-muted px-1 py-0.5 font-mono text-sm md:text-[13px]">
       {children}
     </code>
   );

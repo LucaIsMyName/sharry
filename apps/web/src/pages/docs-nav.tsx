@@ -108,7 +108,7 @@ function Accordion({
         type="button"
         aria-expanded={open}
         onClick={onOpen}
-        className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase hover:bg-accent"
+        className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-sm font-medium tracking-wide text-muted-foreground uppercase hover:bg-accent md:text-xs"
       >
         <ChevronRight
           className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")}
@@ -124,7 +124,7 @@ function Chapter({ label, pages }: { label: string; pages: DocsNavPage[] }) {
   if (pages.length === 0) return null;
   return (
     <div className="grid gap-1">
-      <p className="px-2.5 pt-2 text-sm font-medium">{label}</p>
+      <p className="px-2.5 pt-2 text-base font-medium md:text-sm">{label}</p>
       {pages.map((page) => (
         <DocLink key={page.slug} to={`/docs/${page.slug}`} nested>
           {page.title}
@@ -149,7 +149,7 @@ function DocLink({
       className={({ isActive }) =>
         cn(
           "rounded-md text-foreground hover:bg-accent",
-          nested ? "py-1.5 pr-2.5 pl-5 text-xs" : "px-2.5 py-1.5 text-sm",
+          nested ? "py-1.5 pr-2.5 pl-5 text-sm md:text-xs" : "px-2.5 py-1.5 text-base md:text-sm",
           isActive && "bg-secondary",
         )
       }

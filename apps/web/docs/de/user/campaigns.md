@@ -16,4 +16,4 @@ Die Variante gilt, wenn der Kurzlink mit `?v=<variant id>` geöffnet wird oder e
 
 Die verfolgte Adresse sieht so aus: `https://share.example.com/s/summer-sale?v=<variant id>`.
 
-Lege zuerst die Kampagne an und füge dann auf ihrer Seite Varianten hinzu. Jede Variante hat einen Namen, einen Link und die UTM-Überschreibungen. Der Link-Editor kann eine gespeicherte Variante auch an einen QR-Code hängen. Die QR-Vorschau nutzt die UTM-Werte dieser Variante, bevor du den Code speicherst.
+Lege zuerst die Kampagne an und füge dann auf ihrer Seite Varianten hinzu. Jede Variante hat einen Namen, einen Link und die UTM-Überschreibungen. Die Varianten stehen in einer Tabelle mit Name, Kurz-URL, UTM-Werten und Symbolschaltflächen zum Bearbeiten, Kopieren oder Löschen. Der Link-Editor kann eine gespeicherte Variante auch an einen QR-Code hängen. Die QR-Vorschau nutzt die UTM-Werte dieser Variante, bevor du den Code speicherst.

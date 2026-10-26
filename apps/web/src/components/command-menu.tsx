@@ -1,6 +1,21 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Command } from "cmdk";
+import {
+  BookOpen,
+  ChartColumn,
+  Globe,
+  KeyRound,
+  LayoutDashboard,
+  Link as LinkIcon,
+  Megaphone,
+  MessageSquare,
+  ScrollText,
+  Server,
+  Settings,
+  User,
+  Users,
+} from "lucide-react";
 import { useNavigate } from "react-router";
 import { api } from "../api.ts";
 import { auditActionSentence } from "../audit-actions.ts";
@@ -146,20 +161,21 @@ export function CommandMenu({
             value={query}
             onValueChange={setQuery}
             placeholder={translate("Search pages, links, and docs")}
-            className="h-11 w-full border-b bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+            className="h-12 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
           />
-          <Command.List className="max-h-80 overflow-y-auto p-1">
-            <Command.Empty className="px-3 py-6 text-center text-sm text-muted-foreground">
+          <Command.List className="max-h-80 overflow-y-auto p-3">
+            <Command.Empty className="px-4 py-8 text-center text-sm text-muted-foreground">
               {searching ? translate("Searching…") : translate("No results")}
             </Command.Empty>
             <Group heading={translate("Pages")}>
               {pages.map((item) => (
-                <Row key={item.id} value={item.id} title={translate(item.title)} onSelect={() => go(item.to)} />
+                <Row key={item.id} value={item.id} to={item.to} title={translate(item.title)} onSelect={() => go(item.to)} />
               ))}
               {sections.map((item) => (
                 <Row
                   key={item.id}
                   value={item.id}
+                  to={item.to}
                   title={translate(item.title)}
                   detail={item.page ? translate(item.page) : undefined}
                   onSelect={() => go(item.to)}
@@ -171,8 +187,9 @@ export function CommandMenu({
                 <Row
                   key={link.id}
                   value={`link-${link.id}`}
+                  to={`/links/${link.id}`}
                   title={linkName(link)}
-                  detail={link.title?.trim() ? `${link.slug} · ${link.destinationUrl}` : link.destinationUrl}
+                  detail={linkDetail(link)}
                   onSelect={() => go(`/links/${link.id}`)}
                 />
               ))}
@@ -182,6 +199,7 @@ export function CommandMenu({
                 <Row
                   key={`analytics-${link.id}`}
                   value={`analytics-${link.id}`}
+                  to={`/analytics?link=${link.id}`}
                   title={translate("Analytics for {name}", { name: linkName(link) })}
                   onSelect={() => go(`/analytics?link=${link.id}`)}
                 />
@@ -192,6 +210,7 @@ export function CommandMenu({
                 <Row
                   key={campaign.id}
                   value={`campaign-${campaign.id}`}
+                  to={`/campaigns/${campaign.id}`}
                   title={campaign.name}
                   detail={campaign.description ?? undefined}
                   onSelect={() => go(`/campaigns/${campaign.id}`)}
@@ -203,6 +222,7 @@ export function CommandMenu({
                 <Row
                   key={chat.id}
                   value={`chat-${chat.id}`}
+                  to={`/chat/${chat.id}`}
                   title={chat.title}
                   detail={chat.snippet ?? undefined}
                   onSelect={() => go(`/chat/${chat.id}`)}
@@ -214,6 +234,7 @@ export function CommandMenu({
                 <Row
                   key={doc.slug}
                   value={`doc-${doc.slug}`}
+                  to={`/docs/${doc.slug}`}
                   title={doc.title}
                   detail={doc.snippet ?? undefined}
                   onSelect={() => go(`/docs/${doc.slug}`)}
@@ -227,6 +248,7 @@ export function CommandMenu({
                     <Row
                       key={user.id}
                       value={`user-${user.id}`}
+                      to={`/admin/users?focus=${user.id}`}
                       title={user.username}
                       detail={user.email}
                       onSelect={() => go(`/admin/users?focus=${user.id}`)}
@@ -238,6 +260,7 @@ export function CommandMenu({
                     <Row
                       key={domain.id}
                       value={`domain-${domain.id}`}
+                      to={`/admin/domains?focus=${domain.id}`}
                       title={domain.hostname}
                       onSelect={() => go(`/admin/domains?focus=${domain.id}`)}
                     />
@@ -248,6 +271,7 @@ export function CommandMenu({
                     <Row
                       key={key.id}
                       value={`key-${key.id}`}
+                      to={`/admin/api-keys?focus=${key.id}`}
                       title={key.name}
                       detail={key.tokenPrefix}
                       onSelect={() => go(`/admin/api-keys?focus=${key.id}`)}
@@ -259,6 +283,7 @@ export function CommandMenu({
                     <Row
                       key={entry.id}
                       value={`audit-${entry.id}`}
+                      to={`/admin/audit?entry=${entry.id}`}
                       title={auditLabel(entry.action, translate)}
                       detail={[entry.actorUsername, entry.entityType].filter(Boolean).join(" · ")}
                       onSelect={() => go(`/admin/audit?entry=${entry.id}`)}
@@ -285,8 +310,8 @@ function Group({
   if (items.length === 0) return null;
   return (
     <Command.Group>
-      <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">{heading}</div>
-      {items}
+      <div className="px-2.5 pt-3 pb-1.5 text-xs font-medium text-muted-foreground">{heading}</div>
+      <div className="grid gap-1">{items}</div>
     </Command.Group>
   );
 }
@@ -300,27 +325,57 @@ function Row({
   value,
   title,
   detail,
+  to,
   onSelect,
 }: {
   value: string;
   title: string;
   detail?: string;
+  to: string;
   onSelect: () => void;
 }) {
   return (
     <Command.Item
       value={value}
       onSelect={onSelect}
-      className="flex cursor-default flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-sm data-[selected=true]:bg-accent"
+      className="flex cursor-default items-center gap-2.5 rounded-md border border-border px-2.5 py-2 text-sm text-foreground data-[selected=true]:border-muted-foreground data-[selected=true]:bg-accent"
     >
-      <span className="max-w-full truncate">{title}</span>
-      {detail ? <span className="max-w-full truncate text-xs text-muted-foreground">{detail}</span> : null}
+      <span className="shrink-0 text-muted-foreground" aria-hidden>
+        {routeIcon(to)}
+      </span>
+      <span className="min-w-0">
+        <span className="block max-w-full truncate">{title}</span>
+        {detail ? <span className="block max-w-full truncate text-xs text-muted-foreground">{detail}</span> : null}
+      </span>
     </Command.Item>
   );
 }
 
+function routeIcon(to: string): ReactNode {
+  const path = to.split("?")[0] ?? to;
+  if (path === "/") return <LayoutDashboard size={18} />;
+  if (path.startsWith("/links")) return <LinkIcon size={18} />;
+  if (path.startsWith("/campaigns")) return <Megaphone size={18} />;
+  if (path.startsWith("/analytics")) return <ChartColumn size={18} />;
+  if (path.startsWith("/chat")) return <MessageSquare size={18} />;
+  if (path.startsWith("/docs")) return <BookOpen size={18} />;
+  if (path.startsWith("/account")) return <User size={18} />;
+  if (path.startsWith("/admin/users")) return <Users size={18} />;
+  if (path.startsWith("/admin/api-keys")) return <KeyRound size={18} />;
+  if (path.startsWith("/admin/settings")) return <Settings size={18} />;
+  if (path.startsWith("/admin/domains")) return <Globe size={18} />;
+  if (path.startsWith("/admin/server")) return <Server size={18} />;
+  if (path.startsWith("/admin/audit")) return <ScrollText size={18} />;
+  return <LayoutDashboard size={18} />;
+}
+
 function linkName(link: SearchLink): string {
   return link.title?.trim() || link.slug;
+}
+
+function linkDetail(link: SearchLink): string {
+  const description = link.description?.trim();
+  return [link.slug, link.destinationUrl, description].filter(Boolean).join(" · ");
 }
 
 function auditLabel(action: string, translate: (message: string) => string): string {

@@ -27,6 +27,7 @@ import { useAppName } from "../brand.ts";
 import { useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { setTheme, useTheme, type ThemeChoice } from "../theme.ts";
 import { Button } from "./ui/button.tsx";
+import { sidebarBevel } from "./ui/card.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { CommandMenu } from "./command-menu.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
@@ -83,7 +84,7 @@ export function Shell() {
       <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
         <div className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-3 md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
+            <SheetTrigger render={<Button variant="outline" type="button" />}>
               <Menu /> {t("Menu")}
             </SheetTrigger>
             <SheetContent
@@ -203,9 +204,9 @@ function Item({
         cn(
           "flex min-w-0 items-center  border rounded-md border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white",
           compact
-            ? "gap-2 px-2.5 py-1.5 text-xs"
-            : "gap-2.5 px-2.5 py-2 text-sm",
-          isActive && "border-muted-foreground bg-sidebar-accent text-white",
+            ? "gap-2 px-2.5 py-1.5 text-sm md:text-xs"
+            : "gap-2.5 px-2.5 py-2 text-base md:text-sm",
+          isActive && cn("border-muted-foreground bg-sidebar-accent text-white", sidebarBevel),
           className,
         )
       }
@@ -223,7 +224,7 @@ function SearchButton({ onOpen }: { onOpen: () => void }) {
       type="button"
       aria-label={t("Search")}
       onClick={onOpen}
-      className="flex min-w-0 items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
+      className="flex min-w-0 items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-base text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white md:text-sm"
     >
       <SearchIcon size={18} />
       <span className="truncate">{t("Search")}</span>
@@ -301,8 +302,8 @@ function AccountFoot({
           to="/account"
           className={({ isActive }) =>
             cn(
-              "inline-flex h-7 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-xs font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-white",
-              isActive && "bg-sidebar-accent text-white",
+              "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-white md:h-7 md:text-xs",
+              isActive && cn("bg-sidebar-accent text-white", sidebarBevel),
             )
           }
         >
