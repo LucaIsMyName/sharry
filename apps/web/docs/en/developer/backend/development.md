@@ -50,11 +50,13 @@ On first startup Sharry creates the initial administrator from `INITIAL_ADMIN_US
 | `npm run dev` | Embedded Postgres when needed, API on port 3000, dashboard on port 5173 |
 | `npm run db:migrate` | Apply Drizzle migrations |
 | `npm run db:generate` | Write a new migration from the schema |
-| `npm test` | Vitest. Database tests start a local PostgreSQL and do not use PGlite |
+| `npm test` | Vitest. Database tests start a local PostgreSQL and do not use PGlite. Also writes the last-run CSV |
 | `npm run typecheck` | Typecheck shared, database, API, web, and the repo scripts |
 | `npm run build` | Build the dashboard, then the API |
 | `npm run backup` | Custom-format `pg_dump` using `DATABASE_URL`, without putting the URL on the command line |
 | `npm start` | Run the built API: `node apps/api/dist/index.js` |
+
+`npm test` writes `apps/web/public/test-results.csv` when the run finishes, including a run that has failures. The file has one row per test file: passed, failed, skipped, and duration. It is not committed. The dashboard shows that file under Docs, in Developer, as Tests → Last run (`/docs/developer/tests`). Vite serves it from `public` during `npm run dev`, and a dashboard build copies whatever file is there at build time. `npm run deploy` runs the full suite before it uploads, so the production build includes that CSV and the server serves it at `/test-results.csv`.
 
 QR center images are written under `QR_DATA_DIR` (default `data/qr-logos`). Account photos are written under `AVATAR_DATA_DIR` (default `data/avatars`). Both live inside `data/`, which `npm run dev` does not delete.
 

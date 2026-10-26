@@ -27,7 +27,7 @@ Diese sitzen unter der Shell. Der übergeordnete Loader verlangt eine `full`-Sit
 | `/campaigns`, `/campaigns/:id` | Kampagnenliste und Detail |
 | `/analytics` | Analysen |
 | `/docs` | Leitet nach `/docs/user/signing-in` um |
-| `/docs/*` | Benutzeranleitungen, Entwicklernotizen und `/docs/api` |
+| `/docs/*` | Benutzeranleitungen, Entwicklernotizen, `/docs/api` und `/docs/developer/tests` |
 | `/account` | Sprache, Passwort, Foto und Zwei-Faktor-Authentifizierung |
 
 Admin-Seiten fügen einen Loader hinzu, der nur die Admin-Rolle erlaubt. Alle anderen werden nach `/` geschickt.
@@ -42,3 +42,5 @@ Admin-Seiten fügen einen Loader hinzu, der nur die Admin-Rolle erlaubt. Alle an
 | `/admin/audit` | Audit-Protokoll |
 
 Docs stehen jeder angemeldeten Person unter `/docs` zur Verfügung. Die Seitenliste kommt aus Markdown-Dateien unter `apps/web/docs/<locale>`, mit Englisch in `en` und einem passenden Baum für jede andere Sprache. Die Reihenfolge ist das Array `pageOrder` in `apps/web/src/pages/docs.tsx`. Eine Datei, die nicht in diesem Array steht, erscheint trotzdem, am Ende. Die API-Referenz wird beim Vite-Build aus JSDoc erzeugt.
+
+Die Docs-Seitenleiste bleibt sichtbar, während der Artikel scrollt. Benutzer und Entwickler sind einzeln geöffnet, und der Browser merkt sich, welcher offen ist. Ein Link zu einer Seite im anderen Abschnitt öffnet diesen Abschnitt. Backend, Frontend, API und Tests sind Kapitel. Die Seiten darunter nutzen eine kleinere Schrift. `/docs/api` ist die erzeugte API-Referenz. `/docs/developer/tests` liest `/test-results.csv` und zeigt den letzten Vitest-Lauf. In der Entwicklung liefert Vite diese Datei aus `apps/web/public`. In der Produktion liefert die API die Kopie aus dem Dashboard-Build. Fehlt die Datei, bleibt diese Seite leer.

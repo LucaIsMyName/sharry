@@ -17,6 +17,7 @@ import { resolveEnvFile, upsertEnvKeys } from './env-file.ts'
 import { ensureBuildMemoryCommand, minimumNodeVersion, nodeVersionIsCurrent, provisionHost } from './provision.ts'
 import { ensureLocalSecrets, generatedDatabaseUrl } from './secrets.ts'
 import { activateRelease } from './release.ts'
+import { runNpmTest } from './release-suite.ts'
 import { assertSafeRemoteDir, assertSafeServiceName, hostIsListed, hostKeyMatches, opensshFingerprint, privileged } from './ssh.ts'
 
 const syncEnv = process.argv.includes('--sync-env')
@@ -60,6 +61,14 @@ if (deployEnv.DEPLOY_ENABLED !== 'true') {
 
 assertSafeRemoteDir(deployEnv.DEPLOY_REMOTE_DIR)
 assertSafeServiceName(deployEnv.DEPLOY_RESTART_SERVICE)
+
+console.log('Running the test suite')
+try {
+  await runNpmTest()
+} catch (error) {
+  console.error(error instanceof Error ? error.message : 'Tests failed. Deploy stopped before uploading.')
+  process.exit(1)
+}
 
 const remote = deployEnv.DEPLOY_REMOTE_DIR
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '')

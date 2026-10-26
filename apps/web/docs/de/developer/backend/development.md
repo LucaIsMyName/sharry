@@ -50,11 +50,13 @@ Beim ersten Start legt Sharry die erste Administratorin oder den ersten Administ
 | `npm run dev` | Eingebettetes Postgres wenn nötig, API auf Port 3000, Dashboard auf Port 5173 |
 | `npm run db:migrate` | Drizzle-Migrationen anwenden |
 | `npm run db:generate` | Eine neue Migration aus dem Schema schreiben |
-| `npm test` | Vitest. Datenbanktests starten ein lokales PostgreSQL und nutzen kein PGlite |
+| `npm test` | Vitest. Datenbanktests starten ein lokales PostgreSQL und nutzen kein PGlite. Schreibt außerdem das CSV des letzten Laufs |
 | `npm run typecheck` | Typprüfung für shared, database, API, web und die Repo-Skripte |
 | `npm run build` | Zuerst das Dashboard bauen, dann die API |
 | `npm run backup` | `pg_dump` im Custom-Format mit `DATABASE_URL`, ohne die URL auf die Kommandozeile zu setzen |
 | `npm start` | Die gebaute API ausführen: `node apps/api/dist/index.js` |
+
+`npm test` schreibt `apps/web/public/test-results.csv`, wenn der Lauf endet, auch wenn Tests fehlschlagen. Die Datei hat eine Zeile pro Testdatei: bestanden, fehlgeschlagen, übersprungen und Dauer. Sie wird nicht committet. Das Dashboard zeigt diese Datei unter Docs, in Entwickler, als Tests → Letzter Lauf (`/docs/developer/tests`). Vite liefert sie während `npm run dev` aus `public`, und ein Dashboard-Build kopiert die Datei, die zum Bauzeitpunkt dort liegt. `npm run deploy` führt die komplette Suite aus, bevor es hochlädt, deshalb enthält der Produktionsbuild dieses CSV und der Server liefert es unter `/test-results.csv`.
 
 QR-Mittelbilder werden unter `QR_DATA_DIR` geschrieben (Vorgabe `data/qr-logos`). Kontofotos werden unter `AVATAR_DATA_DIR` geschrieben (Vorgabe `data/avatars`). Beides liegt in `data/`, das `npm run dev` nicht löscht.
 

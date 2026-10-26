@@ -27,7 +27,7 @@ These sit under the shell. The parent loader requires a `full` session. A sessio
 | `/campaigns`, `/campaigns/:id` | Campaign list and detail |
 | `/analytics` | Analytics |
 | `/docs` | Redirects to `/docs/user/signing-in` |
-| `/docs/*` | User guides, developer notes, and `/docs/api` |
+| `/docs/*` | User guides, developer notes, `/docs/api`, and `/docs/developer/tests` |
 | `/account` | Language, password, photo, and two-factor authentication |
 
 Admin pages add a loader that allows only the admin role. Anyone else is sent to `/`.
@@ -42,3 +42,5 @@ Admin pages add a loader that allows only the admin role. Anyone else is sent to
 | `/admin/audit` | Audit log |
 
 Docs are available to every signed-in user at `/docs`. The page list comes from markdown files under `apps/web/docs/<locale>`, with English in `en` and a matching tree for each other language. The order is the `pageOrder` array in `apps/web/src/pages/docs.tsx`. A file that is not in that array still appears, at the end. The API reference is generated from JSDoc while Vite builds.
+
+The docs sidebar stays in view while the article scrolls. User and Developer open one at a time, and the browser remembers which one is open. A link to a page in the other section opens that section. Backend, Frontend, API, and Tests are chapters. The pages under them use a smaller type size. `/docs/api` is the generated API reference. `/docs/developer/tests` reads `/test-results.csv` and shows the last Vitest run. In development Vite serves that file from `apps/web/public`. In production the API serves the copy from the dashboard build. A missing file leaves that page empty.

@@ -9,5 +9,6 @@ coverage
 *.log
 .DS_Store
 apps/web/dist
+apps/web/public/test-results.csv
 apps/api/dist
 apps/api/tsup.config.bundled_*.mjs

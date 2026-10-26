@@ -89,6 +89,8 @@ npm run deploy
 
 Übergib `--sync-env`, wenn die Laufzeitwerte wieder auf den Server kopiert werden sollen.
 
+`npm run deploy` führt die komplette Testsuite auf diesem Rechner aus, bevor es eine Verbindung aufbaut. Eine fehlgeschlagene Suite stoppt das Deploy, und es wird nichts hochgeladen. Die Suite schreibt `apps/web/public/test-results.csv`. Das Archiv der Veröffentlichung enthält diese Datei. Der Build auf dem Server kopiert sie ins Dashboard, und der Produktionsprozess liefert sie unter `/test-results.csv` für Docs → Entwickler → Tests → Letzter Lauf.
+
 Auf einem Server, der schon in Benutzung ist, kann jeder Schritt wiederholt werden. Node.js 22.23.4 oder neuer bleibt installiert. Ein vorhandener PostgreSQL-Cluster bleibt, wie er ist. Eine vorhandene Datenbankrolle oder Datenbank wird nicht gelöscht, und ihr Passwort wird nicht geändert. Wenn die Rolle `sharry` schon existiert und `DATABASE_URL` leer ist, stoppt Deploy und bittet dich, die aktuelle Verbindungszeichenkette zu setzen. Eine Caddy-Site, die `DOMAIN` schon nennt, bleibt stehen.
 
 Das Skript tut danach der Reihe nach Folgendes:
@@ -99,7 +101,7 @@ Das Skript tut danach der Reihe nach Folgendes:
 4. Legt den Systembenutzer `sharry`, die Datenbankrolle und die Datenbank an, wenn sie fehlen. Die Rolle bekommt kein neues Passwort, wenn sie schon existiert.
 5. Installiert Caddy, wenn es fehlt. Wenn `DOMAIN` noch keine Site hat, fügt es eine Site hinzu, die an `127.0.0.1:3000` weiterleitet, und lädt Caddy neu.
 6. Wenn `ufw` schon aktiv ist, erlaubt es die Ports 80 und 443. Es schaltet `ufw` nicht ein, wenn es aus ist.
-7. Packt das Repo, ohne `.git`, `node_modules`, die lokalen Umgebungsdateien und `data`, und lädt es nach `$DEPLOY_REMOTE_DIR/releases/<timestamp>` hoch.
+7. Packt das Repo, ohne `.git`, `node_modules`, die lokalen Umgebungsdateien und `data`, und lädt es nach `$DEPLOY_REMOTE_DIR/releases/<timestamp>` hoch. Das Test-CSV aus der gerade gelaufenen Suite ist Teil dieses Archivs.
 8. Verknüpft `$DEPLOY_REMOTE_DIR/shared/data` mit `data` in der Veröffentlichung, damit QR-Bilder und Avatare die nächste Veröffentlichung überstehen.
 9. Wenn freier Speicher plus freier Swap unter 1,5 GB liegt, fügt es eine 2-GB-Swap-Datei unter `/swapfile` hinzu und führt dann `npm ci` und `npm run build` auf dem Server aus. Wenn der Build wegen Speichermangels beendet wird, gib Speicherplatz für Swap frei und führe Deploy noch einmal aus.
 10. Schreibt `shared/.env` bei der ersten Installation und wieder, wenn `--sync-env` gesetzt ist. Der Dateimodus ist `0600`.

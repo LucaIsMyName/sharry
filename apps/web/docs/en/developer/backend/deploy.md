@@ -89,6 +89,8 @@ npm run deploy
 
 Pass `--sync-env` when the runtime values should be copied to the server again.
 
+`npm run deploy` runs the full test suite on this machine before it connects. A failing suite stops the deploy, and nothing is uploaded. The suite writes `apps/web/public/test-results.csv`. The release archive includes that file. The server build copies it into the dashboard, and the production process serves it at `/test-results.csv` for Docs → Developer → Tests → Last run.
+
 On a server that is already in use, each step is safe to repeat. Node.js 22.23.4 or newer stays installed. An existing PostgreSQL cluster is left as it is. An existing database role or database is not dropped, and its password is not changed. If the `sharry` role already exists and `DATABASE_URL` is empty, deploy stops and asks you to set the current connection string. A Caddy site that already names `DOMAIN` is left in place.
 
 The script then does the following, in order:
@@ -99,7 +101,7 @@ The script then does the following, in order:
 4. Creates the `sharry` system user, database role, and database when they are missing. The role is not given a new password when it already exists.
 5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000` and reloads Caddy.
 6. When `ufw` is already enabled, allows ports 80 and 443. It does not enable `ufw` when it is off.
-7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
+7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`. The test-results CSV from the suite that just ran is part of that archive.
 8. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
 9. When free memory plus free swap is below 1.5 GB, adds a 2 GB swap file at `/swapfile`, then runs `npm ci` and `npm run build` on the server. If the build is killed for lack of memory, free disk space for swap and run deploy again.
 10. Writes `shared/.env` on the first install, and again when `--sync-env` is set. The file mode is `0600`.

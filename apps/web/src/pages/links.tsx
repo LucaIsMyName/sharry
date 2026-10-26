@@ -767,7 +767,7 @@ export function LinkDetailPage() {
         title={link?.title?.trim() || link?.slug || "Link"}
         literal={Boolean(link?.title?.trim() || link?.slug)}
       />
-      <div className="sticky top-12 z-20 -mx-5 flex flex-wrap items-end justify-between gap-4 border-b border-border bg-background px-5 pb-3 md:top-0 md:-mx-7 md:px-7">
+      <div className="sticky top-12 z-20 -mx-5 flex flex-wrap items-end justify-between gap-4 border-b border-border bg-background px-5 py-3 md:top-0 md:-mx-7 md:px-7">
         <div>
           <h1 className="font-heading text-3xl font-medium tracking-tight">
             {link?.title?.trim() || link?.slug || t("Link")}

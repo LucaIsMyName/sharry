@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
 import { appSlug } from "@sharry/shared";
 import ReactMarkdown, { type Components } from "react-markdown";
-import { NavLink, useParams } from "react-router";
+import { useParams } from "react-router";
 import remarkGfm from "remark-gfm";
 import { cn } from "cn";
 import apiDocs, { type ApiDoc } from "virtual:api-docs";
 import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
 import { useI18n } from "../i18n/index.tsx";
+import { DocsNav } from "./docs-nav.tsx";
+import { TestResultsPage } from "./test-results-page.tsx";
 
 const rawPages = import.meta.glob("../../docs/*/**/*.md", {
   query: "?raw",
@@ -84,40 +86,25 @@ export function DocsPage() {
   const visible = pagesFor(locale);
   const page = visible.find((item) => item.slug === slug);
   const documentTitle =
-    slug === "api" ? t("API reference") : (page?.title ?? t("Docs"));
+    slug === "api"
+      ? t("API reference")
+      : slug === "developer/tests"
+        ? t("Last run")
+        : (page?.title ?? t("Docs"));
   return (
     <div className="grid items-start gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
       <PageTitle title={documentTitle} literal />
-      <nav className="grid content-start gap-4">
-        <DocGroup
-          label={t("User")}
-          pages={visible.filter((item) => item.group === "User")}
-        />
-        <div className="grid gap-2">
-          <p className="px-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {t("Developer")}
-          </p>
-          <DocGroup
-            label={t("Backend")}
-            pages={visible.filter((item) => item.section === "Backend")}
-            nested
-          />
-          <DocGroup
-            label={t("Frontend")}
-            pages={visible.filter((item) => item.section === "Frontend")}
-            nested
-          />
-        </div>
-        <div className="grid gap-1">
-          <p className="px-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {t("API")}
-          </p>
-          <DocLink to="/docs/api">{t("Reference")}</DocLink>
-        </div>
-      </nav>
+      <DocsNav
+        slug={slug}
+        userPages={visible.filter((item) => item.group === "User")}
+        backendPages={visible.filter((item) => item.section === "Backend")}
+        frontendPages={visible.filter((item) => item.section === "Frontend")}
+      />
       <article className="min-w-0">
         {slug === "api" ? (
           <ApiReference />
+        ) : slug === "developer/tests" ? (
+          <TestResultsPage />
         ) : page ? (
           <Markdown source={page.markdown} />
         ) : (
@@ -127,51 +114,6 @@ export function DocsPage() {
         )}
       </article>
     </div>
-  );
-}
-
-function DocGroup({
-  label,
-  pages: groupPages,
-  nested = false,
-}: {
-  label: string;
-  pages: DocPage[];
-  nested?: boolean;
-}) {
-  if (groupPages.length === 0) return null;
-  return (
-    <div className="grid gap-1">
-      <p
-        className={cn(
-          "px-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
-          nested && "pt-1",
-        )}
-      >
-        {label}
-      </p>
-      {groupPages.map((page) => (
-        <DocLink key={page.slug} to={`/docs/${page.slug}`}>
-          {page.title}
-        </DocLink>
-      ))}
-    </div>
-  );
-}
-
-function DocLink({ to, children }: { to: string; children: string }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        cn(
-          "rounded-md px-2.5 py-1.5 text-sm text-foreground hover:bg-accent",
-          isActive && "bg-secondary",
-        )
-      }
-    >
-      {children}
-    </NavLink>
   );
 }
 
@@ -338,10 +280,10 @@ const markdownComponents: Components = {
     </a>
   ),
   code: ({ className, children }) => (
-    <CodeBlock className={className}>{children}</CodeBlock>
+    <CodeBlock className={cn(className)}>{children}</CodeBlock>
   ),
   pre: ({ children }) => (
-    <pre className="mt-3 overflow-x-auto rounded-md bg-sidebar p-3 text-sm text-sidebar-foreground">
+    <pre className="mt-3 overflow-x-auto border rounded-md bg-sidebar p-3 text-sm text-sidebar-foreground">
       {children}
     </pre>
   ),

@@ -209,7 +209,7 @@ QR center images go to `QR_DATA_DIR` (default `data/qr-logos`). Account photos g
 | `npm run setup` | Migrations and the initial administrator, then exit |
 | `npm run create-admin` | Another administrator from `INITIAL_ADMIN_*` |
 | `npm run backup` | Custom-format `pg_dump` using `DATABASE_URL`, without putting the URL on the command line |
-| `npm run deploy` | Install or update a server from `.env.production` |
+| `npm run deploy` | Run the test suite, then install or update a server from `.env.production` |
 
 `npm run dev`, `npm run db:migrate`, `npm run setup`, `npm run create-admin`, and `npm run backup` read `.env.development`. If that file is missing and a legacy `.env` is present, they use `.env`. `SHARRY_ENV_FILE` points a command at a different file. `npm run deploy` reads `.env.production` only.
 
@@ -499,6 +499,8 @@ npm install
 npm run deploy
 ```
 
+`npm run deploy` runs the full test suite on this machine before it connects. A failing suite stops the deploy, and nothing is uploaded. The suite writes `apps/web/public/test-results.csv`, the archive includes it, and production serves it at `/test-results.csv`.
+
 The first deploy writes `$DEPLOY_REMOTE_DIR/shared/.env` with mode `0600`. A later deploy keeps that file. Pass `--sync-env` when the runtime values should be copied again.
 
 On a server that is already in use, each step is safe to repeat. Node.js 22.23.4 or newer stays installed. Supported CPUs are x86_64 and arm64. An existing PostgreSQL cluster is left as it is. An existing database role or database is not dropped, and its password is not changed. If the `sharry` role already exists and `DATABASE_URL` is empty, deploy stops and asks you to set the current connection string. A Caddy site that already names `DOMAIN` is left in place. A Caddyfile that still has the retired `interval` or `burst` on-demand options is rewritten so Caddy can start.
@@ -511,7 +513,7 @@ The script then does the following, in order:
 4. Creates the `sharry` system user, database role, and database when they are missing.
 5. Installs Caddy when it is missing. When `DOMAIN` has no site yet, adds a site that proxies to `127.0.0.1:3000`, including the on-demand ask URL, and reloads Caddy.
 6. When `ufw` is already enabled, allows ports 80 and 443. It does not enable `ufw` when it is off.
-7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`.
+7. Packs the repo, excluding `.git`, `node_modules`, the local environment files, and `data`, and uploads it to `$DEPLOY_REMOTE_DIR/releases/<timestamp>`. The test-results CSV from the suite that just ran is part of that archive.
 8. Links `$DEPLOY_REMOTE_DIR/shared/data` to `data` inside the release, so QR images and avatars survive the next release.
 9. When free memory plus free swap is below 1.5 GB, adds a 2 GB swap file at `/swapfile`, then runs `npm ci` and `npm run build` on the server. If the build is killed for lack of memory, free disk space for swap and run deploy again.
 10. Writes `shared/.env` on the first install, and again when `--sync-env` is set.

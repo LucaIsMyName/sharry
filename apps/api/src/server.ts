@@ -149,6 +149,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (fs.existsSync(assets)) {
       await app.register(fastifyStatic, { root: assets, prefix: '/assets/', decorateReply: false })
     }
+    app.get('/test-results.csv', async (_request, reply) => {
+      const body = shippedTestResults(process.cwd())
+      if (body === null) return reply.code(404).send({ error: 'Not found' })
+      return reply.type('text/csv').send(body)
+    })
   }
 
   app.route({
@@ -179,4 +184,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   })
 
   return app
+}
+
+export function shippedTestResults(root: string): string | null {
+  const file = path.join(root, 'apps/web/dist/test-results.csv')
+  if (!fs.existsSync(file)) return null
+  return fs.readFileSync(file, 'utf8')
 }
