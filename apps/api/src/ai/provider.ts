@@ -1,4 +1,6 @@
 import { openAiCompletionsUrl, type AiProvider } from '@sharry/shared'
+
+export const mistralCompletionsBase = 'https://api.mistral.ai/v1'
 import { SHARRY_ONLY_RULE } from './prompt.ts'
 import { AppError } from '../support.ts'
 
@@ -38,6 +40,7 @@ export function buildProviderRequest(
   const ready = withBoundary(messages)
   if (config.provider === 'anthropic') return anthropicRequest(config, ready, tools)
   if (config.provider === 'google') return googleRequest(config, ready, tools)
+  if (config.provider === 'mistral') return openAiRequest(config, ready, tools, mistralCompletionsBase)
   return openAiRequest(config, ready, tools)
 }
 
@@ -71,8 +74,8 @@ function withBoundary(messages: AiTurnMessage[]): AiTurnMessage[] {
   return [{ role: 'system', content }, ...rest]
 }
 
-function openAiRequest(config: ProviderConfig, messages: AiTurnMessage[], tools: AiToolDef[]): ProviderRequest {
-  const base = config.provider === 'openai' ? 'https://api.openai.com/v1' : config.baseUrl
+function openAiRequest(config: ProviderConfig, messages: AiTurnMessage[], tools: AiToolDef[], baseUrl?: string): ProviderRequest {
+  const base = baseUrl ?? (config.provider === 'openai' ? 'https://api.openai.com/v1' : config.baseUrl)
   return {
     url: openAiCompletionsUrl(base),
     headers: {

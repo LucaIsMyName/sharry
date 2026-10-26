@@ -64,6 +64,13 @@
       "when": 1793015373440,
       "tag": "0008_ai_chats",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793019000000,
+      "tag": "0009_ai_message_blocks",
+      "breakpoints": true
     }
   ]
 }

@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
-import type { AiProposal, QrStyle, RoutingRule } from '@sharry/shared'
+import type { AiProposal, ChatBlock, QrStyle, RoutingRule } from '@sharry/shared'
 
 export const users = pgTable(
   'users',
@@ -303,6 +303,7 @@ export const aiMessages = pgTable(
     toolName: text('tool_name'),
     toolCallId: text('tool_call_id'),
     proposal: jsonb('proposal').$type<AiProposal>(),
+    blocks: jsonb('blocks').$type<ChatBlock[]>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('ai_messages_chat_created_idx').on(table.chatId, table.createdAt)],

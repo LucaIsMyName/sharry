@@ -9,15 +9,24 @@ afterEach(() => {
 })
 
 describe('provider requests', () => {
-  it('sends the Sharry-only rule to OpenAI, Anthropic, Gemini, and a compatible endpoint', () => {
+  it('sends the Sharry-only rule to OpenAI, Anthropic, Gemini, Mistral, and a compatible endpoint', () => {
     const messages = [{ role: 'user' as const, content: 'Code me an app' }]
+    const tools = [{ name: 'show_link_form', description: 'Show the short-link form', parameters: { type: 'object', properties: {} } }]
     const openai = buildProviderRequest(config('openai'), messages, [])
     const compatible = buildProviderRequest(config('openai_compatible', 'http://127.0.0.1:11434/v1'), messages, [])
     const anthropic = buildProviderRequest(config('anthropic'), messages, [])
     const google = buildProviderRequest(config('google'), messages, [])
+    const mistral = buildProviderRequest(config('mistral'), messages, tools)
     expect(JSON.stringify(openai.body)).toContain(SHARRY_ONLY_RULE)
     expect(JSON.stringify(compatible.body)).toContain(SHARRY_ONLY_RULE)
+    expect(JSON.stringify(mistral.body)).toContain(SHARRY_ONLY_RULE)
+    expect(mistral.body).toMatchObject({
+      model: 'mistral-small-latest',
+      tools: [{ type: 'function', function: { name: 'show_link_form' } }],
+    })
+    expect(mistral.headers.authorization).toBe(`Bearer ${key}`)
     expect(openai.url).toBe('https://api.openai.com/v1/chat/completions')
+    expect(mistral.url).toBe('https://api.mistral.ai/v1/chat/completions')
     expect(compatible.url).toBe('http://127.0.0.1:11434/v1/chat/completions')
     expect(anthropic.body).toMatchObject({ system: expect.stringContaining(SHARRY_ONLY_RULE) })
     expect(JSON.stringify(google.body)).toContain(SHARRY_ONLY_RULE)
@@ -50,7 +59,14 @@ describe('provider requests', () => {
 })
 
 function config(provider: ProviderConfig['provider'], baseUrl = ''): ProviderConfig {
-  const model = provider === 'anthropic' ? 'claude-haiku-4-5' : provider === 'google' ? 'gemini-2.5-flash' : 'gpt-4.1-mini'
+  const model =
+    provider === 'anthropic'
+      ? 'claude-haiku-4-5'
+      : provider === 'google'
+        ? 'gemini-2.5-flash'
+        : provider === 'mistral'
+          ? 'mistral-small-latest'
+          : 'gpt-4.1-mini'
   return { provider, model, apiKey: key, baseUrl }
 }
 

@@ -46,7 +46,7 @@ Die Statuszeile unter den Feldern sagt, welcher der drei Zustände aktiv ist: hi
 
 ## KI
 
-Die Karte KI stellt die Assistenz für jede angemeldete Person ein. Wähle einen Anbieter: OpenAI, Anthropic, Google Gemini oder einen OpenAI-kompatiblen Endpunkt. Die Modellliste folgt dem Anbieter. Eigenes Modell nimmt eine ID auf, die die Liste nicht zeigt. Ein OpenAI-kompatibler Anbieter braucht zusätzlich eine Basis-URL, zum Beispiel `https://example.com/v1`. Der Server sendet den API-Schlüssel an diese URL.
+Die Karte KI stellt die Assistenz für jede angemeldete Person ein. Wähle einen Anbieter: OpenAI, Anthropic, Google Gemini, Mistral oder einen OpenAI-kompatiblen Endpunkt. Die Modellliste folgt dem Anbieter. Eigenes Modell nimmt eine ID auf, die die Liste nicht zeigt. Ein OpenAI-kompatibler Anbieter braucht zusätzlich eine Basis-URL, zum Beispiel `https://example.com/v1`. Der Server sendet den API-Schlüssel an diese URL.
 
 Der API-Schlüssel wird mit demselben Schlüssel verschlüsselt wie das SMTP-Passwort. Er ist keine Umgebungsvariable, und die Einstellungen zeigen ihn nicht wieder an. Lass das Feld leer, um den gespeicherten Schlüssel zu behalten. Gespeicherten Schlüssel löschen entfernt ihn beim nächsten Speichern. Die KI ist nur verfügbar, wenn ein Anbieter, ein Modell und ein Schlüssel gespeichert sind, plus eine Basis-URL beim kompatiblen Anbieter.
 

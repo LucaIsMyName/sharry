@@ -242,10 +242,10 @@ function AccountFoot({
     <img
       src={`/api/auth/avatar?v=${encodeURIComponent(user.updatedAt)}`}
       alt=""
-      className="size-[18px] rounded-full object-cover"
+      className="size-[18px] rounded-md object-cover"
     />
   ) : (
-    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[10px] leading-none font-medium text-white">
+    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] leading-none font-medium text-white">
       {initial}
     </span>
   );

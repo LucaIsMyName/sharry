@@ -2,16 +2,25 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { sql } from 'drizzle-orm'
-import { trackingCampaigns, trackingVariants, type Database } from '@sharry/database'
+import { qrCodes, trackingCampaigns, trackingVariants, type Database } from '@sharry/database'
 import {
+  analyticsFormPrefillSchema,
+  campaignFormPrefillSchema,
   cleanUtm,
+  destinationSchema,
   docSlugs,
+  linkFormPrefillSchema,
   lookupSchema,
   proposeCampaignSchema,
   proposeLinkSchema,
   queryAnalyticsSchema,
   readDocSchema,
+  submitAnalyticsFormSchema,
+  submitCampaignFormSchema,
+  submitLinkFormSchema,
   type AiProposal,
+  type ChatBlock,
+  type ChatFormResult,
   type DocSlug,
 } from '@sharry/shared'
 import { loadAnalytics, parseAnalyticsRange } from '../analytics.ts'
@@ -24,6 +33,7 @@ import type { AiToolCall, AiToolDef } from './provider.ts'
 
 const readTools = new Set(['query_analytics', 'lookup', 'read_doc'])
 const writeTools = new Set(['propose_link', 'propose_campaign'])
+const formTools = new Set(['show_link_form', 'show_analytics_form', 'show_campaign_form'])
 
 const stringParam = { type: 'string' }
 const utmParam = {
@@ -40,6 +50,42 @@ const utmParam = {
 }
 
 export const aiToolDefs: AiToolDef[] = [
+  {
+    name: 'show_link_form',
+    description:
+      'Show the short-link form. Call this as soon as the person wants a short link. Prefill destinationUrl or slug only when they already gave them. This does not create the link.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        destinationUrl: { type: 'string', description: 'http or https URL, only if already given' },
+        slug: stringParam,
+      },
+    },
+  },
+  {
+    name: 'show_analytics_form',
+    description:
+      'Show the analytics form so the person can choose all links or one link. Call this as soon as they want a report. Prefill from and to as YYYY-MM-DD only when they already named dates. This does not run the report.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        from: { type: 'string', description: 'YYYY-MM-DD' },
+        to: { type: 'string', description: 'YYYY-MM-DD' },
+      },
+    },
+  },
+  {
+    name: 'show_campaign_form',
+    description:
+      'Show the campaign form. Call this as soon as the person wants a campaign. Prefill name or description only when they already gave them. This does not create the campaign.',
+    parameters: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { name: stringParam, description: stringParam },
+    },
+  },
   {
     name: 'propose_link',
     description:
@@ -132,6 +178,10 @@ export function isWriteTool(name: string): boolean {
   return writeTools.has(name)
 }
 
+export function isFormTool(name: string): boolean {
+  return formTools.has(name)
+}
+
 export async function runReadTool(
   db: Database,
   actor: Actor,
@@ -170,6 +220,259 @@ export function proposalFromWrite(call: AiToolCall): { ok: true; proposal: AiPro
       status: 'pending',
     },
   }
+}
+
+export async function formBlockFromCall(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  call: AiToolCall,
+): Promise<{ ok: true; block: ChatBlock } | { ok: false; error: string }> {
+  const args = parseArguments(call.arguments)
+  const value = args.ok ? args.value : {}
+  const id = randomUUID()
+  if (call.name === 'show_link_form') {
+    const parsed = linkFormPrefillSchema.safeParse(value)
+    const prefill = parsed.success ? parsed.data : {}
+    if (prefill.destinationUrl && !destinationSchema.safeParse(prefill.destinationUrl).success) delete prefill.destinationUrl
+    return { ok: true, block: { type: 'form', id, form: 'link', status: 'pending', prefill } }
+  }
+  if (call.name === 'show_analytics_form') {
+    const parsed = analyticsFormPrefillSchema.safeParse(value)
+    return {
+      ok: true,
+      block: {
+        type: 'form',
+        id,
+        form: 'analytics',
+        status: 'pending',
+        prefill: parsed.success ? parsed.data : {},
+        links: await visibleLinkChoices(db, actor, settings),
+      },
+    }
+  }
+  if (call.name === 'show_campaign_form') {
+    const parsed = campaignFormPrefillSchema.safeParse(value)
+    return {
+      ok: true,
+      block: {
+        type: 'form',
+        id,
+        form: 'campaign',
+        status: 'pending',
+        prefill: parsed.success ? parsed.data : {},
+        links: await visibleLinkChoices(db, actor, settings),
+      },
+    }
+  }
+  return { ok: false, error: 'That tool is not available.' }
+}
+
+export async function applyFormSubmission(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  locale: string,
+  block: Extract<ChatBlock, { type: 'form' }>,
+  body: unknown,
+): Promise<{ block: ChatBlock; report?: { content: string; blocks: ChatBlock[]; brief: string } }> {
+  if (block.form === 'link') return { block: await submitLinkForm(db, actor, settings, block, body) }
+  if (block.form === 'campaign') return { block: await submitCampaignForm(db, actor, settings, block, body) }
+  return submitAnalyticsForm(db, actor, settings, locale, block, body)
+}
+
+export function blocksFromAnalyticsResult(value: unknown): ChatBlock[] {
+  if (!value || typeof value !== 'object') return []
+  const record = value as {
+    path?: unknown
+    series?: { date: string; clicks: number }[]
+    links?: { title: string | null; slug: string; clicks: number; uniqueVisitors?: number }[]
+    referrers?: { name: string; clicks: number }[]
+  }
+  if (typeof record.path !== 'string' || !Array.isArray(record.series)) return []
+  const chart: ChatBlock = { type: 'chart', title: 'Clicks', series: record.series, path: record.path }
+  const table: ChatBlock = record.links
+    ? {
+        type: 'table',
+        title: 'Links',
+        columns: ['Name', 'Clicks', 'Unique visitors'],
+        rows: record.links.map((link) => [link.title || link.slug, String(link.clicks), String(link.uniqueVisitors ?? 0)]),
+        path: record.path,
+      }
+    : {
+        type: 'table',
+        title: 'Referrers',
+        columns: ['Referrer', 'Clicks'],
+        rows: (record.referrers ?? []).map((row) => [row.name, String(row.clicks)]),
+        path: record.path,
+      }
+  return [chart, table]
+}
+
+async function submitLinkForm(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  block: Extract<ChatBlock, { type: 'form' }>,
+  body: unknown,
+): Promise<ChatBlock> {
+  const parsed = submitLinkFormSchema.safeParse(body)
+  if (!parsed.success) return pendingError(block, parsed.error.issues.map((issue) => issue.message).join(' '))
+  let created: Awaited<ReturnType<typeof createLink>>
+  try {
+    created = await createLink(
+      db,
+      actor,
+      { destinationUrl: parsed.data.destinationUrl, slug: parsed.data.slug?.trim() || undefined },
+      settings,
+    )
+  } catch (error) {
+    return pendingError(block, error instanceof AppError ? error.message : 'Could not create the link.')
+  }
+  const hosts = await loadVerifiedHosts(db, [created.redirectDomainId])
+  const link = serializeLink(created, settings, undefined, hosts)
+  let qrCreated = false
+  let error: string | undefined
+  if (parsed.data.createQr) {
+    try {
+      const [qr] = await db
+        .insert(qrCodes)
+        .values({ linkId: created.id, name: 'QR', styleConfig: settings.defaultQrStyle })
+        .returning()
+      if (!qr) error = 'Could not create the QR code'
+      else {
+        qrCreated = true
+        await writeAudit(db, {
+          actorUserId: actor.id,
+          action: 'qr.created',
+          entityType: 'qr_code',
+          entityId: qr.id,
+          metadata: { linkId: created.id, name: qr.name },
+        })
+      }
+    } catch (caught) {
+      error = caught instanceof AppError ? caught.message : 'Could not create the QR code'
+    }
+  }
+  return {
+    ...block,
+    status: 'submitted',
+    result: { path: `/links/${created.id}`, shortUrl: link.shortUrl, qrCreated, error },
+  }
+}
+
+async function submitCampaignForm(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  block: Extract<ChatBlock, { type: 'form' }>,
+  body: unknown,
+): Promise<ChatBlock> {
+  const parsed = submitCampaignFormSchema.safeParse(body)
+  if (!parsed.success) return pendingError(block, parsed.error.issues.map((issue) => issue.message).join(' '))
+  if (parsed.data.variantName?.trim() && !parsed.data.linkId) return pendingError(block, 'Choose a link for this variant.')
+  const proposal = await confirmCampaign(db, actor, settings, {
+    id: block.id,
+    tool: 'propose_campaign',
+    status: 'pending',
+    args: {
+      name: parsed.data.name,
+      description: parsed.data.description,
+      variants:
+        parsed.data.linkId
+          ? [{ linkId: parsed.data.linkId, name: parsed.data.variantName?.trim() || parsed.data.name }]
+          : undefined,
+    },
+  })
+  if (proposal.status === 'failed') return pendingError(block, proposal.result?.error ?? 'Could not create the campaign.')
+  return { ...block, status: 'submitted', result: proposal.result }
+}
+
+async function submitAnalyticsForm(
+  db: Database,
+  actor: Actor,
+  settings: AppSettings,
+  locale: string,
+  block: Extract<ChatBlock, { type: 'form' }>,
+  body: unknown,
+): Promise<{ block: ChatBlock; report?: { content: string; blocks: ChatBlock[]; brief: string } }> {
+  const parsed = submitAnalyticsFormSchema.safeParse(body)
+  if (!parsed.success) return { block: pendingError(block, parsed.error.issues.map((issue) => issue.message).join(' ')) }
+  const prefill = analyticsFormPrefillSchema.safeParse(block.prefill ?? {})
+  const dates = prefill.success ? prefill.data : {}
+  try {
+    const report = await queryAnalyticsForActor(db, actor, settings, {
+      from: dates.from,
+      to: dates.to,
+      linkId: parsed.data.scope === 'link' ? parsed.data.linkId : undefined,
+    })
+    if (!report || typeof report !== 'object' || !('path' in report)) {
+      return { block: pendingError(block, 'Could not read analytics.') }
+    }
+    const data = report as {
+      path: string
+      from: string
+      to: string
+      totalClicks: number
+      uniqueVisitors: number
+      error?: string
+    }
+    if (data.error) return { block: pendingError(block, data.error) }
+    const result: ChatFormResult = {
+      scope: parsed.data.scope,
+      linkId: parsed.data.linkId,
+      path: data.path,
+      from: data.from,
+      to: labelTo(dates.to, data.to),
+      totalClicks: data.totalClicks,
+      uniqueVisitors: data.uniqueVisitors,
+    }
+    const content = analyticsSentence(locale, result, !dates.from && !dates.to)
+    const chosen = block.links?.find((link) => link.id === parsed.data.linkId)
+    const scopeText = parsed.data.scope === 'all' ? 'all links' : `the link ${chosen?.title || chosen?.slug || parsed.data.linkId}`
+    const brief = `The person submitted the analytics form for ${scopeText}. Range ${result.from} to ${result.to}: ${result.totalClicks} clicks, ${result.uniqueVisitors} unique visitors. Write a short report in ${locale === 'de' ? 'German' : 'English'} with one markdown heading. Use only these numbers. Say the range. Do not call tools.`
+    return {
+      block: { ...block, status: 'submitted', result },
+      report: { content, blocks: blocksFromAnalyticsResult(report), brief },
+    }
+  } catch (error) {
+    return { block: pendingError(block, error instanceof AppError ? error.message : 'Could not read analytics.') }
+  }
+}
+
+function pendingError(block: Extract<ChatBlock, { type: 'form' }>, error: string): ChatBlock {
+  return { ...block, status: 'pending', result: { ...(block.result ?? {}), error } }
+}
+
+function labelTo(requested: string | undefined, rangeEnd: string): string {
+  if (requested && /^\d{4}-\d{2}-\d{2}$/.test(requested)) return requested
+  return rangeEnd
+}
+
+function analyticsSentence(locale: string, result: ChatFormResult, last30: boolean): string {
+  const from = result.from ?? ''
+  const to = result.to ?? ''
+  const clicks = result.totalClicks ?? 0
+  const visitors = result.uniqueVisitors ?? 0
+  if (locale === 'de') {
+    const range = last30 ? `Letzte 30 Tage (${from} bis ${to})` : `Von ${from} bis ${to}`
+    return `${range}: ${clicks} Klicks, ${visitors} eindeutige Besucher.`
+  }
+  const range = last30 ? `Last 30 days (${from} to ${to})` : `From ${from} to ${to}`
+  return `${range}: ${clicks} clicks, ${visitors} unique visitors.`
+}
+
+async function visibleLinkChoices(db: Database, actor: Actor, settings: AppSettings) {
+  const visibility = visibleLinksWhere(actor, settings, 'links')
+  return rowsOf<{ id: string; slug: string; title: string | null }>(
+    await db.execute(sql`
+      select id::text as id, slug, title
+      from links
+      where ${visibility ?? sql`true`}
+      order by updated_at desc
+      limit 100
+    `),
+  )
 }
 
 export async function confirmProposal(
@@ -386,11 +689,13 @@ async function topLinks(
   actor: Actor,
   settings: AppSettings,
   range: { from: Date; to: Date },
-): Promise<{ slug: string; title: string | null; clicks: number; path: string }[]> {
+): Promise<{ slug: string; title: string | null; clicks: number; uniqueVisitors: number; path: string }[]> {
   const visibility = visibleLinksWhere(actor, settings, 'l')
-  const rows = rowsOf<{ id: string; slug: string; title: string | null; clicks: number }>(
+  const rows = rowsOf<{ id: string; slug: string; title: string | null; clicks: number; unique_visitors: number }>(
     await db.execute(sql`
-      select l.id::text as id, l.slug, l.title, count(e.id)::int as clicks
+      select l.id::text as id, l.slug, l.title,
+             count(e.id)::int as clicks,
+             count(distinct e.anonymous_visitor_id)::int as unique_visitors
       from links l
       left join click_events e
         on e.link_id = l.id
@@ -406,6 +711,7 @@ async function topLinks(
     slug: row.slug,
     title: row.title,
     clicks: row.clicks,
+    uniqueVisitors: row.unique_visitors,
     path: `/links/${row.id}`,
   }))
 }

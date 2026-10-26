@@ -1,9 +1,11 @@
 import { eq, sql } from 'drizzle-orm'
 import { appSettings, type Database } from '@sharry/database'
 import {
+  aiProviders,
   defaultQrStyle,
   qrStyleSchema,
   validatePrefix,
+  type AiProvider,
   type QrStyle,
   type RuntimeEnv,
 } from '@sharry/shared'
@@ -33,7 +35,7 @@ export type AppSettings = {
   smtpUser: string
   smtpPasswordEncrypted: string
   emailFrom: string
-  aiProvider: '' | 'openai' | 'anthropic' | 'google' | 'openai_compatible'
+  aiProvider: '' | AiProvider
   aiModel: string
   aiBaseUrl: string
   aiApiKeyEncrypted: string
@@ -150,7 +152,7 @@ export function parseSettings(map: Record<string, string | undefined>, env: Runt
 }
 
 function parseAiProvider(value: string | undefined): AppSettings['aiProvider'] {
-  if (value === 'openai' || value === 'anthropic' || value === 'google' || value === 'openai_compatible') return value
+  if (value && (aiProviders as readonly string[]).includes(value)) return value as AiProvider
   return ''
 }
 

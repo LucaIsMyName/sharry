@@ -189,7 +189,7 @@ export const settingsUpdateSchema = z.object({
   smtpUser: z.string().trim().max(200).optional(),
   smtpPassword: z.string().max(200).optional(),
   emailFrom: z.union([z.string().trim().email(), z.literal('')]).optional(),
-  aiProvider: z.union([z.enum(['openai', 'anthropic', 'google', 'openai_compatible']), z.literal('')]).optional(),
+  aiProvider: z.union([z.enum(['openai', 'anthropic', 'google', 'mistral', 'openai_compatible']), z.literal('')]).optional(),
   aiModel: z.string().trim().max(120).optional(),
   aiBaseUrl: z.string().trim().max(500).optional(),
   aiApiKey: z.string().max(500).optional(),

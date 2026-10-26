@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { aiMessages, appSettings, clickEvents, links, trackingCampaigns } from '@sharry/database'
-import type { AiProposal } from '@sharry/shared'
+import { aiMessages, appSettings, clickEvents, links, qrCodes, trackingCampaigns } from '@sharry/database'
+import type { AiProposal, ChatBlock } from '@sharry/shared'
 import { SHARRY_ONLY_RULE } from '../src/ai/prompt.ts'
 import type { Actor } from '../src/auth.ts'
 import { lookupForActor, queryAnalyticsForActor } from '../src/ai/tools.ts'
@@ -177,6 +177,155 @@ describe('AI settings and chat', () => {
     expect(await ctx.db.select().from(links)).toHaveLength(1)
   })
 
+  it('shows a link form before creating the link or a QR code', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    await saveAi(admin.cookie, { aiApiKey: 'sk-test-secret' })
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        sse([
+          { choices: [{ delta: { content: 'Here is the form.' } }] },
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [{ index: 0, id: 'call_form', function: { name: 'show_link_form', arguments: '{}' } }],
+                },
+              },
+            ],
+          },
+        ]),
+    )
+    const created = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: user.cookie } })
+    const chatId = created.json().id as string
+    const reply = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${chatId}/messages`,
+      headers: { cookie: user.cookie },
+      payload: { content: 'Help me create a short link.' },
+    })
+    expect(reply.statusCode).toBe(200)
+    const block = events(reply.body).find((event) => event.event === 'block')?.data.block
+    if (!block || block.type !== 'form') throw new Error('missing form')
+    expect(block.form).toBe('link')
+    expect(await ctx.db.select().from(links)).toHaveLength(0)
+
+    const submitted = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${chatId}/forms/${block.id}/submit`,
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/docs', slug: 'guide', createQr: true },
+    })
+    expect(submitted.statusCode).toBe(200)
+    expect(submitted.json().message.blocks[0].status).toBe('submitted')
+    expect(submitted.json().message.blocks[0].result.shortUrl).toContain('/s/guide')
+    expect(submitted.json().message.blocks[0].result.qrCreated).toBe(true)
+    expect(submitted.json().message.blocks[0].result.path).toMatch(/^\/links\//)
+    expect(await ctx.db.select().from(qrCodes)).toHaveLength(1)
+
+    const plain = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: user.cookie } })
+    const plainId = plain.json().id as string
+    const formId = randomUUID()
+    const pending: ChatBlock = { type: 'form', id: formId, form: 'link', status: 'pending' }
+    await ctx.db.insert(aiMessages).values({ chatId: plainId, role: 'assistant', content: 'Form', blocks: [pending] })
+    const withoutQr = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${plainId}/forms/${formId}/submit`,
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/plain', createQr: false },
+    })
+    expect(withoutQr.json().message.blocks[0].result.qrCreated).toBe(false)
+    expect(await ctx.db.select().from(qrCodes)).toHaveLength(1)
+
+    const conflictId = randomUUID()
+    const conflict: ChatBlock = { type: 'form', id: conflictId, form: 'link', status: 'pending' }
+    await ctx.db.insert(aiMessages).values({ chatId: plainId, role: 'assistant', content: 'Again', blocks: [conflict] })
+    const taken = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${plainId}/forms/${conflictId}/submit`,
+      headers: { cookie: user.cookie },
+      payload: { destinationUrl: 'https://example.com/again', slug: 'guide' },
+    })
+    expect(taken.statusCode).toBe(200)
+    expect(taken.json().message.blocks[0].status).toBe('pending')
+    expect(taken.json().message.blocks[0].result.error).toMatch(/already in use/i)
+    expect(await ctx.db.select().from(links)).toHaveLength(2)
+  })
+
+  it('lists only the caller links on an analytics form and charts stored clicks', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const owner = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const other = await createSessionUser(ctx, { username: 'bea', email: 'bea@example.com' })
+    await saveAi(admin.cookie, { aiApiKey: 'sk-test-secret' })
+    const created = await ctx.app.inject({
+      method: 'POST',
+      url: '/api/links',
+      headers: { cookie: owner.cookie },
+      payload: { destinationUrl: 'https://example.com/spring', title: 'Spring launch' },
+    })
+    const link = created.json() as { id: string }
+    await ctx.db.insert(clickEvents).values({
+      linkId: link.id,
+      occurredAt: new Date('2026-10-20T15:00:00.000Z'),
+      browser: 'Chrome',
+      operatingSystem: 'macOS',
+      deviceType: 'desktop',
+      isBot: false,
+      anonymousVisitorId: 'visitor-1',
+    })
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        sse([
+          { choices: [{ delta: { content: '## Report' } }] },
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [{ index: 0, id: 'call_form', function: { name: 'show_analytics_form', arguments: '{}' } }],
+                },
+              },
+            ],
+          },
+        ]),
+    )
+    const ownerChat = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: owner.cookie } })
+    const ownerReply = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${ownerChat.json().id}/messages`,
+      headers: { cookie: owner.cookie },
+      payload: { content: 'Give me an analytics report.' },
+    })
+    const ownerForm = events(ownerReply.body).find((event) => event.event === 'block')?.data.block
+    if (!ownerForm || ownerForm.type !== 'form') throw new Error('missing form')
+    expect(ownerForm.links?.some((item) => item.id === link.id)).toBe(true)
+
+    const otherChat = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: other.cookie } })
+    const otherReply = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${otherChat.json().id}/messages`,
+      headers: { cookie: other.cookie },
+      payload: { content: 'Give me an analytics report.' },
+    })
+    const otherForm = events(otherReply.body).find((event) => event.event === 'block')?.data.block
+    if (!otherForm || otherForm.type !== 'form') throw new Error('missing form')
+    expect(otherForm.links?.some((item) => item.id === link.id)).toBe(false)
+
+    const report = await ctx.app.inject({
+      method: 'POST',
+      url: `/api/chats/${ownerChat.json().id}/forms/${ownerForm.id}/submit`,
+      headers: { cookie: owner.cookie },
+      payload: { scope: 'link', linkId: link.id },
+    })
+    expect(report.statusCode).toBe(200)
+    const chart = report.json().report.blocks.find((block: ChatBlock) => block.type === 'chart')
+    expect(chart.series.some((point: { clicks: number }) => point.clicks === 1)).toBe(true)
+    expect(chart.path).toBe(`/analytics?link=${link.id}`)
+  })
+
   it('keeps analytics and page lookup inside the caller visibility', async () => {
     const ctx = await getContext()
     const owner = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
@@ -278,7 +427,7 @@ function sse(events: unknown[]): Response {
   return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } })
 }
 
-function events(payload: string): { event: string; data: { proposal?: AiProposal; text?: string } }[] {
+function events(payload: string): { event: string; data: { proposal?: AiProposal; text?: string; block?: ChatBlock } }[] {
   return payload
     .split('\n\n')
     .map((block) => block.trim())
@@ -286,6 +435,6 @@ function events(payload: string): { event: string; data: { proposal?: AiProposal
     .map((block) => {
       const event = block.match(/^event: (.+)$/m)?.[1] ?? 'message'
       const data = block.match(/^data: (.+)$/m)?.[1] ?? '{}'
-      return { event, data: JSON.parse(data) as { proposal?: AiProposal; text?: string } }
+      return { event, data: JSON.parse(data) as { proposal?: AiProposal; text?: string; block?: ChatBlock } }
     })
 }

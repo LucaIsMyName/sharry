@@ -9,14 +9,26 @@ import {
   sendChatMessageSchema,
   type AiConnectionTestInput,
   type AiProposal,
+  type ChatBlock,
 } from '@sharry/shared'
 import type { Actor } from '../auth.ts'
 import { requireAdmin, requireUser } from '../auth.ts'
 import { getSettings, rowsOf, type AppSettings } from '../settings-store.ts'
 import { AppError, decryptString, parseBody } from '../support.ts'
 import { aiSystemPrompt } from './prompt.ts'
-import { streamCompletion, type AiToolCall, type AiTurnMessage, type ProviderConfig } from './provider.ts'
-import { aiToolDefs, confirmProposal, isReadTool, isWriteTool, proposalFromWrite, runReadTool } from './tools.ts'
+import { mistralCompletionsBase, streamCompletion, type AiToolCall, type AiTurnMessage, type ProviderConfig } from './provider.ts'
+import {
+  aiToolDefs,
+  applyFormSubmission,
+  blocksFromAnalyticsResult,
+  confirmProposal,
+  formBlockFromCall,
+  isFormTool,
+  isReadTool,
+  isWriteTool,
+  proposalFromWrite,
+  runReadTool,
+} from './tools.ts'
 
 const messageLimit = 40
 const historyLimit = 30
@@ -125,7 +137,7 @@ export function registerAiRoutes(app: FastifyInstance): void {
    * @auth api-key or session
    * @param id string Chat id
    * @body JSON { content }
-   * @response 200 Server-sent events: text, proposal, done, error
+   * @response 200 Server-sent events: text, block, proposal, done, error
    */
   app.post('/api/chats/:id/messages', async (request, reply) => {
     const actor = await requireUser(app, request, ['full'])
@@ -209,6 +221,53 @@ export function registerAiRoutes(app: FastifyInstance): void {
     await touchChat(app.db, chat.id)
     return { proposal: next }
   })
+
+  /**
+   * Submit a form in the chat. A link or campaign is created here. An analytics form adds the chart and table.
+   * @route POST /api/chats/:id/forms/:formId/submit
+   * @tag AI
+   * @auth api-key or session
+   * @param id string Chat id
+   * @param formId string Form id
+   * @body JSON { destinationUrl?, slug?, createQr?, scope?, linkId?, name?, description?, variantName? }
+   * @response 200 { message, report }
+   */
+  app.post('/api/chats/:id/forms/:formId/submit', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const params = request.params as { id?: string; formId?: string }
+    const chat = await ownChat(app.db, actor, chatId(params))
+    const found = await messageWithForm(app.db, chat.id, params.formId ?? '')
+    if (found.block.status === 'submitted') throw new AppError(409, 'That form was already submitted.')
+    const settings = await getSettings(app.db, app.env)
+    const locale = await userLocale(app.db, actor.id)
+    const applied = await applyFormSubmission(app.db, actor, settings, locale, found.block, request.body)
+    const blocks = (found.message.blocks ?? []).map((block) =>
+      block.type === 'form' && block.id === found.block.id ? applied.block : block,
+    )
+    await app.db.update(aiMessages).set({ blocks }).where(eq(aiMessages.id, found.message.id))
+    await touchChat(app.db, chat.id)
+    const message = { ...found.message, blocks }
+    if (!applied.report || applied.block.type !== 'form' || applied.block.status !== 'submitted') {
+      return { message: serializeMessage(message), report: null }
+    }
+    let content = applied.report.content
+    const config = providerConfig(settings, app.env.ENCRYPTION_KEY)
+    if (config) {
+      try {
+        const history = toProviderMessages(await recentMessages(app.db, chat.id), locale)
+        history.push({ role: 'user', content: applied.report.brief })
+        let text = ''
+        for await (const event of streamCompletion(config, history, [])) {
+          if (event.type === 'text') text += event.text
+        }
+        if (text.trim()) content = text.trim()
+      } catch {
+        content = applied.report.content
+      }
+    }
+    const report = await insertAssistant(app.db, chat.id, content, undefined, applied.report.blocks)
+    return { message: serializeMessage(message), report: serializeMessage(report) }
+  })
 }
 
 async function runTurn(
@@ -223,6 +282,7 @@ async function runTurn(
   const history = await recentMessages(db, chatId)
   const live = toProviderMessages(history, locale)
   let text = ''
+  const blocks: ChatBlock[] = []
   for (let round = 0; round < toolRounds; round += 1) {
     const calls: AiToolCall[] = []
     let roundText = ''
@@ -236,16 +296,22 @@ async function runTurn(
       }
     }
     if (calls.length === 0) {
-      const saved = await insertAssistant(db, chatId, text)
+      const saved = await insertAssistant(db, chatId, text, undefined, blocks)
       send('done', { messageId: saved.id })
       return
     }
     live.push({ role: 'assistant', content: roundText, toolCalls: calls })
     for (const call of calls) {
-      if (isWriteTool(call.name)) continue
+      if (isWriteTool(call.name) || isFormTool(call.name)) continue
       const content = isReadTool(call.name)
         ? await runReadTool(db, actor, settings, locale, call)
         : 'That tool is not available. Ask a question about Sharry instead.'
+      if (call.name === 'query_analytics') {
+        for (const block of blocksFromAnalyticsResult(parseJson(content))) {
+          blocks.push(block)
+          send('block', { block })
+        }
+      }
       live.push({ role: 'tool', toolCallId: call.id, name: call.name, content })
       await db.insert(aiMessages).values({
         chatId,
@@ -255,12 +321,33 @@ async function runTurn(
         toolCallId: call.id,
       })
     }
+    const forms = calls.filter((call) => isFormTool(call.name))
     const writes = calls.filter((call) => isWriteTool(call.name))
-    const write = writes[0]
-    for (const extra of writes.slice(1)) {
-      const content = 'Only one change can be confirmed at a time.'
+    const form = forms[0]
+    const write = form ? undefined : writes[0]
+    const extras = form ? [...forms.slice(1), ...writes] : writes.slice(1)
+    for (const extra of extras) {
+      const content = 'Only one form can be shown at a time.'
       live.push({ role: 'tool', toolCallId: extra.id, name: extra.name, content })
       await db.insert(aiMessages).values({ chatId, role: 'tool', content, toolName: extra.name, toolCallId: extra.id })
+    }
+    if (form) {
+      const prepared = await formBlockFromCall(db, actor, settings, form)
+      if (!prepared.ok) {
+        live.push({ role: 'tool', toolCallId: form.id, name: form.name, content: prepared.error })
+        await db.insert(aiMessages).values({
+          chatId,
+          role: 'tool',
+          content: prepared.error,
+          toolName: form.name,
+          toolCallId: form.id,
+        })
+        continue
+      }
+      const saved = await insertAssistant(db, chatId, text, undefined, [...blocks, prepared.block])
+      send('block', { block: prepared.block })
+      send('done', { messageId: saved.id })
+      return
     }
     if (!write) continue
     const prepared = proposalFromWrite(write)
@@ -275,12 +362,12 @@ async function runTurn(
       })
       continue
     }
-    const saved = await insertAssistant(db, chatId, text, prepared.proposal)
+    const saved = await insertAssistant(db, chatId, text, prepared.proposal, blocks)
     send('proposal', { proposal: prepared.proposal })
     send('done', { messageId: saved.id })
     return
   }
-  const saved = await insertAssistant(db, chatId, text)
+  const saved = await insertAssistant(db, chatId, text, undefined, blocks)
   send('done', { messageId: saved.id })
 }
 
@@ -301,6 +388,12 @@ function toProviderMessages(rows: AiMessageRecord[], locale: string): AiTurnMess
       if (row.proposal?.status === 'pending') content += '\n\nA confirmation card is waiting.'
       if (row.proposal?.status === 'dismissed') content += '\n\nThe user dismissed that proposal.'
       if (row.proposal?.status === 'failed') content += `\n\nThe proposal failed: ${row.proposal.result?.error ?? 'unknown'}`
+      for (const block of row.blocks ?? []) {
+        if (block.type === 'form' && block.status === 'pending') content += '\n\nA form is waiting for the person.'
+        if (block.type === 'form' && block.status === 'submitted') content += `\n\nForm result: ${JSON.stringify(block.result ?? {})}`
+        if (block.type === 'chart') content += `\n\nA chart is shown for ${block.path}.`
+        if (block.type === 'table') content += `\n\nA table titled ${block.title} is shown.`
+      }
       if (content.trim()) messages.push({ role: 'assistant', content })
     }
   }
@@ -317,13 +410,31 @@ async function recentMessages(db: Database, chatId: string): Promise<AiMessageRe
   return rows.reverse()
 }
 
-async function insertAssistant(db: Database, chatId: string, content: string, proposal?: AiProposal) {
+async function insertAssistant(db: Database, chatId: string, content: string, proposal?: AiProposal, blocks?: ChatBlock[]) {
   const [saved] = await db
     .insert(aiMessages)
-    .values({ chatId, role: 'assistant', content, proposal })
+    .values({ chatId, role: 'assistant', content, proposal, blocks: blocks && blocks.length > 0 ? blocks : null })
     .returning()
   if (!saved) throw new AppError(500, 'Could not save the reply')
   return saved
+}
+
+async function messageWithForm(db: Database, chatId: string, formId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(formId)) throw new AppError(404, 'That form was not found.')
+  const rows = await db.select().from(aiMessages).where(eq(aiMessages.chatId, chatId))
+  for (const message of rows) {
+    const block = message.blocks?.find((item) => item.type === 'form' && item.id === formId)
+    if (block?.type === 'form') return { message, block }
+  }
+  throw new AppError(404, 'That form was not found.')
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown
+  } catch {
+    return null
+  }
 }
 
 async function pendingProposal(db: Database, chatId: string, proposalId: string): Promise<AiMessageRecord> {
@@ -381,15 +492,27 @@ function connectionConfig(settings: AppSettings, encryptionKey: string, input: A
     const urlError = provider === 'openai_compatible' ? aiBaseUrlError(baseUrl) : null
     throw new AppError(400, urlError ?? 'Enter a provider, model, and API key before testing the connection.')
   }
-  if (provider !== 'openai' && provider !== 'anthropic' && provider !== 'google' && provider !== 'openai_compatible') {
+  if (
+    provider !== 'openai' &&
+    provider !== 'anthropic' &&
+    provider !== 'google' &&
+    provider !== 'mistral' &&
+    provider !== 'openai_compatible'
+  ) {
     throw new AppError(400, 'Enter a provider, model, and API key before testing the connection.')
   }
   return {
     provider,
     model,
     apiKey,
-    baseUrl: provider === 'openai_compatible' ? baseUrl : 'https://api.openai.com/v1',
+    baseUrl: providerBase(provider, baseUrl),
   }
+}
+
+function providerBase(provider: string, baseUrl: string): string {
+  if (provider === 'mistral') return mistralCompletionsBase
+  if (provider === 'openai_compatible') return baseUrl
+  return 'https://api.openai.com/v1'
 }
 
 function savedApiKey(settings: AppSettings, encryptionKey: string): string {
@@ -408,7 +531,7 @@ function providerConfig(settings: AppSettings, encryptionKey: string): ProviderC
       provider: settings.aiProvider as ProviderConfig['provider'],
       model: settings.aiModel,
       apiKey: decryptString(settings.aiApiKeyEncrypted, encryptionKey),
-      baseUrl: settings.aiProvider === 'openai_compatible' ? settings.aiBaseUrl : 'https://api.openai.com/v1',
+      baseUrl: providerBase(settings.aiProvider, settings.aiBaseUrl),
     }
   } catch {
     return null
@@ -448,6 +571,7 @@ function serializeMessage(message: AiMessageRecord) {
     content: message.content,
     toolName: message.toolName,
     proposal: message.proposal ?? null,
+    blocks: message.blocks ?? null,
     createdAt: message.createdAt.toISOString(),
   }
 }

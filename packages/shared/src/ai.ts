@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { destinationSchema, redirectTypeSchema, utmSchema } from './schemas.ts'
 
-export const aiProviders = ['openai', 'anthropic', 'google', 'openai_compatible'] as const
+export const aiProviders = ['openai', 'anthropic', 'google', 'mistral', 'openai_compatible'] as const
 export const aiProviderSchema = z.enum(aiProviders)
 export type AiProvider = z.infer<typeof aiProviderSchema>
 
@@ -20,6 +20,11 @@ export const aiModelCatalog: Record<Exclude<AiProvider, 'openai_compatible'>, { 
   google: [
     { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
     { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  ],
+  mistral: [
+    { id: 'mistral-large-latest', label: 'Mistral Large' },
+    { id: 'mistral-medium-latest', label: 'Mistral Medium' },
+    { id: 'mistral-small-latest', label: 'Mistral Small' },
   ],
 }
 
@@ -101,6 +106,41 @@ export const aiConnectionTestSchema = z.object({
 
 export type AiConnectionTestInput = z.infer<typeof aiConnectionTestSchema>
 
+export const linkFormPrefillSchema = z.object({
+  destinationUrl: z.string().trim().max(2000).optional(),
+  slug: z.string().trim().max(64).optional(),
+})
+
+export const analyticsFormPrefillSchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+export const campaignFormPrefillSchema = z.object({
+  name: z.string().trim().max(120).optional(),
+  description: z.string().trim().max(2000).optional(),
+})
+
+export const submitLinkFormSchema = z.object({
+  destinationUrl: destinationSchema,
+  slug: z.string().trim().max(64).optional(),
+  createQr: z.boolean().optional(),
+})
+
+export const submitAnalyticsFormSchema = z
+  .object({
+    scope: z.enum(['all', 'link']),
+    linkId: z.string().uuid().optional(),
+  })
+  .refine((value) => value.scope === 'all' || Boolean(value.linkId), 'Choose a link.')
+
+export const submitCampaignFormSchema = z.object({
+  name: z.string().trim().min(1, 'This campaign is missing a name.').max(120),
+  description: z.string().trim().max(2000).optional(),
+  linkId: z.string().uuid().optional(),
+  variantName: z.string().trim().max(120).optional(),
+})
+
 export type ProposeLinkArgs = z.infer<typeof proposeLinkSchema>
 export type ProposeCampaignArgs = z.infer<typeof proposeCampaignSchema>
 
@@ -122,6 +162,39 @@ export type AiProposal = {
   result?: AiProposalResult
 }
 
+export type ChatFormKind = 'link' | 'analytics' | 'campaign'
+export type ChatFormStatus = 'pending' | 'submitted'
+
+export type ChatFormLink = { id: string; title: string | null; slug: string }
+
+export type ChatFormResult = {
+  path?: string
+  shortUrl?: string
+  error?: string
+  qrCreated?: boolean
+  name?: string
+  scope?: 'all' | 'link'
+  linkId?: string
+  from?: string
+  to?: string
+  totalClicks?: number
+  uniqueVisitors?: number
+  variants?: { name: string; id?: string; error?: string }[]
+}
+
+export type ChatBlock =
+  | {
+      type: 'form'
+      id: string
+      form: ChatFormKind
+      status: ChatFormStatus
+      prefill?: Record<string, unknown>
+      links?: ChatFormLink[]
+      result?: ChatFormResult
+    }
+  | { type: 'chart'; title: string; series: { date: string; clicks: number }[]; path: string }
+  | { type: 'table'; title: string; columns: string[]; rows: string[][]; path?: string }
+
 export function aiIsAvailable(input: {
   provider: string
   model: string
@@ -129,7 +202,7 @@ export function aiIsAvailable(input: {
   apiKeySet: boolean
 }): boolean {
   if (!input.apiKeySet || !input.model.trim()) return false
-  if (input.provider === 'openai' || input.provider === 'anthropic' || input.provider === 'google') return true
+  if (input.provider === 'openai' || input.provider === 'anthropic' || input.provider === 'google' || input.provider === 'mistral') return true
   if (input.provider === 'openai_compatible') return aiBaseUrlError(input.baseUrl) === null
   return false
 }

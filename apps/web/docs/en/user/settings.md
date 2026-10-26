@@ -46,7 +46,7 @@ The status line under the fields says which of those three states is active: sav
 
 ## AI
 
-The AI card configures the assistant for every signed-in person. Choose a provider: OpenAI, Anthropic, Google Gemini, or an OpenAI-compatible endpoint. The model list follows the provider. Pick Custom model to type an id the list does not show. An OpenAI-compatible provider also needs a base URL, such as `https://example.com/v1`. The server sends the API key to that URL.
+The AI card configures the assistant for every signed-in person. Choose a provider: OpenAI, Anthropic, Google Gemini, Mistral, or an OpenAI-compatible endpoint. The model list follows the provider. Pick Custom model to type an id the list does not show. An OpenAI-compatible provider also needs a base URL, such as `https://example.com/v1`. The server sends the API key to that URL.
 
 The API key is encrypted with the same key as the SMTP password. It is not an environment variable, and Settings never shows it again. Leave the field blank to keep the saved key. Clear saved key removes it on the next save. AI is available only when a provider, a model, and a key are saved, plus a base URL for the compatible provider.
 

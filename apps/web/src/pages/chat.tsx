@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { MessageSquarePlus, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Link, NavLink, useNavigate, useParams } from "react-router";
-import { chatStarters, type AiProposal } from "@sharry/shared";
+import { chatStarters, type AiProposal, type ChatBlock } from "@sharry/shared";
 import { cn } from "cn";
 import { ApiError, api } from "../api.ts";
 import { useI18n } from "../i18n/index.tsx";
@@ -11,6 +12,7 @@ import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import { Textarea } from "../components/ui/textarea.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
+import { ChatBlocks } from "./chat-blocks.tsx";
 
 type ChatSummary = {
   id: string;
@@ -24,6 +26,7 @@ export type ChatMessage = {
   role: string;
   content: string;
   proposal: AiProposal | null;
+  blocks?: ChatBlock[] | null;
 };
 
 export function ChatPage() {
@@ -35,6 +38,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [submittingForm, setSubmittingForm] = useState<string | null>(null);
   const skipLoad = useRef<string | null>(null);
 
   useEffect(() => {
@@ -80,7 +84,7 @@ export function ChatPage() {
       }
       setMessages((current) => [
         ...current,
-        { id: `user-${Date.now()}`, role: "user", content: text, proposal: null },
+        { id: `user-${Date.now()}`, role: "user", content: text, proposal: null, blocks: null },
       ]);
       setChats((current) =>
         current.map((chat) =>
@@ -105,6 +109,27 @@ export function ChatPage() {
     }
   }
 
+  async function submitForm(formId: string, body: Record<string, unknown>) {
+    if (!id || submittingForm) return;
+    setSubmittingForm(formId);
+    try {
+      const result = await api<{ message: ChatMessage; report: ChatMessage | null }>(
+        `/api/chats/${id}/forms/${formId}/submit`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+      setMessages((current) => {
+        const next = current.map((message) =>
+          message.blocks?.some((block) => block.type === "form" && block.id === formId) ? result.message : message,
+        );
+        return result.report ? [...next, result.report] : next;
+      });
+    } catch (caught) {
+      toastCaught(caught, t("Could not update the card"));
+    } finally {
+      setSubmittingForm(null);
+    }
+  }
+
   async function settle(proposalId: string, action: "confirm" | "dismiss") {
     if (!id) return;
     try {
@@ -122,7 +147,7 @@ export function ChatPage() {
   }
 
   return (
-    <section className="grid items-start gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
+    <section className="grid items-stretch gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="grid content-start gap-2">
         <Button type="button" variant="outline" onClick={() => void navigate("/chat")}>
           <MessageSquarePlus /> {t("New chat")}
@@ -164,8 +189,10 @@ export function ChatPage() {
           void send(draft);
         }}
         onStarter={(prompt) => void send(prompt)}
+        submittingForm={submittingForm}
         onConfirm={(proposalId) => void settle(proposalId, "confirm")}
         onDismiss={(proposalId) => void settle(proposalId, "dismiss")}
+        onSubmitForm={(formId, body) => void submitForm(formId, body)}
       />
     </section>
   );
@@ -176,78 +203,105 @@ export function ChatConversation({
   messages,
   draft,
   sending,
+  submittingForm,
   onDraft,
   onSubmit,
   onStarter,
   onConfirm,
   onDismiss,
+  onSubmitForm,
 }: {
   available: boolean | null;
   messages: ChatMessage[];
   draft: string;
   sending: boolean;
+  submittingForm: string | null;
   onDraft: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStarter: (prompt: string) => void;
   onConfirm: (proposalId: string) => void;
   onDismiss: (proposalId: string) => void;
+  onSubmitForm: (formId: string, body: Record<string, unknown>) => void;
 }) {
   const { t } = useI18n();
+  const box = useRef<HTMLTextAreaElement>(null);
   const visible = messages.filter((message) => message.role === "user" || message.role === "assistant");
   const showStarters = available === true && visible.length === 0;
+  useEffect(() => {
+    const node = box.current;
+    if (!node) return;
+    node.style.height = "0px";
+    const next = Math.min(Math.max(node.scrollHeight, 40), 40 + 24 * 7);
+    node.style.height = `${next}px`;
+  }, [draft]);
+  function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    if (available !== true || sending || !draft.trim()) return;
+    event.currentTarget.form?.requestSubmit();
+  }
   return (
-    <div className="grid min-w-0 gap-4">
-      <h1 className="font-heading text-2xl font-medium tracking-tight">{t("Chat")}</h1>
-      {available === false ? (
-        <Card>
-          <CardContent className="grid gap-1">
-            <h2 className="text-lg font-medium">{t("AI not available")}</h2>
-            <p className="text-sm text-muted-foreground">
-              {t("An administrator has not saved a provider, model, and API key.")}
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
-      {showStarters ? (
-        <div className="grid gap-2 sm:grid-cols-3">
-          {chatStarters.map((starter) => (
-            <button
-              key={starter.id}
-              type="button"
-              className="rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted"
-              onClick={() => onStarter(t(starter.prompt))}
-            >
-              {t(starter.label)}
-            </button>
+    <div className="flex min-h-[calc(100svh-5.5rem)] min-w-0 flex-col md:min-h-[calc(100svh-3.5rem)]">
+      <div className="grid content-start gap-4">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">{t("Chat")}</h1>
+        {available === false ? (
+          <Card>
+            <CardContent className="grid gap-1">
+              <h2 className="text-lg font-medium">{t("AI not available")}</h2>
+              <p className="text-sm text-muted-foreground">
+                {t("An administrator has not saved a provider, model, and API key.")}
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+        {showStarters ? (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {chatStarters.map((starter) => (
+              <button
+                key={starter.id}
+                type="button"
+                className="rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted"
+                onClick={() => onStarter(t(starter.prompt))}
+              >
+                {t(starter.label)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <div className="grid gap-3 pb-4">
+          {visible.map((message) => (
+            <article key={message.id} className={cn("grid gap-2", message.role === "user" && "justify-items-end")}>
+              {message.content ? (
+                <div
+                  className={cn(
+                    "max-w-[40rem] rounded-xl px-3 py-2 text-sm",
+                    message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
+                  )}
+                >
+                  {message.role === "assistant" ? <AssistantText text={message.content} /> : <p className="whitespace-pre-wrap">{message.content}</p>}
+                </div>
+              ) : null}
+              {message.blocks && message.blocks.length > 0 ? (
+                <ChatBlocks blocks={message.blocks} submitting={submittingForm} onSubmit={onSubmitForm} />
+              ) : null}
+              {message.proposal ? (
+                <ProposalCard proposal={message.proposal} onConfirm={onConfirm} onDismiss={onDismiss} />
+              ) : null}
+            </article>
           ))}
         </div>
-      ) : null}
-      <div className="grid gap-3">
-        {visible.map((message) => (
-          <article key={message.id} className={cn("grid gap-2", message.role === "user" && "justify-items-end")}>
-            {message.content ? (
-              <div
-                className={cn(
-                  "max-w-[40rem] rounded-xl px-3 py-2 text-sm",
-                  message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted",
-                )}
-              >
-                {message.role === "assistant" ? <AssistantText text={message.content} /> : <p className="whitespace-pre-wrap">{message.content}</p>}
-              </div>
-            ) : null}
-            {message.proposal ? (
-              <ProposalCard proposal={message.proposal} onConfirm={onConfirm} onDismiss={onDismiss} />
-            ) : null}
-          </article>
-        ))}
       </div>
-      <form className="grid gap-2" onSubmit={onSubmit}>
+      <form className="sticky bottom-0 z-10 mt-auto grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-t border-border bg-background pt-3" onSubmit={onSubmit}>
         <Textarea
+          ref={box}
+          rows={1}
           aria-label={t("Message")}
           placeholder="Ask about links, campaigns, or analytics"
           value={draft}
           disabled={available !== true || sending}
+          className="min-h-10 resize-none overflow-y-auto py-2"
           onChange={(event) => onDraft(event.target.value)}
+          onKeyDown={onComposerKeyDown}
         />
         <Button type="submit" disabled={available !== true || sending || !draft.trim()}>
           {sending ? t("Sending…") : t("Send")}
@@ -259,8 +313,9 @@ export function ChatConversation({
 
 function AssistantText({ text }: { text: string }) {
   return (
-    <div className="grid gap-2 [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-4 [&_ul]:list-disc [&_ul]:pl-4">
+    <div className="grid gap-2 [&_a]:underline [&_h1]:text-lg [&_h1]:font-medium [&_h2]:text-base [&_h2]:font-medium [&_h3]:font-medium [&_ol]:list-decimal [&_ol]:pl-4 [&_table]:w-full [&_td]:border-b [&_td]:px-2 [&_td]:py-1 [&_th]:px-2 [&_th]:text-left [&_ul]:list-disc [&_ul]:pl-4">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
             if (href?.startsWith("/") && !href.startsWith("//")) return <Link to={href}>{children}</Link>;
@@ -382,10 +437,19 @@ function applySse(
     if (line.startsWith("data:")) data += line.slice(5).trim();
   }
   if (!data) return;
-  const payload = JSON.parse(data) as { text?: string; proposal?: AiProposal; messageId?: string; error?: string };
+  const payload = JSON.parse(data) as {
+    text?: string;
+    proposal?: AiProposal;
+    block?: ChatBlock;
+    messageId?: string;
+    error?: string;
+  };
   if (event === "error") throw new ApiError(502, payload.error ?? "Request failed");
   if (event === "text" && payload.text) {
     setMessages((current) => appendAssistant(current, pendingId, payload.text ?? ""));
+  }
+  if (event === "block" && payload.block) {
+    setMessages((current) => attachBlock(current, pendingId, payload.block as ChatBlock));
   }
   if (event === "proposal" && payload.proposal) {
     setMessages((current) => attachProposal(current, pendingId, payload.proposal as AiProposal));
@@ -400,12 +464,22 @@ function applySse(
 function appendAssistant(current: ChatMessage[], pendingId: string, text: string): ChatMessage[] {
   const index = current.findIndex((message) => message.id === pendingId);
   if (index === -1) {
-    return [...current, { id: pendingId, role: "assistant", content: text, proposal: null }];
+    return [...current, { id: pendingId, role: "assistant", content: text, proposal: null, blocks: [] }];
   }
   const next = [...current];
   const message = next[index];
   if (!message) return current;
   next[index] = { ...message, content: message.content + text };
+  return next;
+}
+
+function attachBlock(current: ChatMessage[], pendingId: string, block: ChatBlock): ChatMessage[] {
+  const index = current.findIndex((message) => message.id === pendingId);
+  if (index === -1) return [...current, { id: pendingId, role: "assistant", content: "", proposal: null, blocks: [block] }];
+  const next = [...current];
+  const message = next[index];
+  if (!message) return current;
+  next[index] = { ...message, blocks: [...(message.blocks ?? []), block] };
   return next;
 }
 

@@ -35,7 +35,7 @@ export function AiSettingsCard<T extends AiFormSettings>({
   const { t } = useI18n();
   const provider = settings.aiProvider;
   const catalog =
-    provider === "openai" || provider === "anthropic" || provider === "google"
+    provider === "openai" || provider === "anthropic" || provider === "google" || provider === "mistral"
       ? aiModelCatalog[provider]
       : [];
   const modelIsKnown = catalog.some((item) => item.id === settings.aiModel);
@@ -63,7 +63,8 @@ export function AiSettingsCard<T extends AiFormSettings>({
               const aiModel =
                 aiProvider === "openai" ||
                 aiProvider === "anthropic" ||
-                aiProvider === "google"
+                aiProvider === "google" ||
+                aiProvider === "mistral"
                   ? (aiModelCatalog[aiProvider][0]?.id ?? "")
                   : "";
               onChange({
@@ -80,6 +81,7 @@ export function AiSettingsCard<T extends AiFormSettings>({
               { value: "openai", label: "OpenAI" },
               { value: "anthropic", label: "Anthropic" },
               { value: "google", label: "Google Gemini" },
+              { value: "mistral", label: "Mistral" },
               { value: "openai_compatible", label: "OpenAI-compatible" },
             ]}
           />
