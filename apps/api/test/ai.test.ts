@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { aiMessages, appSettings, clickEvents, links, qrCodes, trackingCampaigns } from '@sharry/database'
 import type { AiProposal, ChatBlock } from '@sharry/shared'
+import { pageIo } from '../src/ai/page-slug.ts'
 import { SHARRY_ONLY_RULE } from '../src/ai/prompt.ts'
 import type { Actor } from '../src/auth.ts'
 import { lookupForActor, queryAnalyticsForActor } from '../src/ai/tools.ts'
@@ -252,6 +253,100 @@ describe('AI settings and chat', () => {
     expect(taken.json().message.blocks[0].status).toBe('pending')
     expect(taken.json().message.blocks[0].result.error).toMatch(/already in use/i)
     expect(await ctx.db.select().from(links)).toHaveLength(2)
+  })
+
+  it('suggests a free slug from the destination page and keeps a typed slug', async () => {
+    const ctx = await getContext()
+    const admin = await createSessionUser(ctx, { username: 'root', email: 'root@example.com', role: 'admin' })
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    await saveAi(admin.cookie, { aiApiKey: 'sk-test-secret' })
+    const lookup = pageIo.lookup
+    pageIo.lookup = async () => [{ address: '93.184.216.34', family: 4 }]
+    const fetched: string[] = []
+    vi.stubGlobal('fetch', async (url: string) => {
+      fetched.push(String(url))
+      if (String(url).includes('example.com')) {
+        return new Response('<html><head><title>Pricing | ipstack</title></head></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        })
+      }
+      const providerCalls = fetched.filter((item) => !item.includes('example.com')).length
+      const args =
+        providerCalls === 1
+          ? { destinationUrl: 'https://example.com/pricing/' }
+          : { destinationUrl: 'https://example.com/pricing/', slug: 'mine' }
+      return sse([
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [{ index: 0, id: 'call_form', function: { name: 'show_link_form', arguments: JSON.stringify(args) } }],
+              },
+            },
+          ],
+        },
+      ])
+    })
+    try {
+      const suggested = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-slug',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'https://example.com/pricing/' },
+      })
+      expect(suggested.statusCode).toBe(200)
+      expect(suggested.json()).toEqual({ slug: 'pricing-ipstack', fromTitle: true })
+      expect(await ctx.db.select().from(links)).toHaveLength(0)
+
+      const created = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/links',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'https://example.com/pricing', slug: 'pricing-ipstack' },
+      })
+      expect(created.statusCode).toBe(200)
+      const next = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-slug',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'https://example.com/pricing/' },
+      })
+      expect(next.json()).toEqual({ slug: 'example-pricing', fromTitle: false })
+
+      const local = await ctx.app.inject({
+        method: 'POST',
+        url: '/api/ai/suggest-slug',
+        headers: { cookie: user.cookie },
+        payload: { destinationUrl: 'http://127.0.0.1/secret' },
+      })
+      expect(local.statusCode).toBe(422)
+      expect(fetched.some((url) => url.includes('127.0.0.1'))).toBe(false)
+
+      const chat = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: user.cookie } })
+      const reply = await ctx.app.inject({
+        method: 'POST',
+        url: `/api/chats/${chat.json().id}/messages`,
+        headers: { cookie: user.cookie },
+        payload: { content: 'Make me a short url for https://example.com/pricing/' },
+      })
+      const block = events(reply.body).find((event) => event.event === 'block')?.data.block
+      if (!block || block.type !== 'form') throw new Error('missing form')
+      expect(block.prefill).toMatchObject({ slug: 'example-pricing', suggested: true, fromTitle: false })
+
+      const kept = await ctx.app.inject({
+        method: 'POST',
+        url: `/api/chats/${chat.json().id}/messages`,
+        headers: { cookie: user.cookie },
+        payload: { content: 'Use the slug mine.' },
+      })
+      const typed = events(kept.body).find((event) => event.event === 'block')?.data.block
+      if (!typed || typed.type !== 'form') throw new Error('missing typed form')
+      expect(typed.prefill).toMatchObject({ slug: 'mine' })
+      expect(typed.prefill?.suggested).toBeUndefined()
+    } finally {
+      pageIo.lookup = lookup
+    }
   })
 
   it('lists only the caller links on an analytics form and charts stored clicks', async () => {

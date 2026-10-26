@@ -29,6 +29,7 @@ import type { Actor } from '../auth.ts'
 import { createLink, findBySlug, getLinkForActor, loadVerifiedHosts, serializeLink, visibleLinksWhere } from '../links.ts'
 import { rowsOf, type AppSettings } from '../settings-store.ts'
 import { AppError } from '../support.ts'
+import { suggestFreeSlug } from './page-slug.ts'
 import type { AiToolCall, AiToolDef } from './provider.ts'
 
 const readTools = new Set(['query_analytics', 'lookup', 'read_doc'])
@@ -53,7 +54,7 @@ export const aiToolDefs: AiToolDef[] = [
   {
     name: 'show_link_form',
     description:
-      'Show the short-link form. Call this as soon as the person wants a short link. Prefill destinationUrl or slug only when they already gave them. This does not create the link.',
+      'Show the short-link form. Call this as soon as the person wants a short link. Pass destinationUrl when they already gave one. Leave slug empty unless they typed a slug. This does not create the link.',
     parameters: {
       type: 'object',
       additionalProperties: false,
@@ -233,8 +234,19 @@ export async function formBlockFromCall(
   const id = randomUUID()
   if (call.name === 'show_link_form') {
     const parsed = linkFormPrefillSchema.safeParse(value)
-    const prefill = parsed.success ? parsed.data : {}
-    if (prefill.destinationUrl && !destinationSchema.safeParse(prefill.destinationUrl).success) delete prefill.destinationUrl
+    const prefill: { destinationUrl?: string; slug?: string; suggested?: boolean; fromTitle?: boolean } = {}
+    if (parsed.success && parsed.data.destinationUrl && destinationSchema.safeParse(parsed.data.destinationUrl).success) {
+      prefill.destinationUrl = parsed.data.destinationUrl
+    }
+    if (parsed.success && parsed.data.slug?.trim()) prefill.slug = parsed.data.slug.trim()
+    if (prefill.destinationUrl && !prefill.slug) {
+      const suggested = await suggestFreeSlug(db, prefill.destinationUrl).catch(() => null)
+      if (suggested) {
+        prefill.slug = suggested.slug
+        prefill.suggested = true
+        prefill.fromTitle = suggested.fromTitle
+      }
+    }
     return { ok: true, block: { type: 'form', id, form: 'link', status: 'pending', prefill } }
   }
   if (call.name === 'show_analytics_form') {

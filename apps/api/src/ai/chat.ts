@@ -7,6 +7,7 @@ import {
   aiConnectionTestSchema,
   aiIsAvailable,
   sendChatMessageSchema,
+  suggestSlugSchema,
   type AiConnectionTestInput,
   type AiProposal,
   type ChatBlock,
@@ -17,6 +18,7 @@ import { getSettings, rowsOf, type AppSettings } from '../settings-store.ts'
 import { AppError, decryptString, parseBody } from '../support.ts'
 import { aiSystemPrompt } from './prompt.ts'
 import { mistralCompletionsBase, streamCompletion, type AiToolCall, type AiTurnMessage, type ProviderConfig } from './provider.ts'
+import { suggestFreeSlug } from './page-slug.ts'
 import {
   aiToolDefs,
   applyFormSubmission,
@@ -36,6 +38,22 @@ const toolRounds = 4
 const newChatTitle = 'New chat'
 
 export function registerAiRoutes(app: FastifyInstance): void {
+  /**
+   * Suggest a free custom slug from a destination page. Nothing is created.
+   * @route POST /api/ai/suggest-slug
+   * @tag AI
+   * @auth api-key or session
+   * @body JSON { destinationUrl }
+   * @response 200 { slug, fromTitle }
+   */
+  app.post('/api/ai/suggest-slug', async (request) => {
+    await requireUser(app, request, ['full'])
+    const body = parseBody(suggestSlugSchema, request.body ?? {})
+    const suggested = await suggestFreeSlug(app.db, body.destinationUrl)
+    if (!suggested) throw new AppError(422, 'Could not suggest a slug for that page.')
+    return suggested
+  })
+
   /**
    * Say whether an administrator has saved a usable AI provider.
    * @route GET /api/ai/status

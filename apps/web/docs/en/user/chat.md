@@ -6,7 +6,7 @@ Opening Chat from another page returns to the last chat you opened. On a wide sc
 
 A blank chat offers three starters: Create a short link, Create a campaign, and Analytics report. Choosing one sends that request. Each assistant reply is one card. Headings, text, tables, charts, and a form sit in that card.
 
-The short-link form asks for the destination, an optional custom slug, and whether to create a QR code. The slug can be skipped. Submitting the form creates the link. If you checked the box, it also saves a QR code. The same card then shows the short URL and a link to open it. A slug that is already in use stays on the form so you can change it.
+The short-link form asks for the destination, an optional custom slug, and whether to create a QR code. The slug can be skipped. If the request already includes a destination, Sharry reads that page and fills in a free slug. The button inside the slug field does the same for the destination typed in the form. You can change the suggestion. Submitting the form creates the link. If you checked the box, it also saves a QR code. The same card then shows the short URL and a link to open it. A slug that is already in use stays on the form so you can change it.
 
 The analytics form asks whether the report is for all links or one link. One link opens a list of your links. The report uses the last 30 days unless you already named dates. The reply starts with a short explanation of that range, the totals, the clicks-by-day chart, and the table. The chart and the table follow in the same card, with a link to the analytics page.
 

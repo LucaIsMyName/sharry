@@ -797,4 +797,11 @@ export const de: Record<string, string> = {
   "Choose a link.": "Wähle einen Link.",
   "Choose a link for this variant.": "Wähle einen Link für diese Variante.",
   "Could not read analytics.": "Die Auswertung konnte nicht gelesen werden.",
+  "Suggest a slug": "Slug vorschlagen",
+  "Suggested from the page title.": "Vorgeschlagen aus dem Seitentitel.",
+  "Suggested from the page.": "Vorgeschlagen aus der Seite.",
+  "Could not suggest a slug for that page.": "Für diese Seite konnte kein Slug vorgeschlagen werden.",
+  "Suggest a free custom slug from a destination page. Nothing is created.": "Schlägt einen freien Slug aus einer Zielseite vor. Es wird nichts angelegt.",
+  "JSON { destinationUrl }": "JSON { destinationUrl }",
+  "{ slug, fromTitle }": "{ slug, fromTitle }",
 };

@@ -269,9 +269,9 @@ function ChatList({
                 "flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
                 sidebar
                   ? "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
-                  : "hover:bg-primary/20",
+                  : "hover:bg-primary/10",
                 active &&
-                  (sidebar ? "bg-sidebar-accent font-medium text-white" : "bg-primary font-medium text-primary-foreground"),
+                  (sidebar ? "bg-sidebar-accent font-medium text-white" : "bg-primary hover:bg-primary font-medium text-primary-foreground"),
               )}
             >
               <NavLink to={`/chat/${chat.id}`} onClick={onPick} className="min-w-0 flex-1 truncate">

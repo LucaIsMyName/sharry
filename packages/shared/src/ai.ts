@@ -109,6 +109,12 @@ export type AiConnectionTestInput = z.infer<typeof aiConnectionTestSchema>
 export const linkFormPrefillSchema = z.object({
   destinationUrl: z.string().trim().max(2000).optional(),
   slug: z.string().trim().max(64).optional(),
+  suggested: z.boolean().optional(),
+  fromTitle: z.boolean().optional(),
+})
+
+export const suggestSlugSchema = z.object({
+  destinationUrl: destinationSchema,
 })
 
 export const analyticsFormPrefillSchema = z.object({

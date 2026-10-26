@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { Link } from "react-router";
 import type { ChatBlock, ChatFormLink } from "@sharry/shared";
+import { ApiError, api } from "../api.ts";
 import { ClickChart } from "./analytics.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
@@ -98,7 +100,30 @@ function LinkForm({
   const [destinationUrl, setDestinationUrl] = useState(typeof prefill.destinationUrl === "string" ? prefill.destinationUrl : "");
   const [slug, setSlug] = useState(typeof prefill.slug === "string" ? prefill.slug : "");
   const [createQr, setCreateQr] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggested, setSuggested] = useState(prefill.suggested === true);
+  const [fromTitle, setFromTitle] = useState(prefill.fromTitle === true);
+  const [suggestError, setSuggestError] = useState("");
   const done = block.status === "submitted";
+  async function suggestSlug() {
+    if (!destinationUrl.trim() || suggesting) return;
+    setSuggesting(true);
+    setSuggestError("");
+    try {
+      const result = await api<{ slug: string; fromTitle: boolean }>("/api/ai/suggest-slug", {
+        method: "POST",
+        body: JSON.stringify({ destinationUrl }),
+      });
+      setSlug(result.slug);
+      setSuggested(true);
+      setFromTitle(result.fromTitle);
+    } catch (caught) {
+      setSuggested(false);
+      setSuggestError(caught instanceof ApiError ? caught.message : "Could not suggest a slug for that page.");
+    } finally {
+      setSuggesting(false);
+    }
+  }
   return (
     <div className="grid gap-3">
       <h2 className="font-medium">{t("Short link")}</h2>
@@ -116,9 +141,34 @@ function LinkForm({
               <Input value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} required />
             </Field>
             <Field label="Custom slug">
-              <Input value={slug} onChange={(event) => setSlug(event.target.value)} />
+              <div className="relative">
+                <Input
+                  className="pr-10"
+                  value={slug}
+                  onChange={(event) => {
+                    setSlug(event.target.value);
+                    setSuggested(false);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="absolute top-1/2 right-1 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  aria-label={t("Suggest a slug")}
+                  disabled={suggesting || !destinationUrl.trim()}
+                  onClick={() => void suggestSlug()}
+                >
+                  <Sparkles size={16} />
+                </button>
+              </div>
             </Field>
-            <p className="text-sm text-muted-foreground">{t("The slug can be skipped.")}</p>
+            {suggested ? (
+              <p className="text-sm text-muted-foreground">
+                {t(fromTitle ? "Suggested from the page title." : "Suggested from the page.")}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("The slug can be skipped.")}</p>
+            )}
+            {suggestError ? <p className="text-sm text-destructive">{t(suggestError)}</p> : null}
             <Label className="w-fit font-normal">
               <Checkbox
                 checked={createQr}

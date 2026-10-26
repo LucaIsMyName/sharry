@@ -92,8 +92,14 @@ describe("chat conversation", () => {
       { id: "m1", role: "assistant", content: "", proposal: null, blocks: [linkForm] },
       { id: "m2", role: "assistant", content: "", proposal: null, blocks: [analyticsForm] },
     ]);
-    expect(screen.getByRole("textbox", { name: "Destination" })).toBeTruthy();
-    expect(screen.getByRole("textbox", { name: "Custom slug" })).toBeTruthy();
+    const destination = screen.getByRole("textbox", { name: "Destination" });
+    const slug = screen.getByRole("textbox", { name: "Custom slug" });
+    const suggest = screen.getByRole("button", { name: "Suggest a slug" });
+    expect(destination).toBeTruthy();
+    expect(slug.parentElement).toBe(suggest.parentElement);
+    expect(suggest.hasAttribute("disabled")).toBe(true);
+    fireEvent.change(destination, { target: { value: "https://ipstack.com/pricing/" } });
+    expect(suggest.hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("checkbox", { name: "Create a QR code" })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "One link" }));
     const list = screen.getByRole("combobox", { name: "Link" });
