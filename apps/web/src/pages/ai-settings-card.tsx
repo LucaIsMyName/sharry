@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { aiIsAvailable, aiModelCatalog, customAiModel, type AiProvider } from "@sharry/shared";
 import { api } from "../api.ts";
 import { Button } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { Section } from "../components/ui/section.tsx";
 import { Checkbox } from "../components/ui/checkbox.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { Field } from "../components/ui/field.tsx";
@@ -52,8 +52,7 @@ export function AiSettingsCard<T extends AiFormSettings>({
     apiKeySet: Boolean(apiKey.trim()) || (settings.aiApiKeySet && !clearKey),
   });
   return (
-    <Card>
-      <CardContent className="grid gap-3">
+    <Section title={t("Assistant")}>
         <h2 className="text-lg font-medium">{t("AI")}</h2>
         {provider ? (
           <div className="grid gap-2">
@@ -180,8 +179,7 @@ export function AiSettingsCard<T extends AiFormSettings>({
           </Button>
         ) : null}
         <AiUsagePanel />
-      </CardContent>
-    </Card>
+    </Section>
   );
 }
 

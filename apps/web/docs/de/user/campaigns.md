@@ -1,6 +1,6 @@
 # Kampagnen
 
-Eine Kampagne ist eine benannte Gruppe von Varianten. Sie ändert das Ziel nicht und ist kein A/B-Test. Die Kampagnenliste zeigt, wie viele Varianten jede Kampagne hat.
+Eine Kampagne ist eine benannte Gruppe von Varianten. Sie ändert das Ziel nicht und ist kein A/B-Test. Die Kampagnenliste zeigt, wie viele Varianten jede Kampagne hat. Kampagnenordner sind von Linkordnern getrennt und folgen denselben Zeilen, dem Anlegen und dem Ziehen wie Links. Bei einer Kampagne ist die Überschrift der Name, ein größeres Symbol steht mittig daneben. Speichern und Löschen stehen in der nächsten Zeile. Kampagnen-Tags sind von Link-Tags getrennt.
 
 ## Wofür eine Kampagne da ist
 

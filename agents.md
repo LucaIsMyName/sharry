@@ -16,6 +16,10 @@ Follow these rules for every change in this repository.
 - Use Vitest (`npm test`). Keep tests next to the code they cover, matching the existing `*.test.ts` files.
 - A change is incomplete until its tests pass.
 
+## Design
+- when designing UI's make sure everything stays consistent and we use the design elements and ui components we already have
+- avoid layout shifts in UI at all costs
+
 ## Update the Documentation and 'package.json' version in root from `0.0.nnn'
 
 - When a change is finished, update the docs where needed after a code change

@@ -1,6 +1,6 @@
 # Campaigns
 
-A campaign is a named group of variants. It does not change the destination and it is not an A/B test. The campaign list shows how many variants each campaign has.
+A campaign is a named group of variants. It does not change the destination and it is not an A/B test. The campaign list shows how many variants each campaign has. Campaign folders are separate from link folders and follow the same rows, create-folder, and drag behavior as links. On a campaign, the heading is the name, with a larger icon centered beside it. Save and delete sit on the next row. Campaign tags are separate from link tags.
 
 ## What a campaign is for
 

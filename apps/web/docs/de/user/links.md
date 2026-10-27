@@ -16,6 +16,12 @@ flowchart TD
   Form --> Utm
 ```
 
+Ordner sind Zeilen in derselben Liste. Ordner anlegen, neben Neuer Link, fügt einen Ordner namens New folder ein und markiert den Namen, damit du ihn in der Zeile umbenennen kannst. Ein Klick öffnet den Ordner. Ziehe einen Link oder Ordner auf eine Ordnerzeile, um ihn hineinzulegen, oder auf Root bzw. einen früheren Brotkrumen, um ihn herauszuholen. Jede Zeile hat Symbolaktionen für Verschieben, Öffnen und Löschen, und ein Rechtsklick bietet Verschieben und Löschen. Kästchen löschen mehrere Zeilen auf einmal. Das Löschen eines Ordners fragt nach und schiebt den Inhalt eine Ebene nach oben. Ein Link nur zum Ansehen lässt sich nicht ziehen. Spaltenfilter und Sortierung ersetzen das Suchfeld, und die Kopfzeile bleibt sichtbar, wenn ein Filter nichts trifft. Ziehe am Rand einer Spaltenüberschrift, um die Breite zu ändern. Diese Breite merkt sich dieser Browser.
+
+Jeder Link, Ordner und jede Kampagne kann ein Symbol aus einer festen Liste tragen. Bei einem gespeicherten Link steht das Symbol neben der Überschrift, die Kurz-URL in der nächsten Zeile. Link-Tags und Kampagnen-Tags sind getrennt, derselbe Name kann also je einmal existieren. Ein Name, der auf diesem Link oder dieser Kampagne schon steht, wird mit „This tag is already in use.“ abgelehnt. Tippe einen Tag und klicke daneben, dann bleibt er im Feld; Speichern schreibt ihn auf den Link. Jeder Tag bekommt eine Farbe, die du am Badge ändern kannst. Tags sind Badges im Feld und in der Liste. Ein Tag-Badge in der Liste filtert den offenen Ordner.
+
+Das Ziel steht über der Kurzlink-Gruppe. Domain und Slug teilen sich diese Gruppe. Die Seitenüberschrift ist der Linktitel: bearbeite die Überschrift, ein größeres Symbol steht mittig daneben. Die Kurz-URL steht unter dieser Zeile. Speichern, Kopieren und Löschen stehen in der nächsten Zeile. Die Ordnerauswahl zeigt die Wurzel und jeden Ordner als Baum. Weiterleitung, Status, Ablauf und Passwort liegen unter Einstellungen. Die Titelleiste scrollt mit der Seite.
+
 ## Die öffentliche Adresse
 
 Der öffentliche Pfad nutzt das Präfix aus den Einstellungen, zum Beispiel `https://share.example.com/s/summer-sale`. Eine Änderung des Präfixes aktualisiert jeden angezeigten Link. Schalte alte Präfixe ein, damit der bisherige Pfad weiter aufgelöst wird. Diese Änderung verlangt eine Bestätigung.
@@ -28,7 +34,7 @@ Lass den Slug leer, um einen zu erzeugen. Die Länge kommt aus den Einstellungen
 
 ## Die Linkliste
 
-Die Linkseite lädt 50 auf einmal. Mehr laden zeigt den Rest. Die Suche trifft Slug, Titel oder Ziel. Jede Zeile zeigt die Klickzahl. Text, der länger als die Zelle ist, endet mit einer Auslassung. Auf einem schmalen Bildschirm scrollt die Tabelle seitlich, damit die Spalten lesbar bleiben. Der Status ist Aktiv oder Pausiert. Das Test-Symbol öffnet die Kurz-URL in einem neuen Tab.
+Die Linkseite lädt 50 auf einmal. Mehr laden zeigt den Rest. Ein Spaltenfilter trifft Slug, Titel oder Ziel. Jede Zeile zeigt die Klickzahl. Text, der länger als die Zelle ist, endet mit einer Auslassung. Auf einem schmalen Bildschirm scrollt die Tabelle seitlich, damit die Spalten lesbar bleiben. Der Status ist Aktiv oder Pausiert. Das Test-Symbol öffnet die Kurz-URL in einem neuen Tab.
 
 Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht und bearbeitet jeden Link. Die Einstellungen können Benutzer die Links der anderen sehen lassen, sie nur ansehen oder bearbeiten, und optional Admin-Links sehen oder ändern. Enthält die Liste einen Link, den du ansehen aber nicht ändern kannst, ist jede Zeile mit Bearbeitbar oder Nur ansehen markiert. Der Titel eines solchen Links ist blasser als der eines bearbeitbaren Links. Ein Link, den du öffnen kannst, zeigt, wer ihn erstellt hat und wer ihn zuletzt geändert hat. Die Linkliste ergänzt Erstellt von, wenn sie den Link einer anderen Person enthalten kann. Zuletzt geändert von ist Unbekannt, wenn Sharry nicht weiß, wer gespeichert hat.
 

@@ -82,7 +82,8 @@ describe("command menu", () => {
     fireEvent.click(search);
     expect(screen.queryByRole("option", { name: "Audit" })).toBeNull();
     const links = screen.getByRole("option", { name: "Links" });
-    expect(links.className).toContain("border");
+    expect(links.className).toContain("overflow-hidden");
+    expect(links.className).not.toContain("shadow-[inset");
     expect(links.querySelector("svg")).toBeTruthy();
   });
 
@@ -137,6 +138,38 @@ describe("command menu", () => {
     });
     fireEvent.click(await screen.findByRole("option", { name: /Signing in/ }));
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/docs/user/signing-in"));
+  });
+
+  it("keeps a long result inside the list", async () => {
+    const title = `Summer${"x".repeat(80)}`;
+    apiMock.mockImplementation((path: string) => {
+      if (String(path).startsWith("/api/search")) {
+        return Promise.resolve({
+          links: [
+            {
+              id: "link-1",
+              title,
+              slug: "summer",
+              destinationUrl: "https://example.com/summer",
+              description: "y".repeat(120),
+            },
+          ],
+          campaigns: [],
+          chats: [],
+        });
+      }
+      return Promise.resolve({});
+    });
+    renderShell();
+    fireEvent.click(await screen.findByRole("button", { name: "Search" }));
+    fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
+      target: { value: "summer" },
+    });
+    const link = await screen.findByRole("option", { name: /^Summerx/ });
+    const list = link.closest("[cmdk-list]") as HTMLElement;
+    expect(list).toBeTruthy();
+    expect(link.className).toContain("overflow-hidden");
+    if (list.clientWidth > 0) expect(link.scrollWidth).toBeLessThanOrEqual(list.clientWidth + 1);
   });
 
   it("shows audit to an administrator", async () => {

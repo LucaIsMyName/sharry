@@ -6,7 +6,8 @@ import { RelativeTime } from "../components/relative-time.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { DataTable } from "../components/ui/data-table.tsx";
+import { Section } from "../components/ui/section.tsx";
 import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
@@ -24,14 +25,6 @@ import { useI18n } from "../i18n/index.tsx";
 import { useSearchParams } from "react-router";
 import { focusRowId, rowFocusClass, useFocusRow } from "../components/focus-row.ts";
 import { Input } from "../components/ui/input.tsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table.tsx";
 
 type Account = {
   id: string;
@@ -144,8 +137,7 @@ export function ApiKeysPage() {
           )}
         </p>
       </div>
-      <Card>
-        <CardContent>
+      <Section title={t("New key")}>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Name">
               <Input
@@ -173,60 +165,74 @@ export function ApiKeysPage() {
               <Plus /> {pending ? t("Creating…") : t("Create key")}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+      </Section>
       {loading ? (
         <RowSkeleton label="Loading API keys…" />
       ) : (
-      <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("Name")}</TableHead>
-                <TableHead>{t("User")}</TableHead>
-                <TableHead>{t("Prefix")}</TableHead>
-                <TableHead>{t("Last used")}</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {keys.map((key) => (
-                <TableRow
-                  key={key.id}
-                  id={focusRowId(key.id)}
-                  className={rowFocusClass(key.id, focus)}
-                >
-                  <TableCell>
-                    {key.name}
-                  </TableCell>
-                  <TableCell>{key.username}</TableCell>
-                  <TableCell className="font-mono text-sm md:text-xs">
-                    {key.tokenPrefix}
-                  </TableCell>
-                  <TableCell>
-                    {key.revokedAt ? (
-                      <Badge variant="outline">{t("Revoked")}</Badge>
-                    ) : key.lastUsedAt ? (
-                      <RelativeTime value={key.lastUsedAt} />
-                    ) : (
-                      t("Never")
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {key.revokedAt ? null : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        type="button"
-                        onClick={() => setRevokeId(key.id)}
-                      >
-                        <Ban /> {t("Revoke")}
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-      </Table>
+      <DataTable
+        storageKey="admin-api-keys"
+        columns={[
+          {
+            id: "name",
+            header: "Name",
+            sortable: true,
+            filter: "text",
+            sortValue: (key) => key.name,
+            filterValue: (key) => key.name,
+            cell: (key) => key.name,
+          },
+          {
+            id: "user",
+            header: "User",
+            sortable: true,
+            filter: "text",
+            sortValue: (key) => key.username,
+            filterValue: (key) => key.username,
+            cell: (key) => key.username,
+          },
+          {
+            id: "prefix",
+            header: "Prefix",
+            sortable: true,
+            filter: "text",
+            sortValue: (key) => key.tokenPrefix,
+            filterValue: (key) => key.tokenPrefix,
+            cell: (key) => <span className="font-mono text-sm md:text-xs">{key.tokenPrefix}</span>,
+          },
+          {
+            id: "lastUsed",
+            header: "Last used",
+            sortable: true,
+            sortValue: (key) => key.revokedAt ?? key.lastUsedAt ?? "",
+            cell: (key) =>
+              key.revokedAt ? (
+                <Badge variant="outline">{t("Revoked")}</Badge>
+              ) : key.lastUsedAt ? (
+                <RelativeTime value={key.lastUsedAt} />
+              ) : (
+                t("Never")
+              ),
+          },
+          {
+            id: "actions",
+            header: "",
+            sortable: false,
+            cell: (key) =>
+              key.revokedAt ? null : (
+                <Button variant="outline" size="sm" type="button" onClick={() => setRevokeId(key.id)}>
+                  <Ban /> {t("Revoke")}
+                </Button>
+              ),
+          },
+        ]}
+        rows={keys}
+        getRow={(key) => ({
+          id: key.id,
+          domId: focusRowId(key.id),
+          className: rowFocusClass(key.id, focus),
+          label: key.name,
+        })}
+      />
       )}
       <Dialog
         open={Boolean(created)}

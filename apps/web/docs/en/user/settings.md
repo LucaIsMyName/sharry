@@ -2,7 +2,7 @@
 
 Settings is available to administrators. Mail and two-factor rules are saved here. The public site address, short-link origin, session secret, and encryption key stay in the server environment. Changing `APP_URL` or `SHORT_URL_BASE` means editing that environment and restarting the process. Settings cannot change them.
 
-Save settings writes the cards in one request. Export links and Export clicks sit outside that form. They download CSV files of every link and every click. The click file includes each `utm_*` column.
+Save settings writes the form in one request. UTM parameters lists the allowed values for each UTM key. A key with at least one value becomes a select on the link and campaign forms, with Not set plus those values. A saved value that is no longer in the list stays available on that link. A key with no values stays a text field. Export links and Export clicks sit outside that form. They download CSV files of every link and every click. The click file includes each `utm_*` column.
 
 ## Links
 

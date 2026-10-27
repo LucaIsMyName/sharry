@@ -18,12 +18,14 @@ export type SearchLink = {
   slug: string
   destinationUrl: string
   description: string | null
+  icon: string | null
 }
 
 export type SearchCampaign = {
   id: string
   name: string
   description: string | null
+  icon: string | null
 }
 
 export type SearchChat = {
@@ -194,11 +196,12 @@ async function searchLinks(db: Database, phrase: string, visibility: SQL | null)
     slug: string
     destination_url: string
     description: string | null
+    icon: string | null
   }>(
     await db.execute(sql`
-      select id::text as id, title, slug, destination_url, description
+      select id::text as id, title, slug, destination_url, description, icon
       from (
-        select links.id, links.title, links.slug, links.destination_url, links.description, links.updated_at,
+        select links.id, links.title, links.slug, links.destination_url, links.description, links.icon, links.updated_at,
                ${haystack} as haystack
         from links
         where (${visibility ?? sql`true`})
@@ -214,6 +217,7 @@ async function searchLinks(db: Database, phrase: string, visibility: SQL | null)
     slug: row.slug,
     destinationUrl: row.destination_url,
     description: row.description,
+    icon: row.icon,
   }))
 }
 
@@ -229,9 +233,9 @@ async function searchCampaigns(db: Database, phrase: string, owner: SQL): Promis
   ))`
   return rowsOf<SearchCampaign>(
     await db.execute(sql`
-      select id::text as id, name, description
+      select id::text as id, name, description, icon
       from (
-        select tracking_campaigns.id, tracking_campaigns.name, tracking_campaigns.description, tracking_campaigns.updated_at,
+        select tracking_campaigns.id, tracking_campaigns.name, tracking_campaigns.description, tracking_campaigns.icon, tracking_campaigns.updated_at,
                ${haystack} as haystack
         from tracking_campaigns
         where (${owner})

@@ -13,11 +13,14 @@ import {
   UserX,
 } from "lucide-react";
 import {
+  UTM_KEYS,
   defaultQrStyle,
+  emptyUtmPresets,
   generatePassword,
   validatePrefix,
   type AiProvider,
   type QrStyle,
+  type UtmPresets,
 } from "@sharry/shared";
 import { AiSettingsCard } from "./ai-settings-card.tsx";
 import { api } from "../api.ts";
@@ -28,7 +31,6 @@ import { IconAction } from "../components/icon-action.tsx";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
@@ -43,15 +45,9 @@ import {
 import { Field } from "../components/ui/field.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
 import { Input } from "../components/ui/input.tsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table.tsx";
+import { DataTable } from "../components/ui/data-table.tsx";
 import { choiceNote, redirectOptions } from "../choices.ts";
+import { Section } from "../components/ui/section.tsx";
 import { t, useI18n } from "../i18n/index.tsx";
 import { Toggle } from "../components/ui/toggle.tsx";
 import { useSearchParams } from "react-router";
@@ -92,6 +88,7 @@ type Settings = {
   aiBaseUrl: string;
   aiApiKeySet: boolean;
   aiEnabled: boolean;
+  utmPresets?: UtmPresets;
 };
 
 type AuditEntry = {
@@ -191,8 +188,7 @@ export function AdminUsersPage() {
       <h1 className="font-heading text-2xl font-medium tracking-tight">
         {t("Users")}
       </h1>
-      <Card>
-        <CardContent>
+      <Section title={t("Create account")}>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Username">
               <Input
@@ -264,87 +260,110 @@ export function AdminUsersPage() {
               <Plus /> {pending ? t("Creating…") : t("Create account")}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+      </Section>
       {loading ? (
         <RowSkeleton label="Loading users…" />
       ) : (
-      <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("User")}</TableHead>
-                <TableHead>{t("Role")}</TableHead>
-                <TableHead>{t("Status")}</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow
-                  key={user.id}
-                  id={focusRowId(user.id)}
-                  className={rowFocusClass(user.id, focus)}
+      <DataTable
+        storageKey="admin-users"
+        columns={[
+          {
+            id: "user",
+            header: "Username",
+            sortable: true,
+            filter: "text",
+            sortValue: (user) => user.username,
+            filterValue: (user) => user.username,
+            cell: (user) => user.username,
+          },
+          {
+            id: "email",
+            header: "Email",
+            sortable: true,
+            filter: "text",
+            sortValue: (user) => user.email,
+            filterValue: (user) => user.email,
+            cell: (user) => user.email,
+          },
+          {
+            id: "role",
+            header: "Role",
+            sortable: true,
+            filter: { options: [
+              { value: "user", label: "user" },
+              { value: "admin", label: "admin" },
+            ] },
+            sortValue: (user) => user.role,
+            filterValue: (user) => user.role,
+            cell: (user) => (
+              <Select
+                value={user.role}
+                options={[
+                  { value: "user", label: t("user") },
+                  { value: "admin", label: t("admin") },
+                ]}
+                onValueChange={(role) => void update(user.id, { role })}
+              />
+            ),
+          },
+          {
+            id: "status",
+            header: "Status",
+            sortable: true,
+            filter: { options: [
+              { value: "active", label: "Active" },
+              { value: "disabled", label: "Disabled" },
+            ] },
+            sortValue: (user) => (user.isActive ? "active" : "disabled"),
+            filterValue: (user) => (user.isActive ? "active" : "disabled"),
+            cell: (user) => (
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <Badge variant={user.isActive ? "secondary" : "outline"}>
+                  {user.isActive ? t("Active") : t("Disabled")}
+                </Badge>
+                {user.mustChangePassword ? (
+                  <span className="text-sm text-muted-foreground">{t(" · password change")}</span>
+                ) : null}
+              </span>
+            ),
+          },
+          {
+            id: "actions",
+            header: "",
+            sortable: false,
+            cell: (user) => (
+              <div className="flex flex-nowrap items-center justify-end gap-1" data-row-action>
+                <IconAction
+                  label={t("Set password")}
+                  onClick={() => {
+                    setPasswordFor(user);
+                    setNextPassword("");
+                    setCopied(false);
+                  }}
                 >
-                  <TableCell>
-                    {user.username}
-                    <div className="text-sm text-muted-foreground">
-                      {user.email}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={user.role}
-                      options={[
-                        { value: "user", label: t("user") },
-                        { value: "admin", label: t("admin") },
-                      ]}
-                      onValueChange={(role) => void update(user.id, { role })}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <span className="inline-flex flex-wrap items-center gap-2">
-                      <Badge variant={user.isActive ? "secondary" : "outline"}>
-                        {user.isActive ? t("Active") : t("Disabled")}
-                      </Badge>
-                      {user.mustChangePassword ? (
-                        <span className="text-sm text-muted-foreground">
-                          {t(" · password change")}
-                        </span>
-                      ) : null}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-nowrap items-center justify-end gap-1">
-                      <IconAction
-                        label={t("Set password")}
-                        onClick={() => {
-                          setPasswordFor(user);
-                          setNextPassword("");
-                          setCopied(false);
-                        }}
-                      >
-                        <KeyRound />
-                      </IconAction>
-                      <IconAction
-                        label={user.isActive ? t("Deactivate") : t("Activate")}
-                        onClick={() =>
-                          void update(user.id, { isActive: !user.isActive })
-                        }
-                      >
-                        {user.isActive ? <UserX /> : <UserCheck />}
-                      </IconAction>
-                      <IconAction
-                        label={t("Delete")}
-                        onClick={() => setDeleteFor(user)}
-                      >
-                        <Trash2 />
-                      </IconAction>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  <KeyRound />
+                </IconAction>
+                <IconAction
+                  label={user.isActive ? t("Deactivate") : t("Activate")}
+                  onClick={() => void update(user.id, { isActive: !user.isActive })}
+                >
+                  {user.isActive ? <UserX /> : <UserCheck />}
+                </IconAction>
+                <IconAction label={t("Delete")} onClick={() => setDeleteFor(user)}>
+                  <Trash2 />
+                </IconAction>
+              </div>
+            ),
+          },
+        ]}
+        rows={users}
+        getRow={(user) => ({
+          id: user.id,
+          domId: focusRowId(user.id),
+          className: rowFocusClass(user.id, focus),
+          label: user.username,
+        })}
+      />
       )}
       <Dialog
         open={Boolean(passwordFor)}
@@ -513,6 +532,7 @@ export function AdminSettingsPage() {
           aiModel: settings.aiModel,
           aiBaseUrl: settings.aiBaseUrl,
           aiEnabled: settings.aiEnabled,
+          utmPresets: settings.utmPresets ?? emptyUtmPresets(),
           ...extra,
           ...(smtpPassword ? { smtpPassword } : {}),
           ...(aiApiKey ? { aiApiKey } : {}),
@@ -562,8 +582,7 @@ export function AdminSettingsPage() {
           void save();
         }}
       >
-        <Card>
-          <CardContent className="grid gap-3">
+        <Section>
             <h2 className="text-lg font-medium">{t("Links")}</h2>
             <Field label="Public prefix" error={prefixError}>
               <Input
@@ -663,10 +682,8 @@ export function AdminSettingsPage() {
               }
               label="Users can change admin links"
             />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="grid gap-3">
+        </Section>
+        <Section>
             <h2 className="text-lg font-medium">{t("Sessions")}</h2>
             <Field label="Analytics retention, days">
               <Input
@@ -719,10 +736,8 @@ export function AdminSettingsPage() {
                     "Save a mail server below before requiring a code. Until then, people cannot turn two-factor authentication on.",
                   )}
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="grid gap-3">
+        </Section>
+        <Section>
             <h2 className="text-lg font-medium">{t("Email")}</h2>
             <Field label="SMTP host">
               <Input
@@ -782,8 +797,7 @@ export function AdminSettingsPage() {
             <p className="text-sm text-muted-foreground">
               {smtpStatus(settings)}
             </p>
-          </CardContent>
-        </Card>
+        </Section>
         <AiSettingsCard
           settings={settings}
           apiKey={aiApiKey}
@@ -794,6 +808,7 @@ export function AdminSettingsPage() {
           onClearKey={setClearAiKey}
           onTest={() => void testAi()}
         />
+        <UtmPresetEditor settings={settings} onChange={setSettings} />
         <Button type="submit" disabled={pending}>
           <Save /> {pending ? t("Saving…") : t("Save settings")}
         </Button>
@@ -829,6 +844,64 @@ export function AdminSettingsPage() {
         />
       </ConfirmDialog>
     </section>
+  );
+}
+
+function UtmPresetEditor({
+  settings,
+  onChange,
+}: {
+  settings: Settings;
+  onChange: (next: Settings) => void;
+}) {
+  const { t } = useI18n();
+  const presets = settings.utmPresets ?? emptyUtmPresets();
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  function update(key: (typeof UTM_KEYS)[number], values: string[]) {
+    onChange({ ...settings, utmPresets: { ...presets, [key]: values } });
+  }
+  return (
+    <Section title={t("UTM parameters")} lede={t("These values replace the free-text fields on a link.")}>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {UTM_KEYS.map((key) => (
+          <div key={key} className="grid gap-2">
+            <p className="text-sm font-medium">{key}</p>
+            <div className="flex flex-wrap gap-1">
+              {presets[key].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="rounded-full border border-border px-2 py-0.5 text-sm"
+                  onClick={() => update(key, presets[key].filter((item) => item !== value))}
+                >
+                  {value} ×
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={drafts[key] ?? ""}
+                aria-label={key}
+                onChange={(event) => setDrafts({ ...drafts, [key]: event.target.value })}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const value = (drafts[key] ?? "").trim();
+                  if (!value || presets[key].includes(value)) return;
+                  update(key, [...presets[key], value]);
+                  setDrafts({ ...drafts, [key]: "" });
+                }}
+              >
+                {t("Add")}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
@@ -873,48 +946,62 @@ export function AdminAuditPage() {
       ) : entries.length === 0 ? (
         <EmptyState>{t("No audit events yet.")}</EmptyState>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("When")}</TableHead>
-              <TableHead>{t("User")}</TableHead>
-              <TableHead>{t("Action")}</TableHead>
-              <TableHead>{t("Entity")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {entries.map((entry) => {
-              const sentence = auditActionSentence(entry.action);
-              return (
-                <TableRow
-                  key={entry.id}
-                  id={focusRowId(entry.id)}
-                  className={rowFocusClass(entry.id, focus)}
-                >
-                  <TableCell>
-                    <RelativeTime value={entry.createdAt} />
-                  </TableCell>
-                  <TableCell>{entry.actorUsername ?? "—"}</TableCell>
-                  <TableCell title={entry.action}>
-                    {sentence ? (
-                      <div>
-                        <div>{t(sentence)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {entry.action}
-                        </div>
-                      </div>
-                    ) : (
-                      entry.action
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {entry.entityType}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <DataTable
+          storageKey="admin-audit"
+          columns={[
+            {
+              id: "when",
+              header: "When",
+              sortable: true,
+              sortValue: (entry) => entry.createdAt,
+              cell: (entry) => <RelativeTime value={entry.createdAt} />,
+            },
+            {
+              id: "user",
+              header: "User",
+              sortable: true,
+              filter: "text",
+              sortValue: (entry) => entry.actorUsername ?? "",
+              filterValue: (entry) => entry.actorUsername ?? "",
+              cell: (entry) => entry.actorUsername ?? "—",
+            },
+            {
+              id: "action",
+              header: "Action",
+              sortable: true,
+              filter: "text",
+              sortValue: (entry) => entry.action,
+              filterValue: (entry) => `${auditActionSentence(entry.action) ?? ""} ${entry.action}`,
+              cell: (entry) => {
+                const sentence = auditActionSentence(entry.action);
+                return sentence ? (
+                  <div title={entry.action}>
+                    <div>{t(sentence)}</div>
+                    <div className="text-xs text-muted-foreground">{entry.action}</div>
+                  </div>
+                ) : (
+                  entry.action
+                );
+              },
+            },
+            {
+              id: "entity",
+              header: "Entity",
+              sortable: true,
+              filter: "text",
+              sortValue: (entry) => entry.entityType,
+              filterValue: (entry) => entry.entityType,
+              cell: (entry) => <span className="text-muted-foreground">{entry.entityType}</span>,
+            },
+          ]}
+          rows={entries}
+          getRow={(entry) => ({
+            id: entry.id,
+            domId: focusRowId(entry.id),
+            className: rowFocusClass(entry.id, focus),
+            label: entry.action,
+          })}
+        />
       )}
     </section>
   );

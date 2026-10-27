@@ -1,4 +1,4 @@
-import type { Locale, QrStyle, RoutingChoices, RoutingRule, UtmParams } from "@sharry/shared";
+import type { Locale, QrStyle, RoutingChoices, RoutingRule, UtmParams, UtmPresets } from "@sharry/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -83,6 +83,10 @@ export type ShortLink = {
   canEdit?: boolean;
   owner?: LinkPerson | null;
   updatedBy?: LinkPerson | null;
+  icon?: string | null;
+  folderId?: string | null;
+  tags?: { id: string; name: string; color: string }[];
+  folderPath?: { id: string; name: string }[];
 };
 
 export type LinkSummary = ShortLink & { clicks: number };
@@ -95,6 +99,7 @@ export type PublicSettings = {
   defaultRedirectType: ShortLink["redirectType"];
   slugLength: number;
   defaultQrStyle: QrStyle;
+  utmPresets?: UtmPresets;
 };
 
 export type LinkStat = {
@@ -115,6 +120,8 @@ export type AnalyticsOptions = {
   utmIds: string[];
   utmTerms: string[];
   utmContents: string[];
+  referrers?: string[];
+  devices?: string[];
 };
 
 export type Analytics = {

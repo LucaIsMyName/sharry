@@ -2,7 +2,7 @@
 
 Einstellungen stehen Administratorinnen und Administratoren zur Verfügung. Mail und Zwei-Faktor-Regeln werden hier gespeichert. Die öffentliche Site-Adresse, der Kurzlink-Ursprung, das Sitzungsgeheimnis und der Verschlüsselungsschlüssel bleiben in der Serverumgebung. `APP_URL` oder `SHORT_URL_BASE` ändern heißt, diese Umgebung zu bearbeiten und den Prozess neu zu starten. Die Einstellungen können sie nicht ändern.
 
-Einstellungen speichern schreibt die Karten in einer Anfrage. Links exportieren und Klicks exportieren stehen außerhalb dieses Formulars. Sie laden CSV-Dateien aller Links und aller Klicks herunter. Die Klickdatei enthält jede `utm_*`-Spalte.
+Einstellungen speichern schreibt das Formular in einer Anfrage. UTM-Parameter listet die erlaubten Werte je UTM-Schlüssel. Ein Schlüssel mit mindestens einem Wert wird auf Link- und Kampagnenformularen eine Auswahl, mit Nicht gesetzt plus diesen Werten. Ein gespeicherter Wert, der nicht mehr in der Liste steht, bleibt an diesem Link wählbar. Ein Schlüssel ohne Werte bleibt ein Textfeld. Links exportieren und Klicks exportieren stehen außerhalb dieses Formulars. Sie laden CSV-Dateien aller Links und aller Klicks herunter. Die Klickdatei enthält jede `utm_*`-Spalte.
 
 ## Links
 

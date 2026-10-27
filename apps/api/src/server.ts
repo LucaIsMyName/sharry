@@ -17,6 +17,7 @@ import { registerSystemRoutes } from './system.ts'
 import { registerAnalyticsRoutes } from './analytics.ts'
 import { registerAuthRoutes, requireUser } from './auth.ts'
 import { registerLinkRoutes } from './links.ts'
+import { registerOrganizeRoutes } from './organize.ts'
 import type { Mailer } from './mail.ts'
 import { registerQrRoutes } from './qr.ts'
 import { recordPendingClick, sendSpa, tryShortLink, isShortLinkPath } from './redirect.ts'
@@ -139,6 +140,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   registerAuthRoutes(app, options.mailer ?? null)
   registerLinkRoutes(app)
+  registerOrganizeRoutes(app)
   registerTrackingRoutes(app)
   registerAnalyticsRoutes(app)
   registerQrRoutes(app)

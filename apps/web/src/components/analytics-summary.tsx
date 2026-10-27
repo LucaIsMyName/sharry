@@ -24,6 +24,8 @@ export type AnalyticsSummaryFilters = {
   country?: string[];
   browser?: string[];
   os?: string[];
+  referrer?: string[];
+  device?: string[];
   utm_source?: string[];
   utm_medium?: string[];
   utm_campaign?: string[];
@@ -67,6 +69,8 @@ export function AnalyticsSummary({
     country: filters?.country ?? [],
     browser: filters?.browser ?? [],
     os: filters?.os ?? [],
+    referrer: filters?.referrer ?? [],
+    device: filters?.device ?? [],
     utm_source: filters?.utm_source ?? [],
     utm_medium: filters?.utm_medium ?? [],
     utm_campaign: filters?.utm_campaign ?? [],
@@ -88,6 +92,8 @@ export function AnalyticsSummary({
     const country = listed(filters?.country);
     const browser = listed(filters?.browser);
     const os = listed(filters?.os);
+    const referrer = listed(filters?.referrer);
+    const device = listed(filters?.device);
     const utmSource = listed(filters?.utm_source);
     const utmMedium = listed(filters?.utm_medium);
     const utmCampaign = listed(filters?.utm_campaign);
@@ -106,6 +112,8 @@ export function AnalyticsSummary({
           ...(country ? { country } : {}),
           ...(browser ? { browser } : {}),
           ...(os ? { os } : {}),
+          ...(referrer ? { referrer } : {}),
+          ...(device ? { device } : {}),
           ...(utmSource ? { utm_source: utmSource } : {}),
           ...(utmMedium ? { utm_medium: utmMedium } : {}),
           ...(utmCampaign ? { utm_campaign: utmCampaign } : {}),

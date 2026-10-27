@@ -28,11 +28,17 @@ Leave the slug blank to generate one. The length comes from Settings and is betw
 
 ## The links list
 
-The links page loads 50 at a time. Load more shows the rest. Search matches the slug, title, or destination. Each row shows the click total. Text longer than the cell ends in an ellipsis. On a narrow screen the table scrolls sideways so the columns stay readable. Status is Active or Paused. The test icon opens the short URL in a new tab.
+The links page loads 50 at a time. Load more shows the rest. Filter a column to match the slug, title, or destination. Each row shows the click total. Text longer than the cell ends in an ellipsis. On a narrow screen the table scrolls sideways so the columns stay readable. Status is Active or Paused. The test icon opens the short URL in a new tab.
+
+Folders are rows in the same list. Create folder, next to New link, adds a folder named New folder and selects that name so you can rename it in the row. Open a folder with one click. Drag a link or folder onto a folder row to move it in, or onto Root or an earlier breadcrumb to move it out. Each row has icon actions for move, open, and delete, and a right-click menu for move and delete. Checkboxes delete several rows at once. Deleting a folder asks for confirmation and moves its contents up one level. A view-only link cannot be dragged. Column filters and sort replace the old search box, and the header stays visible when a filter matches nothing. Drag the edge of a column header to resize it. That width is remembered in this browser.
+
+Each link, folder, and campaign can use an icon from a fixed set. On a saved link the icon sits beside the heading, and the short URL is on the next line. Link tags and campaign tags are separate, so the same name can exist once for each. A name already on this link or campaign is kept out with “This tag is already in use.” Type a tag and click away to keep it in the field; Save stores it on the link. Each tag gets a color, and you can change that color from the badge. Tags are badges inside the field and in the list. A tag badge in the list filters the open folder.
 
 You see your own links. An administrator sees and edits every link. Settings can let users see each other’s links, view or edit them, and optionally see or change links owned by administrators. When the list includes a link you can view but not change, each row is marked Editable or View only. A view-only title is quieter than an editable one. A link you can open shows who created it and who last changed it. The links list adds Created by when it can include someone else’s link. Last changed by is Unknown when Sharry does not know who saved it.
 
 ## Creating and editing
+
+The destination sits above the short-link group. The redirect domain and slug share that group. The page title is the link title: edit the heading, with a larger icon centered beside it. The short URL sits under that row. Save, copy, and delete sit on the next row. Folder choices show the root and every folder as a tree. Redirect type, status, expiry, and password are in Settings. The title bar scrolls with the page.
 
 A new link needs an `http` or `https` destination, up to 4096 characters. Title and description are optional. Choose a redirect type or leave the account default from Settings. The default for a new install is 302. The other choices are 301, 307, and 308.
 

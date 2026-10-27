@@ -1,16 +1,17 @@
+import { useState } from "react";
 import type { AnalyticsOptions, LinkStat } from "../api.ts";
 import { useI18n } from "../i18n/index.tsx";
 import { Button } from "./ui/button.tsx";
-import { Input } from "./ui/input.tsx";
+import { FilterChip } from "./ui/filter-chip.tsx";
 import { MultiSelect } from "./ui/multi-select.tsx";
 
 const filterKeys = [
   "link",
-  "from",
-  "to",
   "country",
   "browser",
   "os",
+  "referrer",
+  "device",
   "utm_source",
   "utm_medium",
   "utm_campaign",
@@ -20,6 +21,21 @@ const filterKeys = [
 ] as const;
 
 const notSet = "Not set";
+
+const labels: Record<(typeof filterKeys)[number], string> = {
+  link: "Links",
+  country: "Country",
+  browser: "Browser",
+  os: "Operating system",
+  referrer: "Referrers",
+  device: "Devices",
+  utm_source: "utm_source",
+  utm_medium: "utm_medium",
+  utm_campaign: "utm_campaign",
+  utm_id: "utm_id",
+  utm_term: "utm_term",
+  utm_content: "utm_content",
+};
 
 export function AnalyticsFilters({
   params,
@@ -33,6 +49,7 @@ export function AnalyticsFilters({
   onChange: (next: URLSearchParams) => void;
 }) {
   const { t } = useI18n();
+  const [adding, setAdding] = useState<(typeof filterKeys)[number] | null>(null);
   const active = filterKeys.some((key) => params.get(key));
 
   function setList(key: string, values: string[]) {
@@ -42,89 +59,86 @@ export function AnalyticsFilters({
     onChange(next);
   }
 
-  function setDay(key: "from" | "to", value: string) {
-    const next = new URLSearchParams(params);
-    if (value) next.set(key, value);
-    else next.delete(key);
-    onChange(next);
+  function remove(key: string, value: string) {
+    setList(key, params.getAll(key).filter((item) => item !== value));
   }
 
   function clear() {
     const next = new URLSearchParams(params);
     for (const key of filterKeys) next.delete(key);
     onChange(next);
+    setAdding(null);
   }
 
+  const choices = optionMap(links, options);
+
   return (
-    <div className="mb-4 min-w-0 overflow-x-auto">
-      <div className="flex w-max flex-nowrap items-end gap-2">
-        <MultiSelect
-          label={t("Links")}
-          values={params.getAll("link")}
-          options={links.map((link) => ({ value: link.id, label: link.title?.trim() || link.slug }))}
-          onChange={(values) => setList("link", values)}
-        />
-        <div className="w-40 shrink-0">
-          <Input
-            type="date"
-            aria-label={t("From")}
-            value={params.get("from") ?? ""}
-            onChange={(event) => setDay("from", event.target.value)}
-          />
-        </div>
-        <div className="w-40 shrink-0">
-          <Input
-            type="date"
-            aria-label={t("To")}
-            value={params.get("to") ?? ""}
-            onChange={(event) => setDay("to", event.target.value)}
-          />
-        </div>
-        <DimensionSelect label={t("Country")} param="country" params={params} values={options?.countries ?? []} onChange={setList} />
-        <DimensionSelect label={t("Browser")} param="browser" params={params} values={options?.browsers ?? []} onChange={setList} />
-        <DimensionSelect
-          label={t("Operating system")}
-          param="os"
-          params={params}
-          values={options?.operatingSystems ?? []}
-          onChange={setList}
-        />
-        <DimensionSelect label="utm_source" param="utm_source" params={params} values={options?.utmSources ?? []} onChange={setList} />
-        <DimensionSelect label="utm_medium" param="utm_medium" params={params} values={options?.utmMediums ?? []} onChange={setList} />
-        <DimensionSelect label="utm_campaign" param="utm_campaign" params={params} values={options?.utmCampaigns ?? []} onChange={setList} />
-        <DimensionSelect label="utm_id" param="utm_id" params={params} values={options?.utmIds ?? []} onChange={setList} />
-        <DimensionSelect label="utm_term" param="utm_term" params={params} values={options?.utmTerms ?? []} onChange={setList} />
-        <DimensionSelect label="utm_content" param="utm_content" params={params} values={options?.utmContents ?? []} onChange={setList} />
+    <div className="mb-4 grid gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm" aria-expanded={adding !== null} onClick={() => setAdding((current) => (current ? null : "link"))}>
+          {t("Add filter")}
+        </Button>
+        {filterKeys.flatMap((key) =>
+          params.getAll(key).map((value) => (
+            <FilterChip
+              key={`${key}:${value}`}
+              label={`${t(labels[key])}: ${chipLabel(key, value, links, t)}`}
+              onRemove={() => remove(key, value)}
+            />
+          )),
+        )}
         {active ? (
-          <Button type="button" variant="ghost" onClick={clear}>
+          <Button type="button" variant="ghost" size="sm" onClick={clear}>
             {t("Clear filters")}
           </Button>
         ) : null}
       </div>
+      {adding ? (
+        <div className="flex flex-wrap items-end gap-2">
+          {filterKeys.map((key) => (
+            <Button key={key} type="button" size="sm" variant={adding === key ? "secondary" : "ghost"} onClick={() => setAdding(key)}>
+              {t(labels[key])}
+            </Button>
+          ))}
+          <MultiSelect
+            label={t(labels[adding])}
+            values={params.getAll(adding)}
+            options={(choices[adding] ?? []).map((value) => ({
+              value,
+              label: adding === "link" ? linkLabel(links, value) : value === notSet ? t("Not set") : value,
+            }))}
+            onChange={(values) => setList(adding, values)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function DimensionSelect({
-  label,
-  param,
-  params,
-  values,
-  onChange,
-}: {
-  label: string;
-  param: string;
-  params: URLSearchParams;
-  values: string[];
-  onChange: (key: string, values: string[]) => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <MultiSelect
-      label={label}
-      values={params.getAll(param)}
-      options={values.map((value) => ({ value, label: value === notSet ? t("Not set") : value }))}
-      onChange={(next) => onChange(param, next)}
-    />
-  );
+function optionMap(links: LinkStat[], options?: AnalyticsOptions): Record<string, string[]> {
+  return {
+    link: links.map((link) => link.id),
+    country: options?.countries ?? [],
+    browser: options?.browsers ?? [],
+    os: options?.operatingSystems ?? [],
+    referrer: options?.referrers ?? [],
+    device: options?.devices ?? [],
+    utm_source: options?.utmSources ?? [],
+    utm_medium: options?.utmMediums ?? [],
+    utm_campaign: options?.utmCampaigns ?? [],
+    utm_id: options?.utmIds ?? [],
+    utm_term: options?.utmTerms ?? [],
+    utm_content: options?.utmContents ?? [],
+  };
+}
+
+function linkLabel(links: LinkStat[], id: string): string {
+  const link = links.find((item) => item.id === id);
+  return link?.title?.trim() || link?.slug || id;
+}
+
+function chipLabel(key: string, value: string, links: LinkStat[], translate: (message: string) => string): string {
+  if (key === "link") return linkLabel(links, value);
+  if (value === notSet) return translate("Not set");
+  return value;
 }

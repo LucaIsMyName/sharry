@@ -3,7 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { api } from "../api.ts";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Button } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { Section } from "../components/ui/section.tsx";
 import { DetailSkeleton } from "../components/ui/skeleton.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { useI18n } from "../i18n/index.tsx";
@@ -128,8 +128,7 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
           total={snapshot.storage.totalBytes}
         />
       </div>
-      <Card>
-        <CardContent className="grid gap-3">
+      <Section>
           <h2 className="text-lg font-medium">{t("Memory")}</h2>
           <Meter
             used={snapshot.memory.usedBytes}
@@ -143,10 +142,8 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
               [t("This process"), formatBytes(snapshot.memory.processRssBytes)],
             ]}
           />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="grid gap-3">
+      </Section>
+      <Section>
           <h2 className="text-lg font-medium">{t("Storage")}</h2>
           <Meter
             used={snapshot.storage.usedBytes}
@@ -160,10 +157,8 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
               [t("Database"), formatBytes(snapshot.storage.databaseBytes)],
             ]}
           />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="grid gap-3">
+      </Section>
+      <Section>
           <h2 className="text-lg font-medium">{t("Runtime")}</h2>
           <Facts
             rows={[
@@ -189,8 +184,7 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
               ],
             ]}
           />
-        </CardContent>
-      </Card>
+      </Section>
     </>
   );
 }
@@ -206,8 +200,7 @@ function Summary({
 }) {
   const { t } = useI18n();
   return (
-    <Card>
-      <CardContent>
+    <div>
         <span className="text-sm text-muted-foreground">{t(label)}</span>
         <b className="mt-1 block text-3xl tabular-nums">{formatBytes(bytes)}</b>
         <span className="text-sm text-muted-foreground">
@@ -216,8 +209,7 @@ function Summary({
             total: formatBytes(total),
           })}
         </span>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

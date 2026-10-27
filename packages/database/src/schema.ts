@@ -5,10 +5,12 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 import type { AiProposal, ChatBlock, QrStyle, RoutingRule } from '@sharry/shared'
 
@@ -53,6 +55,21 @@ export const redirectDomains = pgTable(
   (table) => [uniqueIndex('redirect_domains_hostname_lower_idx').on(sql`lower(${table.hostname})`)],
 )
 
+export const folders = pgTable(
+  'folders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    parentId: uuid('parent_id').references((): AnyPgColumn => folders.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    icon: text('icon'),
+    position: integer('position').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('folders_kind_parent_idx').on(table.kind, table.parentId)],
+)
+
 export const links = pgTable(
   'links',
   {
@@ -61,6 +78,8 @@ export const links = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
     redirectDomainId: uuid('redirect_domain_id').references(() => redirectDomains.id, { onDelete: 'set null' }),
+    folderId: uuid('folder_id').references(() => folders.id, { onDelete: 'set null' }),
+    icon: text('icon'),
     slug: text('slug').notNull(),
     destinationUrl: text('destination_url').notNull(),
     title: text('title'),
@@ -78,6 +97,7 @@ export const links = pgTable(
     uniqueIndex('links_slug_lower_idx').on(sql`lower(${table.slug})`),
     index('links_user_id_idx').on(table.userId),
     index('links_redirect_domain_id_idx').on(table.redirectDomainId),
+    index('links_folder_id_idx').on(table.folderId),
   ],
 )
 
@@ -113,10 +133,52 @@ export const trackingCampaigns = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     name: text('name').notNull(),
     description: text('description'),
+    folderId: uuid('folder_id').references(() => folders.id, { onDelete: 'set null' }),
+    icon: text('icon'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('tracking_campaigns_user_id_idx').on(table.userId)],
+  (table) => [
+    index('tracking_campaigns_user_id_idx').on(table.userId),
+    index('tracking_campaigns_folder_id_idx').on(table.folderId),
+  ],
+)
+
+export const tags = pgTable(
+  'tags',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull(),
+    name: text('name').notNull(),
+    color: text('color').notNull(),
+  },
+  (table) => [uniqueIndex('tags_kind_name_lower_idx').on(table.kind, sql`lower(${table.name})`)],
+)
+
+export const linkTags = pgTable(
+  'link_tags',
+  {
+    linkId: uuid('link_id')
+      .notNull()
+      .references(() => links.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.linkId, table.tagId] }), index('link_tags_tag_id_idx').on(table.tagId)],
+)
+
+export const campaignTags = pgTable(
+  'campaign_tags',
+  {
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => trackingCampaigns.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.campaignId, table.tagId] }), index('campaign_tags_tag_id_idx').on(table.tagId)],
 )
 
 export const trackingConfigs = pgTable('tracking_configs', {

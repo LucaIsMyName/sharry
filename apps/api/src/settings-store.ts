@@ -3,11 +3,14 @@ import { appSettings, type Database } from '@sharry/database'
 import {
   aiProviders,
   defaultQrStyle,
+  emptyUtmPresets,
+  parseUtmPresets,
   qrStyleSchema,
   validatePrefix,
   type AiProvider,
   type QrStyle,
   type RuntimeEnv,
+  type UtmPresets,
 } from '@sharry/shared'
 
 export type RedirectType = '301' | '302' | '307' | '308'
@@ -40,6 +43,7 @@ export type AppSettings = {
   aiBaseUrl: string
   aiApiKeyEncrypted: string
   aiEnabled: boolean
+  utmPresets: UtmPresets
 }
 
 let cached: AppSettings | null = null
@@ -77,6 +81,7 @@ export function defaultSettings(env: RuntimeEnv): AppSettings {
     aiBaseUrl: '',
     aiApiKeyEncrypted: '',
     aiEnabled: true,
+    utmPresets: emptyUtmPresets(),
   }
 }
 
@@ -109,6 +114,7 @@ export function settingsToRows(settings: AppSettings): Record<string, string> {
     ai_base_url: settings.aiBaseUrl,
     ai_api_key: settings.aiApiKeyEncrypted,
     ai_enabled: settings.aiEnabled ? 'true' : 'false',
+    utm_presets: JSON.stringify(settings.utmPresets),
   }
 }
 
@@ -152,6 +158,16 @@ export function parseSettings(map: Record<string, string | undefined>, env: Runt
     aiBaseUrl: map.ai_base_url ?? '',
     aiApiKeyEncrypted: map.ai_api_key ?? '',
     aiEnabled: map.ai_enabled !== 'false',
+    utmPresets: parseStoredPresets(map.utm_presets),
+  }
+}
+
+function parseStoredPresets(value: string | undefined): UtmPresets {
+  if (!value) return emptyUtmPresets()
+  try {
+    return parseUtmPresets(JSON.parse(value))
+  } catch {
+    return emptyUtmPresets()
   }
 }
 

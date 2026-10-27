@@ -16,13 +16,13 @@ Land und Region bleiben leer, außer `GEOIP_DB_PATH` zeigt auf eine lokale MaxMi
 
 ## Filter
 
-Die Leiste unter der Überschrift filtert die Karten, das Diagramm, die Aufschlüsselungen, die Zusammenfassung und die Zählungen in der Linktabelle. Sie ist da, ob die KI an ist oder nicht. Die Filter bleiben in einer Zeile, und die Leiste scrollt seitwärts, wenn sie nicht passen.
+Der Datumsregler ist die Hauptsteuerung. Filter hinzufügen öffnet Links, Land, Browser, Betriebssystem, Referrer, Gerät und jeden UTM-Schlüssel. Aktive Filter sind entfernbare Chips. Zurücksetzen entfernt sie alle. Die Adresszeile behält dieselben Parameter.
 
-Links ist eine Mehrfachauswahl der Links, die du sehen kannst. Leer heißt jeder sichtbare Link. Mehrere Links passen, wenn einer davon stimmt. Ein Link behält den Namen dieses Links in der Überschrift. Eine Zeile in der Tabelle wählt genau diesen Link. Alle Links löscht nur die Linkauswahl.
+Der Datumsregler unter der Überschrift setzt den Zeitraum. Ein Klick auf einen Tag behält diesen Tag. Die Kurzinfo beim Darüberfahren bleibt. Ein Klick auf eine Aufschlüsselungszeile schaltet diesen Wert als Filter um, auch Referrer und Gerät. Eine gewählte Zeile bleibt hervorgehoben. Die Linktabelle unter dem Diagramm sortiert und filtert für sich und merkt sich diese Ansicht in diesem Browser. Diese Tabellenfilter sind von den Diagrammfiltern getrennt.
 
-Von und Bis sind Kalendertage. Der Schieberegler am Diagramm schreibt dieselben zwei Felder. Beide leer heißt etwa die letzten 30 Tage. Ein Zeitraum länger als 400 Tage zeigt einen Fehler und wird nicht gesendet.
+Mehrere Links passen, wenn einer davon stimmt. Ein Link behält den Namen dieses Links in der Überschrift. Eine Zeile in der Tabelle wählt genau diesen Link.
 
-Land, Browser, Betriebssystem und jedes UTM-Feld sind Mehrfachauswahlen. Ein leeres Feld wird nicht gefiltert. Mehrere Werte in einem Feld passen, wenn einer davon stimmt. Verschiedene Felder müssen alle passen. Ein leerer gespeicherter Wert ist „Nicht gesetzt“ und kann gewählt werden. Die Auswahl kommt aus den Klicks der gewählten Tage und Links und ignoriert die anderen Dimensionsfilter. Zurücksetzen entfernt jeden Filter.
+Beide Daten leer heißt etwa die letzten 30 Tage. Ein Zeitraum länger als 400 Tage zeigt einen Fehler und wird nicht gesendet. Mehrere Werte in einem Feld passen, wenn einer davon stimmt. Verschiedene Felder müssen alle passen. Ein leerer gespeicherter Wert ist „Nicht gesetzt“ und kann gewählt werden. Leere Referrer heißen Direkt und werden als Nicht gesetzt gefiltert. Die Auswahl kommt aus den Klicks der gewählten Tage und Links und ignoriert die anderen Dimensionsfilter.
 
 ## Eine kurze Zusammenfassung
 

@@ -33,12 +33,14 @@ export function Field({
   error,
   info,
   success,
+  srOnly = false,
 }: {
   label: string;
   children: ReactNode;
   error?: string;
   info?: string;
   success?: string;
+  srOnly?: boolean;
 }) {
   const { t } = useI18n();
   const generatedId = useId();
@@ -53,9 +55,9 @@ export function Field({
   const descriptionId = message ? `${generatedId}-message` : undefined;
 
   return (
-    <div data-slot="field" className="grid w-full items-start gap-1.5">
-      <Label className="grid w-full items-start gap-1.5">
-        <span className="flex items-center gap-1.5">
+    <div data-slot="field" className={cn("grid w-full items-start", srOnly ? "gap-0" : "gap-1.5")}>
+      <Label className={cn("grid w-full items-start", srOnly ? "gap-0" : "gap-1.5")}>
+        <span className={cn("flex items-center gap-1.5", srOnly && "sr-only")}>
           <span>{t(label)}</span>
           {message && tone ? (
             <FieldMessage

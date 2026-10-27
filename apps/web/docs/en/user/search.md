@@ -2,7 +2,7 @@
 
 Search sits in the sidebar under Chat. Cmd+K opens it on a Mac. Ctrl+K opens it on other systems.
 
-With nothing typed, the palette lists the pages you can open. Administrators also see Users, API keys, Settings, Domains, Server, and Audit. Sign-in and password-reset pages stay out. Each result uses the icon of the page it opens. A short link also shows its slug, destination, and description.
+With nothing typed, the palette lists the pages you can open. Administrators also see Users, API keys, Settings, Domains, Server, and Audit. Sign-in and password-reset pages stay out. Each result uses the icon of the page it opens. A link or campaign uses its own icon when one is set. A long title stays inside the dialog. A short link also shows its slug, destination, and description.
 
 Typing searches further:
 

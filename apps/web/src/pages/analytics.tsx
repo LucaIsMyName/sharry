@@ -16,16 +16,8 @@ import { PageHeader } from "../components/page-header.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { RowSkeleton, Skeleton, StatSkeleton } from "../components/ui/skeleton.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  ClickableTableRow,
-  TableRow,
-} from "../components/ui/table.tsx";
+import { Section } from "../components/ui/section.tsx";
+import { DataTable, type DataColumn } from "../components/ui/data-table.tsx";
 import { cn } from "cn";
 import { chartDayLabel } from "../chart-day.ts";
 import { AnalyticsFilters } from "../components/analytics-filters.tsx";
@@ -136,75 +128,65 @@ export function AnalyticsPage() {
       ) : null}
       {analytics ? (
         <div className="grid gap-4">
-          <div className="grid gap-3.5 sm:grid-cols-3">
-            <Card>
-              <CardContent>
-                <span className="text-sm text-muted-foreground">{t("Clicks")}</span>
-                <b className="mt-1 block text-3xl">{analytics.totalClicks}</b>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <span className="text-sm text-muted-foreground">
-                  {t("Unique visitors")}
-                </span>
-                <b className="mt-1 block text-3xl">
-                  {analytics.uniqueVisitors}
-                </b>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <span className="text-sm text-muted-foreground">
-                  {t("Bot clicks")}
-                </span>
-                <b className="mt-1 block text-3xl">{analytics.botClicks}</b>
-              </CardContent>
-            </Card>
+          <div className="flex flex-wrap gap-6 border-b border-border pb-4">
+            <Metric label={t("Clicks")} value={analytics.totalClicks} />
+            <Metric label={t("Unique visitors")} value={analytics.uniqueVisitors} />
+            <Metric label={t("Bot clicks")} value={analytics.botClicks} />
           </div>
           {aiAvailable ? (
-            <Card>
-              <CardContent>
-                <AnalyticsSummary
-                  showRange={false}
-                  earliest={linkIds.length === 1 ? undefined : earliest}
-                  range={window}
-                  onRange={setDates}
-                  filters={{
-                    linkIds,
-                    country: params.getAll("country"),
-                    browser: params.getAll("browser"),
-                    os: params.getAll("os"),
-                    utm_source: params.getAll("utm_source"),
-                    utm_medium: params.getAll("utm_medium"),
-                    utm_campaign: params.getAll("utm_campaign"),
-                    utm_id: params.getAll("utm_id"),
-                    utm_term: params.getAll("utm_term"),
-                    utm_content: params.getAll("utm_content"),
-                  }}
-                />
-              </CardContent>
-            </Card>
+            <Section>
+              <AnalyticsSummary
+                showRange={false}
+                earliest={linkIds.length === 1 ? undefined : earliest}
+                range={window}
+                onRange={setDates}
+                filters={{
+                  linkIds,
+                  country: params.getAll("country"),
+                  browser: params.getAll("browser"),
+                  os: params.getAll("os"),
+                  referrer: params.getAll("referrer"),
+                  device: params.getAll("device"),
+                  utm_source: params.getAll("utm_source"),
+                  utm_medium: params.getAll("utm_medium"),
+                  utm_campaign: params.getAll("utm_campaign"),
+                  utm_id: params.getAll("utm_id"),
+                  utm_term: params.getAll("utm_term"),
+                  utm_content: params.getAll("utm_content"),
+                }}
+              />
+            </Section>
           ) : null}
-          <Card>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                <span className="text-sm font-medium">{t("Date range")}</span>
-                <DateRangeSlider
-                  min={report.trackStart}
-                  max={report.today}
-                  start={window.from}
-                  end={window.to}
-                  onChange={setDates}
-                />
-                {tooLong ? (
-                  <p className="text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p>
-                ) : null}
-              </div>
-              <ClickChart series={analytics.series} />
-            </CardContent>
-          </Card>
-          <AnalyticsBreakdowns analytics={analytics} />
+          <Section title={t("Date range")}>
+            <DateRangeSlider
+              min={report.trackStart}
+              max={report.today}
+              start={window.from}
+              end={window.to}
+              onChange={setDates}
+            />
+            {tooLong ? (
+              <p className="text-sm text-destructive">{t("Choose a range of 400 days or fewer")}</p>
+            ) : null}
+            <ClickChart series={analytics.series} onRange={setDates} />
+          </Section>
+          <AnalyticsBreakdowns
+            analytics={analytics}
+            selected={{
+              Referrers: params.getAll("referrer"),
+              Countries: params.getAll("country"),
+              Browsers: params.getAll("browser"),
+              "Operating systems": params.getAll("os"),
+              Devices: params.getAll("device"),
+              utm_source: params.getAll("utm_source"),
+              utm_medium: params.getAll("utm_medium"),
+              utm_campaign: params.getAll("utm_campaign"),
+              utm_id: params.getAll("utm_id"),
+              utm_term: params.getAll("utm_term"),
+              utm_content: params.getAll("utm_content"),
+            }}
+            onSelect={(title, name) => toggleBreakdown(params, setParams, title, name)}
+          />
         </div>
       ) : null}
       <div className="mt-4 min-w-0">
@@ -222,50 +204,113 @@ export function AnalyticsPage() {
               {t("No links yet.")}
             </EmptyState>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("Link")}</TableHead>
-                  <TableHead>{t("Clicks")}</TableHead>
-                  <TableHead>{t("Unique visitors")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {links.map((link) => {
-                  const name = link.title?.trim() || link.slug;
-                  return (
-                  <ClickableTableRow
-                    key={link.id}
-                    label={name}
-                    className={cn(linkIds.includes(link.id) && "bg-muted")}
-                    onSelect={() => selectLink(link.id)}
-                  >
-                    <TableCell className="font-medium">{name}</TableCell>
-                    <TableCell>{link.clicks}</TableCell>
-                    <TableCell>{link.uniqueVisitors}</TableCell>
-                  </ClickableTableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <DataTable
+              storageKey="analytics-links"
+              columns={analyticsLinkColumns}
+              rows={links}
+              getRow={(link) => ({
+                id: link.id,
+                label: link.title?.trim() || link.slug,
+                onSelect: () => selectLink(link.id),
+                className: cn(linkIds.includes(link.id) && "bg-muted"),
+              })}
+            />
           )}
       </div>
     </section>
   );
 }
 
+const analyticsLinkColumns: DataColumn<LinkStat>[] = [
+  {
+    id: "name",
+    header: "Link",
+    sortable: true,
+    filter: "text",
+    sortValue: (link) => link.title?.trim() || link.slug,
+    filterValue: (link) => link.title?.trim() || link.slug,
+    cell: (link) => <span className="font-medium">{link.title?.trim() || link.slug}</span>,
+  },
+  {
+    id: "clicks",
+    header: "Clicks",
+    sortable: true,
+    align: "right",
+    sortValue: (link) => link.clicks,
+    filterValue: (link) => String(link.clicks),
+    cell: (link) => link.clicks,
+  },
+  {
+    id: "unique",
+    header: "Unique visitors",
+    sortable: true,
+    align: "right",
+    sortValue: (link) => link.uniqueVisitors,
+    filterValue: (link) => String(link.uniqueVisitors),
+    cell: (link) => link.uniqueVisitors,
+  },
+];
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <b className="mt-1 block text-3xl tabular-nums">{value}</b>
+    </div>
+  );
+}
+
+const breakdownParams: Record<string, string> = {
+  Referrers: "referrer",
+  Countries: "country",
+  Browsers: "browser",
+  "Operating systems": "os",
+  Devices: "device",
+  utm_source: "utm_source",
+  utm_medium: "utm_medium",
+  utm_campaign: "utm_campaign",
+  utm_id: "utm_id",
+  utm_term: "utm_term",
+  utm_content: "utm_content",
+};
+
+function toggleBreakdown(
+  params: URLSearchParams,
+  setParams: (next: URLSearchParams) => void,
+  title: string,
+  name: string,
+) {
+  const key = breakdownParams[title];
+  if (!key) return;
+  const value = key === "referrer" && name === "Direct" ? "Not set" : name;
+  const next = new URLSearchParams(params);
+  const values = next.getAll(key).filter((item) => item !== value);
+  next.delete(key);
+  const adding = !params.getAll(key).includes(value);
+  for (const item of adding ? [...values, value] : values) next.append(key, item);
+  setParams(next);
+}
+
 export function ClickChart({
   series,
   metric = "Clicks",
+  onRange,
 }: {
   series: Analytics["series"];
   metric?: string;
+  onRange?: (from: string, to: string) => void;
 }) {
   const { locale, t } = useI18n();
   return (
-    <div className="h-64 w-full">
+    <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={series}>
+        <LineChart
+          data={series}
+          onClick={(state) => {
+            const day = state?.activeLabel;
+            if (day && onRange) onRange(String(day), String(day));
+          }}
+        >
           <CartesianGrid stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="date"
@@ -302,7 +347,15 @@ export function ClickChart({
   );
 }
 
-export function AnalyticsBreakdowns({ analytics }: { analytics: Analytics }) {
+export function AnalyticsBreakdowns({
+  analytics,
+  selected = {},
+  onSelect,
+}: {
+  analytics: Analytics;
+  selected?: Record<string, string[]>;
+  onSelect?: (title: string, name: string) => void;
+}) {
   const { t } = useI18n();
   const bots =
     analytics.totalClicks <= 0
@@ -313,18 +366,26 @@ export function AnalyticsBreakdowns({ analytics }: { analytics: Analytics }) {
         ];
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Breakdown title={t("Referrers")} rows={analytics.referrers} />
-      <Breakdown title={t("Countries")} rows={analytics.countries} />
-      <Breakdown title={t("Browsers")} rows={analytics.browsers} />
-      <Breakdown title={t("Operating systems")} rows={analytics.operatingSystems} />
-      <Breakdown title={t("Devices")} rows={analytics.devices} />
-      <Breakdown title={t("Bots")} rows={bots} />
-      <UtmBreakdowns analytics={analytics} />
+      <Breakdown title="Referrers" rows={analytics.referrers} selected={selected.Referrers} onSelect={onSelect} />
+      <Breakdown title="Countries" rows={analytics.countries} selected={selected.Countries} onSelect={onSelect} />
+      <Breakdown title="Browsers" rows={analytics.browsers} selected={selected.Browsers} onSelect={onSelect} />
+      <Breakdown title="Operating systems" rows={analytics.operatingSystems} selected={selected["Operating systems"]} onSelect={onSelect} />
+      <Breakdown title="Devices" rows={analytics.devices} selected={selected.Devices} onSelect={onSelect} />
+      <Breakdown title="Bots" rows={bots} />
+      <UtmBreakdowns analytics={analytics} selected={selected} onSelect={onSelect} />
     </div>
   );
 }
 
-export function UtmBreakdowns({ analytics }: { analytics: Analytics }) {
+export function UtmBreakdowns({
+  analytics,
+  selected = {},
+  onSelect,
+}: {
+  analytics: Analytics;
+  selected?: Record<string, string[]>;
+  onSelect?: (title: string, name: string) => void;
+}) {
   const rows = [
     ["utm_source", analytics.utmSources],
     ["utm_medium", analytics.utmMediums],
@@ -334,7 +395,7 @@ export function UtmBreakdowns({ analytics }: { analytics: Analytics }) {
     ["utm_content", analytics.utmContents],
   ] as const;
   return rows.map(([title, values]) => (
-    <Breakdown key={title} title={title} rows={values} />
+    <Breakdown key={title} title={title} rows={values} selected={selected[title]} onSelect={onSelect} />
   ));
 }
 
@@ -348,10 +409,14 @@ export function Breakdown({
   title,
   rows,
   plain = false,
+  selected = [],
+  onSelect,
 }: {
   title: string;
   rows: { name: string; clicks: number }[];
   plain?: boolean;
+  selected?: string[];
+  onSelect?: (title: string, name: string) => void;
 }) {
   const { t } = useI18n();
   const max = Math.max(1, ...rows.map((row) => row.clicks));
@@ -360,21 +425,40 @@ export function Breakdown({
       <EmptyState>{t("No data yet.")}</EmptyState>
     ) : (
       <div className="grid gap-2">
-        {rows.map((row, index) => (
-          <div
-            className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-sm"
-            key={`${index}-${row.name}`}
-          >
-            <span className="truncate">{row.name}</span>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <span
-                className={cn("block h-full", barTone(index))}
-                style={{ width: `${(row.clicks / max) * 100}%` }}
-              />
-            </div>
-            <b>{row.clicks}</b>
-          </div>
-        ))}
+        {rows.map((row, index) => {
+          const value = title === "Referrers" && row.name === "Direct" ? "Not set" : row.name;
+          const active = selected.includes(value) || selected.includes(row.name);
+          const content = (
+            <>
+              <span className="truncate text-left">{row.name}</span>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <span className={cn("block h-full", barTone(index))} style={{ width: `${(row.clicks / max) * 100}%` }} />
+              </div>
+              <b>{row.clicks}</b>
+            </>
+          );
+          if (!onSelect) {
+            return (
+              <div className="grid grid-cols-[120px_1fr_auto] items-center gap-2 text-sm" key={`${index}-${row.name}`}>
+                {content}
+              </div>
+            );
+          }
+          return (
+            <button
+              type="button"
+              key={`${index}-${row.name}`}
+              className={cn(
+                "grid grid-cols-[120px_1fr_auto] items-center gap-2 rounded-md px-1 text-left text-sm",
+                active && "bg-accent",
+              )}
+              aria-pressed={active}
+              onClick={() => onSelect(title, row.name)}
+            >
+              {content}
+            </button>
+          );
+        })}
       </div>
     );
   if (plain) {
@@ -385,12 +469,5 @@ export function Breakdown({
       </div>
     );
   }
-  return (
-    <Card>
-      <CardContent>
-        <h2 className="mb-3 text-lg font-medium">{t(title)}</h2>
-        {body}
-      </CardContent>
-    </Card>
-  );
+  return <Section title={t(title)}>{body}</Section>;
 }

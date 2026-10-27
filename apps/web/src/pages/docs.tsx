@@ -1,4 +1,4 @@
-import { isValidElement, useState, type ReactNode } from "react";
+import { createContext, isValidElement, useContext, useRef, useState, type ReactNode } from "react";
 import { appSlug } from "@sharry/shared";
 import { Menu } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -9,6 +9,7 @@ import apiDocs, { type ApiDoc } from "virtual:api-docs";
 import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
 import { Button } from "../components/ui/button.tsx";
+import { DataTable, type DataColumn } from "../components/ui/data-table.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { useI18n } from "../i18n/index.tsx";
 import { docsCodeBlockClass, MermaidBlock } from "./docs-mermaid.tsx";
@@ -71,7 +72,7 @@ export function DocsPage() {
         ) : slug === "developer/tests" ? (
           <TestResultsPage />
         ) : page ? (
-          <Markdown source={page.markdown} />
+          <Markdown source={page.markdown} slug={slug} />
         ) : (
           <p className="text-base text-muted-foreground md:text-sm">
             {t("That page is not in the docs.")}
@@ -206,11 +207,75 @@ function ParamList({
   );
 }
 
-function Markdown({ source }: { source: string }) {
+const docsTables = createContext<{ slug: string; nextIndex: () => number }>({
+  slug: "docs",
+  nextIndex: () => 0,
+});
+
+function Markdown({ source, slug }: { source: string; slug: string }) {
+  const index = useRef(0);
+  index.current = 0;
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-      {source}
-    </ReactMarkdown>
+    <docsTables.Provider value={{ slug, nextIndex: () => index.current++ }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {source}
+      </ReactMarkdown>
+    </docsTables.Provider>
+  );
+}
+
+function cellText(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(cellText).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return cellText(node.props.children);
+  return "";
+}
+
+function markdownRows(node: ReactNode): string[][] {
+  const rows: string[][] = [];
+  const walk = (child: ReactNode) => {
+    if (Array.isArray(child)) {
+      child.forEach(walk);
+      return;
+    }
+    if (!isValidElement<{ children?: ReactNode }>(child)) return;
+    if (child.type === "tr") {
+      rows.push(Array.isArray(child.props.children) || child.props.children != null
+        ? (Array.isArray(child.props.children) ? child.props.children : [child.props.children]).map((cell) => cellText(cell).trim())
+        : []);
+      return;
+    }
+    walk(child.props.children);
+  };
+  walk(node);
+  return rows;
+}
+
+function DocsMarkdownTable({ children }: { children?: ReactNode }) {
+  const { slug, nextIndex } = useContext(docsTables);
+  const index = nextIndex();
+  const parsed = markdownRows(children);
+  const headers = parsed[0] ?? [];
+  const body = parsed.slice(1).map((cells, rowIndex) => ({ id: String(rowIndex), cells }));
+  const columns: DataColumn<(typeof body)[number]>[] = headers.map((header, column) => ({
+    id: `c${column}`,
+    header: header || "Column",
+    sortable: true,
+    filter: "text",
+    sortValue: (row) => row.cells[column] ?? "",
+    filterValue: (row) => row.cells[column] ?? "",
+    cell: (row) => row.cells[column] ?? "",
+  }));
+  return (
+    <div className="mt-3">
+      <DataTable
+        storageKey={`docs:${slug}:${index}`}
+        columns={columns}
+        rows={body}
+        getRow={(row) => ({ id: row.id, label: row.cells.join(" ") })}
+      />
+    </div>
   );
 }
 
@@ -257,11 +322,7 @@ const markdownComponents: Components = {
       {children}
     </blockquote>
   ),
-  table: ({ children }) => (
-    <div className="mt-3 min-w-0 max-w-full overflow-x-auto">
-      <table className="w-full text-left text-base md:text-sm">{children}</table>
-    </div>
-  ),
+  table: ({ children }) => <DocsMarkdownTable>{children}</DocsMarkdownTable>,
   th: ({ children }) => (
     <th className="border-b px-2 py-1 font-medium">{children}</th>
   ),

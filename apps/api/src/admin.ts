@@ -247,6 +247,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
       await writeSetting(app.db, 'smtp_password', encryptString(body.smtpPassword, app.env.ENCRYPTION_KEY), actor.id)
     }
     await saveAiSettings(app.db, actor.id, app.env.ENCRYPTION_KEY, body, current)
+    if (body.utmPresets) await writeSetting(app.db, 'utm_presets', JSON.stringify(body.utmPresets), actor.id)
     const smtpChanged =
       (body.smtpHost !== undefined && body.smtpHost !== current.smtpHost) ||
       (body.smtpPort !== undefined && body.smtpPort !== current.smtpPort) ||
@@ -636,6 +637,7 @@ function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
     aiBaseUrl: settings.aiBaseUrl,
     aiApiKeySet: Boolean(settings.aiApiKeyEncrypted),
     aiEnabled: settings.aiEnabled,
+    utmPresets: settings.utmPresets,
   }
 }
 
@@ -709,6 +711,7 @@ function publicSettings(settings: AppSettings, admin: boolean) {
     defaultRedirectType: settings.defaultRedirectType,
     slugLength: settings.slugLength,
     defaultQrStyle: settings.defaultQrStyle,
+    utmPresets: settings.utmPresets,
     legacyPrefixEnabled: admin ? settings.legacyPrefixEnabled : undefined,
     legacyPrefixes: admin ? settings.legacyPrefixes : undefined,
   }

@@ -11,6 +11,19 @@ export type UtmKey = (typeof UTM_KEYS)[number]
 
 export type UtmParams = Partial<Record<UtmKey, string | null | undefined>>
 
+export type UtmPresets = Record<UtmKey, string[]>
+
+export function emptyUtmPresets(): UtmPresets {
+  return {
+    utm_source: [],
+    utm_medium: [],
+    utm_campaign: [],
+    utm_id: [],
+    utm_term: [],
+    utm_content: [],
+  }
+}
+
 export function cleanUtm(input: UtmParams | null | undefined): UtmParams {
   const result: UtmParams = {}
   if (!input) return result

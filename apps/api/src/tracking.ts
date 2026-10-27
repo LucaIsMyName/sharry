@@ -7,6 +7,7 @@ import {
   createCampaignSchema,
   createVariantSchema,
   destinationSchema,
+  isIconName,
   updateCampaignSchema,
   updateVariantSchema,
   utmConflicts,
@@ -16,6 +17,7 @@ import {
 import { requireUser, type Actor } from './auth.ts'
 import { writeAudit } from './audit.ts'
 import { getLinkForActor } from './links.ts'
+import { assertFolder, folderPaths, loadCampaignTags, replaceCampaignTags } from './organize.ts'
 import { getSettings } from './settings-store.ts'
 import { AppError, parseBody } from './support.ts'
 import { z } from 'zod'
@@ -54,7 +56,18 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
       .where(actor.role === 'admin' ? undefined : eq(trackingCampaigns.userId, actor.id))
       .orderBy(desc(trackingCampaigns.createdAt))
     const counts = await loadVariantCounts(app.db, rows.map((row) => row.id))
-    return { campaigns: rows.map((row) => ({ ...serializeCampaign(row), variantCount: counts.get(row.id) ?? 0 })) }
+    const [tagMap, paths] = await Promise.all([
+      loadCampaignTags(app.db, rows.map((row) => row.id)),
+      folderPaths(app.db, rows.map((row) => row.folderId)),
+    ])
+    return {
+      campaigns: rows.map((row) => ({
+        ...serializeCampaign(row),
+        variantCount: counts.get(row.id) ?? 0,
+        tags: tagMap.get(row.id) ?? [],
+        folderPath: row.folderId ? (paths.get(row.folderId) ?? []) : [],
+      })),
+    }
   })
 
   /**
@@ -68,11 +81,19 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
   app.post('/api/campaigns', async (request) => {
     const actor = await requireUser(app, request, ['full'])
     const body = parseBody(createCampaignSchema, request.body)
+    const folderId = await assertFolder(app.db, body.folderId, 'campaign')
     const [created] = await app.db
       .insert(trackingCampaigns)
-      .values({ userId: actor.id, name: body.name, description: body.description || null })
+      .values({
+        userId: actor.id,
+        name: body.name,
+        description: body.description || null,
+        folderId: folderId ?? null,
+        icon: body.icon ?? null,
+      })
       .returning()
     if (!created) throw new AppError(500, 'Could not create the campaign')
+    if (body.tags) await replaceCampaignTags(app.db, created.id, body.tags)
     await writeAudit(app.db, {
       actorUserId: actor.id,
       action: 'campaign.created',
@@ -80,7 +101,8 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
       entityId: created.id,
       metadata: { name: created.name },
     })
-    return serializeCampaign(created)
+    const tags = (await loadCampaignTags(app.db, [created.id])).get(created.id) ?? []
+    return { ...serializeCampaign(created), tags }
   })
 
   /**
@@ -97,7 +119,8 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string }
     const campaign = await getCampaign(app.db, actor, id)
     const variants = await app.db.select().from(trackingVariants).where(eq(trackingVariants.campaignId, campaign.id))
-    return { ...serializeCampaign(campaign), variants: variants.map(serializeVariant) }
+    const tags = (await loadCampaignTags(app.db, [campaign.id])).get(campaign.id) ?? []
+    return { ...serializeCampaign(campaign), tags, variants: variants.map(serializeVariant) }
   })
 
   /**
@@ -114,17 +137,22 @@ export function registerTrackingRoutes(app: FastifyInstance): void {
     const { id } = request.params as { id: string }
     const current = await getCampaign(app.db, actor, id)
     const body = parseBody(updateCampaignSchema, request.body)
+    const folderId = await assertFolder(app.db, body.folderId, 'campaign')
     const [updated] = await app.db
       .update(trackingCampaigns)
       .set({
         name: body.name ?? current.name,
+        folderId: folderId === undefined ? current.folderId : folderId,
+        icon: body.icon === undefined ? current.icon : body.icon,
         description: body.description === undefined ? current.description : body.description || null,
         updatedAt: new Date(),
       })
       .where(eq(trackingCampaigns.id, current.id))
       .returning()
     if (!updated) throw new AppError(404, 'Campaign not found')
-    return serializeCampaign(updated)
+    if (body.tags) await replaceCampaignTags(app.db, updated.id, body.tags)
+    const tags = (await loadCampaignTags(app.db, [updated.id])).get(updated.id) ?? []
+    return { ...serializeCampaign(updated), tags }
   })
 
   /**
@@ -297,6 +325,8 @@ function serializeCampaign(row: typeof trackingCampaigns.$inferSelect) {
     name: row.name,
     description: row.description,
     userId: row.userId,
+    folderId: row.folderId,
+    icon: isIconName(row.icon) ? row.icon : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

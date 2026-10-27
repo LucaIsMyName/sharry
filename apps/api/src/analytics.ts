@@ -44,6 +44,8 @@ export function registerAnalyticsRoutes(app: FastifyInstance): void {
    * @query utm_id string Repeat to match any of these ids
    * @query utm_term string Repeat to match any of these terms
    * @query utm_content string Repeat to match any of these contents
+   * @query referrer string Repeat to match any of these referrers. Not set matches a blank value
+   * @query device string Repeat to match any of these devices
    * @response 200 totals, daily series, breakdowns, link counts, and dropdown options
    */
   app.get('/api/analytics', async (request) => {
@@ -106,6 +108,8 @@ const dimensionColumns = {
   utm_id: 'utm_id',
   utm_term: 'utm_term',
   utm_content: 'utm_content',
+  referrer: 'referrer',
+  device: 'device_type',
 } as const
 
 type DimensionKey = keyof typeof dimensionColumns
@@ -130,6 +134,8 @@ export type AnalyticsSelection = {
   utm_id?: string[]
   utm_term?: string[]
   utm_content?: string[]
+  referrer?: string[]
+  device?: string[]
 }
 
 export function analyticsSelectionFilter(visibility: SQL | null, selection: AnalyticsSelection): ClickFilter {
@@ -290,6 +296,8 @@ async function loadFilterOptions(db: Database, filter: ClickFilter, range: { fro
     utmIds: await facetValues(db, 'utm_id', where),
     utmTerms: await facetValues(db, 'utm_term', where),
     utmContents: await facetValues(db, 'utm_content', where),
+    referrers: await facetValues(db, 'referrer', where),
+    devices: await facetValues(db, 'device_type', where),
   }
 }
 

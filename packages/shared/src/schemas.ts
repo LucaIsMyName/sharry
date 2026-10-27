@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { qrStyleSchema } from './qr.ts'
 import { MAX_ROUTING_CONDITIONS, MAX_ROUTING_RULES, MAX_ROUTING_VALUES, ROUTING_FIELDS, ROUTING_OPERATORS } from './routing.ts'
-import { UTM_KEYS } from './utm.ts'
+import { ICON_NAMES } from './icons.ts'
+import { tagKinds } from './tags.ts'
+import { UTM_KEYS, emptyUtmPresets, type UtmPresets } from './utm.ts'
 
 export const locales = ['en', 'de'] as const
 export const localeSchema = z.enum(locales)
@@ -33,6 +35,34 @@ export const utmSchema = z.object(
     typeof utmField
   >,
 )
+
+const utmPresetValue = z.string().trim().min(1).max(80)
+export const utmPresetsSchema = z.object(
+  Object.fromEntries(UTM_KEYS.map((key) => [key, z.array(utmPresetValue).max(50)])) as Record<
+    (typeof UTM_KEYS)[number],
+    z.ZodArray<typeof utmPresetValue>
+  >,
+)
+
+export function parseUtmPresets(value: unknown): UtmPresets {
+  const parsed = utmPresetsSchema.safeParse(value)
+  return parsed.success ? parsed.data : emptyUtmPresets()
+}
+
+export const iconSchema = z.enum(ICON_NAMES)
+const optionalIcon = iconSchema.nullable().optional()
+const optionalFolderId = z.string().uuid().nullable().optional()
+export const tagKindSchema = z.enum(tagKinds)
+export const tagColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Choose a color')
+const tagEntrySchema = z.union([
+  z.string().trim().min(1).max(40),
+  z.object({
+    name: z.string().trim().min(1).max(40),
+    color: tagColorSchema.optional(),
+  }),
+])
+export type TagInput = z.infer<typeof tagEntrySchema>
+const tagNames = z.array(tagEntrySchema).max(20)
 
 export const redirectTypeSchema = z.enum(['301', '302', '307', '308'])
 
@@ -70,6 +100,9 @@ export const createLinkSchema = z.object({
   expiresAt: z.string().datetime().nullable().optional(),
   password: z.string().min(1).max(200).optional().or(z.literal('')),
   utm: utmSchema.optional(),
+  icon: optionalIcon,
+  folderId: optionalFolderId,
+  tags: tagNames.optional(),
 })
 
 export const updateLinkSchema = z.object({
@@ -84,6 +117,9 @@ export const updateLinkSchema = z.object({
   password: z.string().min(1).max(200).nullable().optional(),
   utm: utmSchema.optional(),
   routingRules: routingRulesSchema.optional(),
+  icon: optionalIcon,
+  folderId: optionalFolderId,
+  tags: tagNames.optional(),
 })
 
 export const createRedirectDomainSchema = z.object({
@@ -141,9 +177,35 @@ const utmOverride = utmSchema.partial()
 export const createCampaignSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).optional(),
+  icon: optionalIcon,
+  folderId: optionalFolderId,
+  tags: tagNames.optional(),
 })
 
 export const updateCampaignSchema = createCampaignSchema.partial()
+
+export const createFolderSchema = z.object({
+  kind: z.enum(['link', 'campaign']),
+  name: z.string().trim().min(1).max(80),
+  parentId: z.string().uuid().nullable().optional(),
+  icon: optionalIcon,
+})
+
+export const updateFolderSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  icon: optionalIcon,
+})
+
+export const createTagSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  kind: tagKindSchema,
+  color: tagColorSchema.optional(),
+})
+
+export const updateTagSchema = z.object({
+  color: tagColorSchema,
+})
 
 export const createVariantSchema = z.object({
   linkId: z.string().uuid(),
@@ -195,6 +257,7 @@ export const settingsUpdateSchema = z.object({
   aiApiKey: z.string().max(500).optional(),
   aiApiKeyClear: z.boolean().optional(),
   aiEnabled: z.boolean().optional(),
+  utmPresets: utmPresetsSchema.optional(),
 })
 
 export type CreateLinkInput = z.infer<typeof createLinkSchema>

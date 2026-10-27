@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { clickEvents, links, qrCodes, redirectDomains, trackingConfigs, trackingVariants, users, type Database, type LinkRecord } from '@sharry/database'
 import {
@@ -7,12 +7,14 @@ import {
   cleanUtm,
   createLinkSchema,
   generateRandomSlug,
+  isIconName,
   normalizeRoutingRules,
   sameRoutingRules,
   updateLinkSchema,
   validateSlug,
   type RoutingChoices,
   type RoutingRule,
+  type TagInput,
   type UtmParams,
 } from '@sharry/shared'
 import { requireUser, type Actor } from './auth.ts'
@@ -20,6 +22,7 @@ import { requireVerifiedDomain } from './redirect-domains.ts'
 import { writeAudit } from './audit.ts'
 import { hashPassword } from './passwords.ts'
 import { getSettings, type AppSettings } from './settings-store.ts'
+import { assertFolder, folderPaths, linksInFolder, loadLinkTags, replaceLinkTags } from './organize.ts'
 import { AppError, isUniqueViolation, parseBody, uniqueConstraint } from './support.ts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -30,19 +33,44 @@ export function registerLinkRoutes(app: FastifyInstance): void {
    * @route GET /api/links
    * @tag Links
    * @auth api-key or session
-   * @query q string Filter by slug, title, or destination
+   * @query q string Filter by slug, title, or destination. Search ignores the open folder
    * @query limit number Page size, 1–100, default 50
    * @query offset number Number of rows to skip
+   * @query folder string Folder id, or root. Omitted lists every visible link
+   * @query status string active or disabled
+   * @query sort string title, slug, destination, status, clicks, or createdAt
+   * @query dir string asc or desc
+   * @query tag string Repeat to match a link that has any of these tags
    * @response 200 { links: Link[], total: number } Each link includes clicks, the all-time click total. Owner is included when another person's links can appear.
    */
   app.get('/api/links', async (request) => {
     const actor = await requireUser(app, request, ['full'])
-    const query = request.query as { q?: string; limit?: string; offset?: string }
+    const query = request.query as {
+      q?: string
+      limit?: string
+      offset?: string
+      folder?: string
+      status?: string
+      sort?: string
+      dir?: string
+      tag?: string | string[]
+    }
     const limit = clampNumber(query.limit, 50, 1, 100)
     const offset = clampNumber(query.offset, 0, 0, 100_000)
     const settings = await getSettings(app.db, app.env)
-    const where = linkScope(actor, settings, query.q)
-    const rows = await app.db.select().from(links).where(where).orderBy(desc(links.createdAt)).limit(limit).offset(offset)
+    const where = linkScope(actor, settings, {
+      q: query.q,
+      folder: query.folder,
+      status: query.status,
+      tags: queryList(query.tag),
+    })
+    const rows = await app.db
+      .select()
+      .from(links)
+      .where(where)
+      .orderBy(linkOrder(query.sort, query.dir))
+      .limit(limit)
+      .offset(offset)
     const total = await countLinks(app.db, where)
     const ids = rows.map((row) => row.id)
     const [configs, clicks, hosts] = await Promise.all([
@@ -187,6 +215,9 @@ type CreateBody = {
   password?: string
   redirectDomainId?: string | null
   utm?: UtmParams
+  icon?: string | null
+  folderId?: string | null
+  tags?: TagInput[]
 }
 
 export async function createLink(
@@ -203,6 +234,7 @@ export async function createLink(
   }
   const passwordHash = input.password ? await hashPassword(input.password) : null
   const redirectDomainId = await requireVerifiedDomain(db, input.redirectDomainId)
+  const folderId = await assertFolder(db, input.folderId, 'link')
   return db.transaction(async (tx) => {
     const database = tx as unknown as Database
     let created: LinkRecord | undefined
@@ -220,6 +252,8 @@ export async function createLink(
           expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
           passwordHash,
           redirectDomainId,
+          folderId: folderId ?? null,
+          icon: input.icon ?? null,
           updatedBy: actor.id,
         })
         break
@@ -234,6 +268,7 @@ export async function createLink(
       throw new AppError(409, 'Could not generate a unique slug. Try again.', 'slug_exhausted')
     }
     if (input.utm) await upsertUtm(database, created.id, input.utm)
+    if (input.tags) await replaceLinkTags(database, created.id, input.tags)
     await writeAudit(database, {
       actorUserId: actor.id,
       action: 'link.created',
@@ -277,6 +312,9 @@ export async function updateLink(
     redirectDomainId?: string | null
     utm?: UtmParams
     routingRules?: RoutingRule[]
+    icon?: string | null
+    folderId?: string | null
+    tags?: TagInput[]
   },
   settings: AppSettings,
 ): Promise<LinkRecord> {
@@ -289,6 +327,7 @@ export async function updateLink(
   }
   const passwordHash =
     input.password === undefined ? undefined : input.password === null ? null : await hashPassword(input.password)
+  const folderId = await assertFolder(db, input.folderId, 'link')
   return db.transaction(async (tx) => {
     const database = tx as unknown as Database
     const patch: Partial<typeof links.$inferInsert> = { updatedAt: new Date(), updatedBy: actor.id }
@@ -302,6 +341,8 @@ export async function updateLink(
     if (input.expiresAt !== undefined) patch.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null
     if (passwordHash !== undefined) patch.passwordHash = passwordHash
     if (input.redirectDomainId !== undefined) patch.redirectDomainId = await requireVerifiedDomain(database, input.redirectDomainId)
+    if (folderId !== undefined) patch.folderId = folderId
+    if (input.icon !== undefined) patch.icon = input.icon
     if (requestedSlug && requestedSlug.toLowerCase() !== current.slug.toLowerCase()) patch.slug = requestedSlug
     const rulesChanged = input.routingRules !== undefined && !sameRoutingRules(current.routingRules, input.routingRules)
     if (rulesChanged && input.routingRules) patch.routingRules = normalizeRoutingRules(input.routingRules)
@@ -329,6 +370,7 @@ export async function updateLink(
       }
     }
     if (input.utm) await upsertUtm(database, id, input.utm)
+    if (input.tags) await replaceLinkTags(database, id, input.tags)
     if (patch.destinationUrl) {
       await writeAudit(database, {
         actorUserId: actor.id,
@@ -515,6 +557,8 @@ export function serializeLink(
     utm: utm ?? {},
     routingRules: normalizeRoutingRules(link.routingRules),
     userId: link.userId,
+    folderId: link.folderId,
+    icon: isIconName(link.icon) ? link.icon : null,
   }
 }
 
@@ -614,11 +658,17 @@ async function decorateLinks(
     db,
     rows.flatMap((row) => (includePeople ? [row.userId, row.updatedBy] : [row.userId])),
   )
+  const [tagMap, paths] = await Promise.all([
+    loadLinkTags(db, rows.map((row) => row.id)),
+    folderPaths(db, rows.map((row) => row.folderId)),
+  ])
   return rows.map((row) => {
     const owner = people.get(row.userId) ?? null
     const editor = row.updatedBy ? (people.get(row.updatedBy) ?? null) : null
     return {
       ...serializeLink(row, settings, configs.get(row.id), hosts),
+      tags: (tagMap.get(row.id) ?? []).sort((left, right) => left.name.localeCompare(right.name)),
+      folderPath: row.folderId ? (paths.get(row.folderId) ?? []) : [],
       canEdit: canAccessLink(actor, row, owner?.role ?? 'user', settings, 'edit'),
       ...(includePeople ? { owner, updatedBy: editor } : {}),
     }
@@ -637,15 +687,49 @@ async function loadPeople(db: Database, ids: Array<string | null | undefined>): 
   return people
 }
 
-function linkScope(actor: Actor, settings: AppSettings, q?: string) {
+function linkScope(
+  actor: Actor,
+  settings: AppSettings,
+  options: { q?: string; folder?: string; status?: string; tags?: string[] },
+) {
   const filters = []
   const visibility = visibleLinksWhere(actor, settings, 'links')
   if (visibility) filters.push(visibility)
+  const q = options.q
   if (q?.trim()) {
     const pattern = `%${q.trim().replace(/[%_]/g, '')}%`
     filters.push(sql`(${links.slug} ilike ${pattern} or coalesce(${links.title}, '') ilike ${pattern} or ${links.destinationUrl} ilike ${pattern})`)
+  } else if (options.folder !== undefined) {
+    filters.push(linksInFolder(options.folder && options.folder !== 'root' ? options.folder : null))
+  }
+  if (options.status === 'active' || options.status === 'disabled') filters.push(eq(links.status, options.status))
+  const tags = (options.tags ?? []).map((tag) => tag.trim().toLowerCase()).filter(Boolean)
+  if (tags.length > 0) {
+    filters.push(sql`exists (
+      select 1 from link_tags
+      join tags on tags.id = link_tags.tag_id
+      where link_tags.link_id = ${links.id}
+        and lower(tags.name) in (${sql.join(tags.map((tag) => sql`${tag}`), sql`, `)})
+    )`)
   }
   return filters.length ? and(...filters) : undefined
+}
+
+function linkOrder(sort: string | undefined, dir: string | undefined) {
+  const direction = dir === 'asc' ? asc : desc
+  if (sort === 'title') return direction(links.title)
+  if (sort === 'slug') return direction(links.slug)
+  if (sort === 'destination') return direction(links.destinationUrl)
+  if (sort === 'status') return direction(links.status)
+  if (sort === 'clicks') {
+    return direction(sql`(select count(*) from click_events where click_events.link_id = ${links.id})`)
+  }
+  return desc(links.createdAt)
+}
+
+function queryList(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value.filter((item) => item.trim())
+  return value?.trim() ? [value] : []
 }
 
 async function countLinks(db: Database, where: ReturnType<typeof linkScope>): Promise<number> {

@@ -14,6 +14,9 @@ import { Link, useNavigate, useParams } from "react-router";
 import {
   appSlug,
   applyUtm,
+  defaultFolderIcon,
+  defaultLinkIcon,
+  type IconName,
   defaultQrStyle,
   destinationSchema,
   emptyRoutingChoices,
@@ -41,8 +44,11 @@ import { AnalyticsSummary, useReportRange } from "../components/analytics-summar
 import { BulkLinksDialog } from "../components/bulk-links.tsx";
 import { RouteSuggest } from "../components/route-suggest.tsx";
 import { SuggestButton } from "../components/suggest-button.tsx";
+import { TagField, type EditorTag } from "../components/tag-field.tsx";
 import { useAiAvailable } from "../components/use-ai.ts";
 import { UtmSuggest } from "../components/utm-suggest.tsx";
+import { AppIcon } from "../components/app-icon.tsx";
+import { IconPicker } from "../components/icon-picker.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
@@ -58,6 +64,8 @@ import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Field, FieldMessage } from "../components/ui/field.tsx";
+import { FieldGroup, FieldGroupLine } from "../components/ui/field-group.tsx";
+import { Section } from "../components/ui/section.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
 import { ImageUpload } from "../components/ui/image-upload.tsx";
 import { Input } from "../components/ui/input.tsx";
@@ -72,6 +80,7 @@ import {
 } from "../components/ui/table.tsx";
 import { t, useI18n } from "../i18n/index.tsx";
 import { Breakdown, ClickChart, UtmBreakdowns } from "./analytics.tsx";
+import { LinkOverview } from "./link-overview.tsx";
 
 const emptyUtm: UtmParams = {};
 const noVariant = "none";
@@ -135,302 +144,10 @@ function previewDestination(destination: string, utm: UtmParams): string {
   }
 }
 
-const linkPageSize = 50;
-
-function AccessBadge({ canEdit }: { canEdit?: boolean }) {
-  const { t } = useI18n();
-  const viewOnly = canEdit === false;
-  return (
-    <Badge variant={viewOnly ? "outline" : "secondary"}>
-      {viewOnly ? t("View only") : t("Editable")}
-    </Badge>
-  );
-}
-
-function LinkCards({
-  links,
-  showAccess,
-}: {
-  links: LinkSummary[];
-  showAccess: boolean;
-}) {
-  const { t } = useI18n();
-  return (
-    <ul className="grid gap-2 md:hidden">
-      {links.map((link) => {
-        const name = link.title?.trim() || link.slug;
-        const viewOnly = link.canEdit === false;
-        return (
-          <li key={link.id} className={cn(cardBevel, "rounded-xl bg-card px-3 py-3 ring-1 ring-foreground/10")}>
-            <div className="flex items-start justify-between gap-3">
-              <Link className="min-w-0 flex-1" to={`/links/${link.id}`}>
-                <span
-                  className={cn(
-                    "block truncate font-medium",
-                    viewOnly && "text-muted-foreground",
-                  )}
-                >
-                  {name}
-                </span>
-                <span className="mt-1 block text-base text-muted-foreground">
-                  {t("Clicks")} <span className="tabular-nums">{link.clicks}</span>
-                </span>
-                <span className="mt-1 block truncate font-mono text-base text-muted-foreground">{link.shortUrl}</span>
-              </Link>
-              <div className="grid justify-items-end gap-2">
-                <Badge variant={link.status === "active" ? "secondary" : "outline"}>
-                  {link.status === "active" ? t("Active") : t("Paused")}
-                </Badge>
-                {showAccess ? <AccessBadge canEdit={link.canEdit} /> : null}
-                <a
-                  className={buttonVariants({ variant: "outline", size: "icon-sm" })}
-                  href={link.shortUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={t("Test {name}", { name })}
-                >
-                  <ExternalLink />
-                </a>
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 export function LinksPage() {
-  const { t } = useI18n();
-  const [links, setLinks] = useState<LinkSummary[]>([]);
-  const [total, setTotal] = useState(0);
-  const [query, setQuery] = useState("");
-  const [reload, setReload] = useState(0);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const requestId = useRef(0);
-  const aiAvailable = useAiAvailable();
-
-  useEffect(() => {
-    const current = ++requestId.current;
-    const handle = setTimeout(() => {
-      setLoading(true);
-      void api<{ links: LinkSummary[]; total: number }>(
-        `/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=0`,
-      )
-        .then((result) => {
-          if (current !== requestId.current) return;
-          setLinks(result.links);
-          setTotal(result.total);
-          setFailed(false);
-        })
-        .catch((caught: unknown) => {
-          if (current !== requestId.current) return;
-          setFailed(true);
-          toastCaught(caught, t("Could not load links"));
-        })
-        .finally(() => {
-          if (current === requestId.current) setLoading(false);
-        });
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [query, reload]);
-
-  async function loadMore() {
-    const current = requestId.current;
-    const offset = links.length;
-    setLoadingMore(true);
-    try {
-      const result = await api<{ links: LinkSummary[]; total: number }>(
-        `/api/links?q=${encodeURIComponent(query)}&limit=${linkPageSize}&offset=${offset}`,
-      );
-      if (current !== requestId.current) return;
-      setLinks((existing) => [...existing, ...result.links]);
-      setTotal(result.total);
-      setFailed(false);
-    } catch (caught) {
-      if (current === requestId.current) {
-        setFailed(true);
-        toastCaught(caught, t("Could not load links"));
-      }
-    } finally {
-      setLoadingMore(false);
-    }
-  }
-
-  const showAccess = links.some((link) => link.canEdit === false);
-
-  return (
-    <section>
-      <PageHeader
-        title={t("Links")}
-        lede={t("The slug stays put when you edit where it goes.")}
-        action={
-          <div className="flex flex-wrap gap-2">
-            {aiAvailable ? (
-              <Button variant="outline" size="sm" type="button" onClick={() => setBulkOpen(true)}>
-                {t("Add several")}
-              </Button>
-            ) : null}
-            <Link className={buttonVariants({ size: "sm" })} to="/links/new">
-              <Plus /> {t("New link")}
-            </Link>
-          </div>
-        }
-      />
-      {aiAvailable ? (
-        <BulkLinksDialog
-          open={bulkOpen}
-          onOpenChange={setBulkOpen}
-          onCreated={() => setReload((value) => value + 1)}
-        />
-      ) : null}
-      <Field label="Search">
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Slug, title, or destination"
-        />
-      </Field>
-      <div className="mt-4 min-w-0">
-        {loading ? (
-          <RowSkeleton label="Loading links…" />
-        ) : links.length === 0 ? (
-          <EmptyState
-            action={
-              failed || query.trim() ? null : (
-                <Link
-                  className={buttonVariants({ size: "sm" })}
-                  to="/links/new"
-                >
-                  <Plus /> {t("New link")}
-                </Link>
-              )
-            }
-          >
-            {failed
-              ? t("Could not load links.")
-              : query.trim()
-                ? t("No links match.")
-                : t("No links yet.")}
-          </EmptyState>
-        ) : (
-          <>
-          <LinkCards links={links} showAccess={showAccess} />
-          <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("Title")}</TableHead>
-                {links.some((link) => "owner" in link) ? (
-                  <TableHead>{t("Created by")}</TableHead>
-                ) : null}
-                <TableHead>{t("Short URL")}</TableHead>
-                <TableHead>{t("Destination")}</TableHead>
-                <TableHead>{t("Status")}</TableHead>
-                {showAccess ? <TableHead>{t("Access")}</TableHead> : null}
-                <TableHead>{t("Clicks")}</TableHead>
-                <TableHead>
-                  <span className="sr-only">{t("Test")}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {links.map((link) => {
-                const name = link.title?.trim() || link.slug;
-                const viewOnly = link.canEdit === false;
-                return (
-                  <ClickableTableRow
-                    key={link.id}
-                    to={`/links/${link.id}`}
-                    label={name}
-                  >
-                    <TableCell
-                      className={cn(
-                        "font-medium",
-                        viewOnly && "text-muted-foreground",
-                      )}
-                    >
-                      {name}
-                    </TableCell>
-                    {links.some((item) => "owner" in item) ? (
-                      <TableCell>
-                        {link.owner?.username ?? t("Unknown")}
-                      </TableCell>
-                    ) : null}
-                    <TableCell
-                      className="font-mono text-muted-foreground"
-                      title={link.shortUrl}
-                    >
-                      {link.shortUrl}
-                    </TableCell>
-                    <TableCell
-                      className="text-muted-foreground"
-                      title={link.destinationUrl}
-                    >
-                      {link.destinationUrl}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          link.status === "active" ? "secondary" : "outline"
-                        }
-                      >
-                        {link.status === "active" ? t("Active") : t("Paused")}
-                      </Badge>
-                    </TableCell>
-                    {showAccess ? (
-                      <TableCell>
-                        <AccessBadge canEdit={link.canEdit} />
-                      </TableCell>
-                    ) : null}
-                    <TableCell className="tabular-nums">
-                      {link.clicks}
-                    </TableCell>
-                    <TableCell data-row-action>
-                      <a
-                        className={buttonVariants({
-                          variant: "outline",
-                          size: "icon-sm",
-                        })}
-                        href={link.shortUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={t("Test {name}", { name })}
-                      >
-                        <ExternalLink />
-                      </a>
-                    </TableCell>
-                  </ClickableTableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          </div>
-          </>
-        )}
-        {!loading && links.length < total ? (
-          <Button
-            className="mt-4"
-            variant="outline"
-            type="button"
-            disabled={loadingMore}
-            onClick={() => void loadMore()}
-          >
-            {loadingMore
-              ? t("Loading…")
-              : t("Load more ({shown} of {total})", {
-                  shown: links.length,
-                  total,
-                })}
-          </Button>
-        ) : null}
-      </div>
-    </section>
-  );
+  return <LinkOverview />;
 }
+
 
 const defaultRedirectDomain = "default";
 
@@ -441,9 +158,11 @@ function redirectDomainPayload(value: string): string | null {
 function RedirectDomainField({
   value,
   onValueChange,
+  srOnly = false,
 }: {
   value: string;
   onValueChange: (value: string) => void;
+  srOnly?: boolean;
 }) {
   const { t } = useI18n();
   const [domains, setDomains] = useState<{ id: string; hostname: string }[]>(
@@ -475,7 +194,7 @@ function RedirectDomainField({
   }, []);
 
   return (
-    <Field label="Redirect domain">
+    <Field label="Redirect domain" srOnly={srOnly}>
       <Select
         value={value}
         options={[
@@ -490,12 +209,78 @@ function RedirectDomainField({
         ]}
         onValueChange={onValueChange}
       />
-      <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
+      <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
         {t(
           "The short URL uses this domain. A QR code downloaded later uses the domain saved on the link.",
         )}
       </p>
     </Field>
+  );
+}
+
+type EditorFolder = { id: string; name: string; parentId?: string | null; icon?: string | null };
+
+function folderTreeOptions(folders: EditorFolder[]) {
+  const byParent = new Map<string | null, EditorFolder[]>();
+  for (const folder of folders) {
+    const key = folder.parentId ?? null;
+    byParent.set(key, [...(byParent.get(key) ?? []), folder]);
+  }
+  const options: { value: string; label: string; depth: number; icon: ReactNode }[] = [
+    { value: "root", label: "Links", depth: 0, icon: <AppIcon name={defaultFolderIcon} /> },
+  ];
+  function walk(parentId: string | null, depth: number) {
+    for (const folder of byParent.get(parentId) ?? []) {
+      options.push({
+        value: folder.id,
+        label: folder.name,
+        depth,
+        icon: <AppIcon name={folder.icon ?? defaultFolderIcon} />,
+      });
+      walk(folder.id, depth + 1);
+    }
+  }
+  walk(null, 1);
+  return options;
+}
+
+function LinkIdentity({
+  icon,
+  folderId,
+  folders,
+  tags,
+  showIcon = true,
+  disabled = false,
+  onIcon,
+  onFolder,
+  onTags,
+}: {
+  icon: string | null;
+  folderId: string;
+  folders: EditorFolder[];
+  tags: EditorTag[];
+  showIcon?: boolean;
+  disabled?: boolean;
+  onIcon: (icon: IconName) => void;
+  onFolder: (folderId: string) => void;
+  onTags: (tags: EditorTag[]) => void;
+}) {
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        {showIcon ? <IconPicker value={icon} fallback={defaultLinkIcon} onChange={onIcon} /> : null}
+        <div className="min-w-48 flex-1">
+          <Field label="Folder">
+            <Select
+              value={folderId || "root"}
+              options={folderTreeOptions(folders)}
+              onValueChange={onFolder}
+            />
+          </Field>
+        </div>
+      </div>
+      <TagField kind="link" tags={tags} onChange={onTags} disabled={disabled} />
+    </div>
   );
 }
 
@@ -506,6 +291,12 @@ export function LinkFormPage() {
   const [destinationUrl, setDestinationUrl] = useState("https://");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
+  const [icon, setIcon] = useState<string | null>(null);
+  const [folderId, setFolderId] = useState("root");
+  const [tags, setTags] = useState<EditorTag[]>([]);
+  const tagsRef = useRef(tags);
+  tagsRef.current = tags;
+  const [folders, setFolders] = useState<EditorFolder[]>([]);
   const [redirectType, setRedirectType] = useState<
     "301" | "302" | "307" | "308"
   >("302");
@@ -521,6 +312,9 @@ export function LinkFormPage() {
       setSettings(value);
       setRedirectType(value.defaultRedirectType);
     });
+    void api<{ folders?: EditorFolder[] }>("/api/folders?kind=link&tree=1")
+      .then((result) => setFolders(result.folders ?? []))
+      .catch(() => setFolders([]));
   }, []);
 
   async function submit(event: FormEvent) {
@@ -533,6 +327,9 @@ export function LinkFormPage() {
           destinationUrl,
           title,
           slug,
+          icon,
+          folderId: folderId === "root" ? null : folderId,
+          tags: tagsRef.current.map((tag) => ({ name: tag.name, color: tag.color })),
           redirectType,
           redirectDomainId: redirectDomainPayload(redirectDomainId),
           utm,
@@ -552,9 +349,19 @@ export function LinkFormPage() {
       <h1 className="mb-5 font-heading text-2xl font-medium tracking-tight">
         {t("New link")}
       </h1>
-      <Card>
-        <CardContent>
-          <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
+      <form className="grid gap-4" onSubmit={(event) => void submit(event)}>
+            <LinkIdentity
+              icon={icon}
+              folderId={folderId}
+              folders={folders}
+              tags={tags}
+              onIcon={setIcon}
+              onFolder={setFolderId}
+              onTags={(next) => {
+                tagsRef.current = next;
+                setTags(next);
+              }}
+            />
             <LinkSuggestFields
               aiAvailable={aiAvailable}
               destinationUrl={destinationUrl}
@@ -579,20 +386,23 @@ export function LinkFormPage() {
                 onValueChange={setRedirectDomainId}
               />
             </LinkSuggestFields>
-            <Field label="Redirect">
-              <Select
-                value={redirectType}
-                options={[...redirectOptions]}
-                onValueChange={setRedirectType}
+            <Section title={t("Settings")}>
+              <Field label="Redirect">
+                <Select
+                  value={redirectType}
+                  options={[...redirectOptions]}
+                  onValueChange={setRedirectType}
+                />
+              </Field>
+            </Section>
+            <Section title={t("UTM")}>
+              <UtmSuggest
+                aiAvailable={aiAvailable}
+                destinationUrl={destinationUrl}
+                onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
               />
-              {/* <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">{choiceNote(redirectOptions, redirectType)}</p> */}
-            </Field>
-            <UtmSuggest
-              aiAvailable={aiAvailable}
-              destinationUrl={destinationUrl}
-              onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
-            />
-            <UtmFields utm={utm} onChange={setUtm} />
+              <UtmFields utm={utm} onChange={setUtm} />
+            </Section>
             {settings ? (
               <p className="text-sm text-muted-foreground">
                 {t("Preview: {url}", {
@@ -604,8 +414,6 @@ export function LinkFormPage() {
               <Plus /> {pending ? t("Creating…") : t("Create link")}
             </Button>
           </form>
-        </CardContent>
-      </Card>
     </section>
   );
 }
@@ -618,6 +426,9 @@ export function LinkSuggestFields({
   title,
   slugLabel = "Slug",
   titleFirst = false,
+  hideTitle = false,
+  destinationFirst = false,
+  quietLabels = false,
   destinationInfo,
   onDestination,
   onSlug,
@@ -631,6 +442,9 @@ export function LinkSuggestFields({
   title: string;
   slugLabel?: string;
   titleFirst?: boolean;
+  hideTitle?: boolean;
+  destinationFirst?: boolean;
+  quietLabels?: boolean;
   destinationInfo?: string;
   onDestination: (value: string) => void;
   onSlug: (value: string) => void;
@@ -685,7 +499,7 @@ export function LinkSuggestFields({
   const ready = destinationSchema.safeParse(destinationUrl).success;
   const slugFields = (
     <>
-      <Field label={slugLabel}>
+      <Field label={slugLabel} srOnly={quietLabels}>
         <div className="relative">
           <Input
             className={aiAvailable ? "pr-10" : undefined}
@@ -736,14 +550,30 @@ export function LinkSuggestFields({
       </Field>
     </>
   );
+  const destinationField = (
+    <Field label="Destination" info={destinationInfo}>
+      <Input value={destinationUrl} onChange={(event) => onDestination(event.target.value)} required />
+    </Field>
+  );
   return (
     <>
-      <Field label="Destination" info={destinationInfo}>
-        <Input value={destinationUrl} onChange={(event) => onDestination(event.target.value)} required />
-      </Field>
-      {titleFirst ? titleFields : slugFields}
-      {titleFirst ? slugFields : children}
-      {titleFirst ? children : titleFields}
+      {titleFirst && !hideTitle ? titleFields : null}
+      {destinationFirst ? destinationField : null}
+      <FieldGroup label="Short link">
+        <FieldGroupLine className={quietLabels ? "items-center" : undefined}>
+          <div className="min-w-0 flex-1">{children}</div>
+          <span className={cn("px-2 font-mono text-muted-foreground", quietLabels ? "self-center" : "pb-2.5")} aria-hidden>
+            /
+          </span>
+          <div className="min-w-0 flex-[1.4]">{slugFields}</div>
+        </FieldGroupLine>
+        {destinationFirst ? null : (
+          <FieldGroupLine>
+            <div className="min-w-0 flex-1">{destinationField}</div>
+          </FieldGroupLine>
+        )}
+      </FieldGroup>
+      {!hideTitle && !titleFirst ? titleFields : null}
     </>
   );
 }
@@ -757,6 +587,12 @@ export function LinkDetailPage() {
   const [destinationUrl, setDestinationUrl] = useState("");
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
+  const [icon, setIcon] = useState<string | null>(null);
+  const [folderId, setFolderId] = useState("root");
+  const [tags, setTags] = useState<EditorTag[]>([]);
+  const tagsRef = useRef(tags);
+  tagsRef.current = tags;
+  const [folders, setFolders] = useState<EditorFolder[]>([]);
   const [redirectType, setRedirectType] =
     useState<ShortLink["redirectType"]>("302");
   const [status, setStatus] = useState<ShortLink["status"]>("active");
@@ -799,6 +635,9 @@ export function LinkDetailPage() {
     setDestinationUrl("");
     setSlug("");
     setTitle("");
+    setIcon(null);
+    setFolderId("root");
+    setTags([]);
     setExpiresAt("");
     setPassword("");
     setUtm(emptyUtm);
@@ -824,6 +663,9 @@ export function LinkDetailPage() {
         setDestinationUrl(next.destinationUrl);
         setSlug(next.slug);
         setTitle(next.title ?? "");
+        setIcon(next.icon ?? null);
+        setFolderId(next.folderId ?? "root");
+        setTags(next.tags ?? []);
         setRedirectType(next.redirectType);
         setStatus(next.status);
         setExpiresAt(toDatetimeLocal(next.expiresAt));
@@ -846,6 +688,12 @@ export function LinkDetailPage() {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    void api<{ folders?: EditorFolder[] }>("/api/folders?kind=link&tree=1")
+      .then((result) => setFolders(result.folders ?? []))
+      .catch(() => setFolders([]));
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -889,6 +737,9 @@ export function LinkDetailPage() {
           destinationUrl,
           slug,
           title,
+          icon,
+          folderId: folderId === "root" ? null : folderId,
+          tags: tagsRef.current.map((tag) => ({ name: tag.name, color: tag.color })),
           redirectType,
           status,
           expiresAt: fromDatetimeLocal(expiresAt),
@@ -1063,42 +914,44 @@ export function LinkDetailPage() {
         title={link?.title?.trim() || link?.slug || "Link"}
         literal={Boolean(link?.title?.trim() || link?.slug)}
       />
-      <div className="sticky top-12 z-20 -mx-5 flex min-w-0 flex-col items-stretch gap-4 border-b border-border bg-background px-5 py-3 md:top-0 md:-mx-7 md:flex-row md:items-end md:justify-between md:px-7">
-        <div className="min-w-0 md:flex-1">
-          <h1
-            className="truncate font-heading text-3xl font-medium tracking-tight"
-            title={link?.title?.trim() || link?.slug || undefined}
-          >
-            {link?.title?.trim() || link?.slug || t("Link")}
-          </h1>
-          {link ? (
-            <>
-              <a
-                className="mt-1.5 block truncate font-mono text-base text-muted-foreground underline-offset-3 hover:text-primary md:text-sm"
-                href={link.shortUrl}
-                title={link.shortUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {link.shortUrl}
-              </a>
-              <div className="flex gap-3 items-center mt-2 sr-only">
-                <p className="text-sm text-muted-foreground text-xs">
-                  {t("Created by")} {link.owner?.username ?? t("Unknown")}
-                </p>
-                <p className="text-sm text-muted-foreground text-xs">
-                  {t("Last changed by")}{" "}
-                  {link.updatedBy?.username ?? t("Unknown")}
-                </p>
-              </div>
-              {locked ? (
-                <p className="mt-1 text-base text-muted-foreground md:text-sm">
-                  {t("You can view this link but not change it.")}
-                </p>
-              ) : null}
-            </>
-          ) : null}
+      <div className="grid gap-3 border-b border-border pb-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <IconPicker large value={icon} fallback={defaultLinkIcon} onChange={setIcon} />
+          <input
+            aria-label={t("Title")}
+            className="w-full min-w-0 truncate bg-transparent font-heading text-3xl font-medium tracking-tight outline-none placeholder:text-muted-foreground"
+            value={title}
+            placeholder={link?.slug || t("Untitled")}
+            disabled={locked}
+            onChange={(event) => setTitle(event.target.value)}
+          />
         </div>
+        {link ? (
+          <>
+            <a
+              className="block truncate font-mono text-base text-muted-foreground underline-offset-3 hover:text-primary md:text-sm"
+              href={link.shortUrl}
+              title={link.shortUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {link.shortUrl}
+            </a>
+            <div className="sr-only">
+              <p>
+                {t("Created by")} {link.owner?.username ?? t("Unknown")}
+              </p>
+              <p>
+                {t("Last changed by")} {link.updatedBy?.username ?? t("Unknown")}
+              </p>
+            </div>
+            {locked ? (
+              <p className="text-base text-muted-foreground md:text-sm">
+                {t("You can view this link but not change it.")}
+              </p>
+            ) : null}
+          </>
+        ) : null}
         <div className="flex shrink-0 flex-wrap items-center gap-2.5">
           {locked ? null : (
             <Button
@@ -1143,16 +996,31 @@ export function LinkDetailPage() {
         <DetailSkeleton label="Loading link…" />
       ) : (
       <>
-      <Card className="overflow-visible">
-        <CardContent>
-          <form id="link-editor" onSubmit={(event) => void save(event)}>
+      <form id="link-editor" className="grid gap-4" onSubmit={(event) => void save(event)}>
             <fieldset
               disabled={locked}
               className="m-0 grid min-w-0 gap-3 border-0 p-0"
             >
+              <LinkIdentity
+                icon={icon}
+                folderId={folderId}
+                folders={folders}
+                tags={tags}
+                showIcon={false}
+                disabled={locked}
+                onIcon={setIcon}
+                onFolder={setFolderId}
+                onTags={(next) => {
+                  tagsRef.current = next;
+                  setTags(next);
+                }}
+              />
               <LinkSuggestFields
                 aiAvailable={aiAvailable}
                 linkId={id}
+                hideTitle
+                destinationFirst
+                quietLabels
                 destinationUrl={destinationUrl}
                 slug={slug}
                 title={title}
@@ -1168,10 +1036,12 @@ export function LinkDetailPage() {
                 onTitle={setTitle}
               >
                 <RedirectDomainField
+                  srOnly
                   value={redirectDomainId}
                   onValueChange={setRedirectDomainId}
                 />
               </LinkSuggestFields>
+              <Section title={t("Settings")}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Redirect">
                   <Select
@@ -1229,6 +1099,8 @@ export function LinkDetailPage() {
                   <Trash2 /> {t("Remove password")}
                 </Button>
               ) : null}
+              </Section>
+              <Section title={t("UTM")}>
               <UtmSuggest
                 aiAvailable={aiAvailable && !locked}
                 destinationUrl={destinationUrl}
@@ -1240,6 +1112,8 @@ export function LinkDetailPage() {
                   url: previewDestination(destinationUrl, utm),
                 })}
               </p>
+              </Section>
+              <Section title={t("Routing")}>
               {aiAvailable && !locked ? (
                 <RouteSuggest
                   onAppend={(drafts) =>
@@ -1254,6 +1128,7 @@ export function LinkDetailPage() {
                 locale={locale}
                 onChange={setRoutes}
               />
+              </Section>
               {locked ? null : (
                 <Button type="submit" disabled={saving}>
                   <Save /> {saving ? t("Saving…") : t("Save link")}
@@ -1261,17 +1136,18 @@ export function LinkDetailPage() {
               )}
             </fieldset>
           </form>
-        </CardContent>
-      </Card>
-      <Card className="overflow-visible">
-        <CardContent>
+      <Section title={t("QR code")}>
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="lg:sticky lg:top-5 lg:col-start-2 lg:row-start-1">
+            <div className="lg:col-start-2 lg:row-start-1">
+              <Card>
+                <CardContent>
               <QrPreview
                 url={previewUrl || "https://example.com"}
                 style={style}
                 logoUrl={logoUrl}
               />
+                </CardContent>
+              </Card>
             </div>
             <form
               className="grid min-w-0 gap-3 lg:col-start-1 lg:row-start-1"
@@ -1281,7 +1157,6 @@ export function LinkDetailPage() {
                 disabled={locked}
                 className="m-0 grid min-w-0 gap-3 border-0 p-0"
               >
-                <h2 className="text-lg font-medium">{t("QR code")}</h2>
                 <Field label="Name">
                   <Input
                     value={qrName}
@@ -1490,12 +1365,9 @@ export function LinkDetailPage() {
               </div>
             </form>
           </div>
-        </CardContent>
-      </Card>
+      </Section>
       {qrCodes.length > 0 ? (
-        <Card>
-          <CardContent>
-            <h2 className="mb-2 text-lg font-medium">{t("Saved codes")}</h2>
+        <Section title={t("Saved codes")}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1532,13 +1404,11 @@ export function LinkDetailPage() {
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+        </Section>
       ) : null}
       {analytics ? (
         <div className="grid gap-4">
-          <Card>
-            <CardContent className="grid gap-4">
+          <Section title={t("Clicks")}>
               {aiAvailable ? (
                 <AnalyticsSummary
                   linkId={id}
@@ -1548,8 +1418,7 @@ export function LinkDetailPage() {
                 />
               ) : null}
               <ClickChart series={analytics.series} />
-            </CardContent>
-          </Card>
+          </Section>
           <div className="grid gap-4 md:grid-cols-2">
             <Breakdown
               title={t("QR codes")}

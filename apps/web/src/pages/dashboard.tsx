@@ -6,7 +6,7 @@ import { EmptyState } from "../components/empty-state.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { buttonVariants } from "../components/ui/button.tsx";
 import { RowSkeleton, Skeleton, StatSkeleton } from "../components/ui/skeleton.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { Section } from "../components/ui/section.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import {
   Table,
@@ -71,39 +71,32 @@ export function DashboardPage() {
         </div>
       ) : (
       <>
-      <div className="grid gap-3.5 sm:grid-cols-3">
-        <Card>
-          <CardContent>
+      <div className="flex flex-wrap divide-x divide-border">
+        <div className="pr-6">
             <span className="text-sm text-muted-foreground">
               {t("Clicks, 30 days")}
             </span>
             <b className="mt-1 block text-3xl tabular-nums">
               {analytics?.totalClicks ?? "—"}
             </b>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
+        </div>
+        <div className="px-6">
             <span className="text-sm text-muted-foreground">
               {t("Unique visitors")}
             </span>
             <b className="mt-1 block text-3xl tabular-nums">
               {analytics?.uniqueVisitors ?? "—"}
             </b>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent>
+        </div>
+        <div className="pl-6">
             <span className="text-sm text-muted-foreground">{t("Bot clicks")}</span>
             <b className="mt-1 block text-3xl tabular-nums">
               {analytics?.botClicks ?? "—"}
             </b>
-          </CardContent>
-        </Card>
+        </div>
       </div>
       {failed ? null : (
-        <Card className="mt-4">
-          <CardContent className="grid gap-4">
+        <Section className="mt-4" title={t("Clicks")}>
             {aiAvailable && analytics ? (
               <AnalyticsSummary
                 earliest={earliest}
@@ -114,8 +107,7 @@ export function DashboardPage() {
             {analytics ? (
               <ClickChart series={analytics.series} />
             ) : null}
-          </CardContent>
-        </Card>
+        </Section>
       )}
       </>
       )}

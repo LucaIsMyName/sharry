@@ -84,7 +84,7 @@ export function Shell() {
       <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
         <div className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-3 md:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger render={<Button variant="outline" type="button" />}>
+            <SheetTrigger render={<Button variant="ghost" type="button" className={"px-2"} />}>
               <Menu /> {t("Menu")}
             </SheetTrigger>
             <SheetContent

@@ -14,7 +14,8 @@ import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
-import { Card, CardContent } from "../components/ui/card.tsx";
+import { DataTable } from "../components/ui/data-table.tsx";
+import { Section } from "../components/ui/section.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import {
@@ -30,14 +31,6 @@ import { toastCaught } from "../components/ui/toast.tsx";
 import { useI18n } from "../i18n/index.tsx";
 import { useSearchParams } from "react-router";
 import { focusRowId, rowFocusClass, useFocusRow } from "../components/focus-row.ts";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table.tsx";
 
 type RedirectDomain = {
   id: string;
@@ -144,8 +137,7 @@ export function AdminDomainsPage() {
           )}
         </p>
       </div>
-      <Card>
-        <CardContent>
+      <Section title={t("Add domain")}>
           <form className="grid gap-3" onSubmit={(event) => void create(event)}>
             <Field label="Domain">
               <Input
@@ -159,8 +151,7 @@ export function AdminDomainsPage() {
               <Plus /> {pending ? t("Adding…") : t("Add domain")}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+      </Section>
       {loading ? (
         <RowSkeleton label="Loading domains…" />
       ) : domains.length === 0 ? (
@@ -168,67 +159,76 @@ export function AdminDomainsPage() {
           {t("No redirect domains yet. Add one in the form above.")}
         </EmptyState>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("Domain")}</TableHead>
-              <TableHead>{t("Status")}</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {domains.map((domain) => (
-              <TableRow
-                key={domain.id}
-                id={focusRowId(domain.id)}
-                className={rowFocusClass(domain.id, focus)}
-              >
-                <TableCell>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="font-mono text-sm">
-                      {domain.hostname}
-                    </span>
-                    {domain.lastError ? (
-                      <FieldMessage
-                        tone="error"
-                        message={domain.lastError}
-                        initialOpen={false}
-                      />
-                    ) : null}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={domain.status === "verified" ? "secondary" : "outline"}
-                  >
-                    {domain.status === "verified" ? t("Verified") : t("Pending")}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-nowrap items-center justify-end gap-1">
-                    {domain.status === "pending" ? (
-                      <IconAction label={t("Setup")} onClick={() => setSetup(domain)}>
-                        <ListChecks />
-                      </IconAction>
-                    ) : null}
-                    {domain.status === "pending" ? (
-                      <IconAction
-                        label={verifyingId === domain.id ? t("Checking…") : t("Verify")}
-                        disabled={verifyingId === domain.id}
-                        onClick={() => void verify(domain)}
-                      >
-                        <BadgeCheck />
-                      </IconAction>
-                    ) : null}
-                    <IconAction label={t("Delete")} onClick={() => setDeleteFor(domain)}>
-                      <Trash2 />
+        <DataTable
+          storageKey="admin-domains"
+          columns={[
+            {
+              id: "domain",
+              header: "Domain",
+              sortable: true,
+              filter: "text",
+              sortValue: (domain) => domain.hostname,
+              filterValue: (domain) => domain.hostname,
+              cell: (domain) => (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="font-mono text-sm">{domain.hostname}</span>
+                  {domain.lastError ? (
+                    <FieldMessage tone="error" message={domain.lastError} initialOpen={false} />
+                  ) : null}
+                </span>
+              ),
+            },
+            {
+              id: "status",
+              header: "Status",
+              sortable: true,
+              filter: { options: [
+                { value: "verified", label: "Verified" },
+                { value: "pending", label: "Pending" },
+              ] },
+              sortValue: (domain) => domain.status,
+              filterValue: (domain) => domain.status,
+              cell: (domain) => (
+                <Badge variant={domain.status === "verified" ? "secondary" : "outline"}>
+                  {domain.status === "verified" ? t("Verified") : t("Pending")}
+                </Badge>
+              ),
+            },
+            {
+              id: "actions",
+              header: "",
+              sortable: false,
+              cell: (domain) => (
+                <div className="flex flex-nowrap items-center justify-end gap-1" data-row-action>
+                  {domain.status === "pending" ? (
+                    <IconAction label={t("Setup")} onClick={() => setSetup(domain)}>
+                      <ListChecks />
                     </IconAction>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  ) : null}
+                  {domain.status === "pending" ? (
+                    <IconAction
+                      label={verifyingId === domain.id ? t("Checking…") : t("Verify")}
+                      disabled={verifyingId === domain.id}
+                      onClick={() => void verify(domain)}
+                    >
+                      <BadgeCheck />
+                    </IconAction>
+                  ) : null}
+                  <IconAction label={t("Delete")} onClick={() => setDeleteFor(domain)}>
+                    <Trash2 />
+                  </IconAction>
+                </div>
+              ),
+            },
+          ]}
+          rows={domains}
+          getRow={(domain) => ({
+            id: domain.id,
+            domId: focusRowId(domain.id),
+            className: rowFocusClass(domain.id, focus),
+            label: domain.hostname,
+          })}
+        />
       )}
       <Dialog
         open={Boolean(setup)}

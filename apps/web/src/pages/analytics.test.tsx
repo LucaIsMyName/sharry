@@ -98,29 +98,24 @@ describe("analytics page", () => {
       </MemoryRouter>,
     );
     const heading = await screen.findByRole("heading", { name: "Analytics" });
-    const links = screen.getByRole("button", { name: "Links" });
-    const bar = links.closest(".overflow-x-auto");
-    expect(bar?.className).toContain("overflow-x-auto");
-    expect(bar?.className).not.toContain("flex-wrap");
-    expect(bar?.querySelector(".flex-nowrap")).toBeTruthy();
-    expect(screen.getByLabelText("From").getAttribute("type")).toBe("date");
-    expect(screen.getByLabelText("To").getAttribute("type")).toBe("date");
-    expect(screen.queryByText("From")).toBeNull();
-    expect(screen.queryByText("To")).toBeNull();
+    const add = screen.getByRole("button", { name: "Add filter" });
     expect(await screen.findByText("42")).toBeTruthy();
     const clicks = screen.getAllByText("Clicks")[0];
     if (!clicks) throw new Error("missing clicks");
-    expect(heading.compareDocumentPosition(links) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(links.compareDocumentPosition(clicks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(heading.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(add.compareDocumentPosition(clicks) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const summarize = await screen.findByRole("button", { name: "Summarize" });
     const slider = screen.getByRole("slider", { name: "Start date" });
     expect(summarize.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(summarize.closest("[data-slot=card]")?.querySelector("input[type=range]")).toBeNull();
+    expect(summarize.closest("[data-slot=card]")).toBeNull();
 
-    fireEvent.click(links);
+    fireEvent.click(add);
+    const linkButtons = screen.getAllByRole("button", { name: "Links" });
+    fireEvent.click(linkButtons[linkButtons.length - 1]!);
     fireEvent.click(screen.getByRole("checkbox", { name: "Busy" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Quiet" }));
-    fireEvent.click(screen.getByRole("button", { name: "Country" }));
+    const countryButtons = screen.getAllByRole("button", { name: "Country" });
+    fireEvent.click(countryButtons[countryButtons.length - 1]!);
     fireEvent.click(screen.getByRole("checkbox", { name: "DE" }));
     await waitFor(() => {
       const last = calls.filter((path) => path.startsWith("/api/analytics")).at(-1) ?? "";

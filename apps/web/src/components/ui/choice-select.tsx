@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useI18n } from "../../i18n/index.tsx";
 import {
   Select as SelectRoot,
@@ -19,7 +20,7 @@ export function Select<T extends string>({
 }: {
   value: T;
   onValueChange: (value: T) => void;
-  options: { value: T; label: string; description?: string }[];
+  options: { value: T; label: string; description?: string; icon?: ReactNode; depth?: number }[];
   placeholder?: string;
   id?: string;
   disabled?: boolean;
@@ -57,7 +58,13 @@ export function Select<T extends string>({
             value={option.value}
             className="items-start py-2"
           >
-            <span>{t(option.label)}</span>
+            <span
+              className="inline-flex min-w-0 items-center gap-2"
+              style={option.depth ? { paddingInlineStart: option.depth * 14 } : undefined}
+            >
+              {option.icon}
+              <span>{t(option.label)}</span>
+            </span>
             {option.description ? (
               <span className="text-xs font-normal whitespace-normal text-muted-foreground">
                 {t(option.description)}

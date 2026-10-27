@@ -16,7 +16,9 @@ import {
   User,
   Users,
 } from "lucide-react";
+import { defaultCampaignIcon, defaultLinkIcon } from "@sharry/shared";
 import { useNavigate } from "react-router";
+import { AppIcon } from "./app-icon.tsx";
 import { api } from "../api.ts";
 import { auditActionSentence } from "../audit-actions.ts";
 import { t, useI18n } from "../i18n/index.tsx";
@@ -26,7 +28,6 @@ import {
   DialogContent,
   DialogTitle,
 } from "./ui/dialog.tsx";
-import { cardBevel } from "./ui/card.tsx";
 import { toastCaught } from "./ui/toast.tsx";
 import { cn } from "cn";
 import {
@@ -44,12 +45,14 @@ export type SearchLink = {
   slug: string;
   destinationUrl: string;
   description: string | null;
+  icon?: string | null;
 };
 
 export type SearchCampaign = {
   id: string;
   name: string;
   description: string | null;
+  icon?: string | null;
 };
 
 export type SearchChat = {
@@ -149,7 +152,7 @@ export function CommandMenu({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg"
+        className="top-[12%] w-full min-w-0 translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg"
       >
         <DialogTitle className="sr-only">{translate("Search")}</DialogTitle>
         <Command
@@ -165,7 +168,7 @@ export function CommandMenu({
             placeholder={translate("Search pages, links, and docs")}
             className="h-12 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
           />
-          <Command.List className="max-h-80 overflow-y-auto p-3">
+          <Command.List className="max-h-80 overflow-x-hidden overflow-y-auto p-3">
             <Command.Empty className="px-4 py-8 text-center text-sm text-muted-foreground">
               {searching ? translate("Searching…") : translate("No results")}
             </Command.Empty>
@@ -192,6 +195,7 @@ export function CommandMenu({
                   to={`/links/${link.id}`}
                   title={linkName(link)}
                   detail={linkDetail(link)}
+                  icon={<AppIcon name={link.icon ?? defaultLinkIcon} />}
                   onSelect={() => go(`/links/${link.id}`)}
                 />
               ))}
@@ -215,6 +219,7 @@ export function CommandMenu({
                   to={`/campaigns/${campaign.id}`}
                   title={campaign.name}
                   detail={campaign.description ?? undefined}
+                  icon={<AppIcon name={campaign.icon ?? defaultCampaignIcon} />}
                   onSelect={() => go(`/campaigns/${campaign.id}`)}
                 />
               ))}
@@ -328,12 +333,14 @@ function Row({
   title,
   detail,
   to,
+  icon,
   onSelect,
 }: {
   value: string;
   title: string;
   detail?: string;
   to: string;
+  icon?: ReactNode;
   onSelect: () => void;
 }) {
   return (
@@ -341,14 +348,13 @@ function Row({
       value={value}
       onSelect={onSelect}
       className={cn(
-        "flex cursor-default items-center gap-2.5 rounded-md border border-border px-2.5 py-2 text-sm text-foreground data-[selected=true]:border-muted-foreground data-[selected=true]:bg-accent",
-        cardBevel,
+        "flex w-full min-w-0 max-w-full cursor-default items-center gap-2.5 overflow-hidden rounded-md px-2.5 py-2 text-sm text-foreground data-[selected=true]:bg-accent",
       )}
     >
       <span className="shrink-0 text-muted-foreground" aria-hidden>
-        {routeIcon(to)}
+        {icon ?? routeIcon(to)}
       </span>
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1 overflow-hidden">
         <span className="block max-w-full truncate">{title}</span>
         {detail ? <span className="block max-w-full truncate text-xs text-muted-foreground">{detail}</span> : null}
       </span>
