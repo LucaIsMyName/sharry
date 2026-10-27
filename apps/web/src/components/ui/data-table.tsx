@@ -135,7 +135,8 @@ export function DataTable<T>({
 
   useEffect(() => {
     if (!menu) return;
-    function close(event: Event) {
+    function close(event: MouseEvent) {
+      if (event.button !== 0) return;
       if (menuRef.current?.contains(event.target as Node)) return;
       setMenu(null);
     }

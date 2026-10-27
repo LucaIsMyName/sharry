@@ -60,7 +60,7 @@ Save link is in the page header and again at the end of the form. Both buttons s
 
 Routes are optional. Leave the list empty and every visit uses the destination.
 
-When AI is on, a line above the routes accepts one sentence, such as “iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de”. Draft routes adds those rules to the list. You can edit or remove them. They are stored only when you save the link.
+When AI is on, the draft field and Add route sit on one row. The field accepts one sentence, such as “iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de”. Draft routes adds those rules to the list. You can edit or remove them. They are stored only when you save the link.
 
 Add a route to send some visits to a different `http` or `https` URL. Each route can have as many conditions as you need, and every condition on that route has to match. Routes run from top to bottom. The first matching route is used. Move a route up or down to change which one is checked first. A route can have a name. Leave it empty and the route is shown as Route 1, Route 2, and so on.
 

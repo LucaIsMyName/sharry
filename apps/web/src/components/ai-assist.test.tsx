@@ -81,7 +81,7 @@ describe("AI assists", () => {
     expect(await screen.findByDisplayValue("")).toBeTruthy();
     expect(onAppend).toHaveBeenCalledWith([drafted]);
     expect(api).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Drafted routes are not saved until you save the link.")).toBeTruthy();
+    expect(screen.queryByText("Drafted routes are not saved until you save the link.")).toBeNull();
   });
 
   it("summarizes the selected range", async () => {

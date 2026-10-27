@@ -24,7 +24,8 @@ describe("RouteBuilder", () => {
     render(
       <RouteBuilder rules={[]} choices={emptyRoutingChoices()} utm={{}} locale="en" onChange={onChange} />,
     );
-    expect(screen.getByText("Visitors use the destination unless a route matches.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Routes" })).toBeNull();
+    expect(screen.queryByText("Visitors use the destination unless a route matches.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Add route" }));
     const [next] = onChange.mock.calls[0] ?? [];
     expect(next).toHaveLength(1);

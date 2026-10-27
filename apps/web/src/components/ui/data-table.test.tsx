@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { DataTable, loadTableView, type DataColumn, type TableView } from "./data-table.tsx";
 
 afterEach(() => {
@@ -105,5 +105,35 @@ describe("DataTable", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
     expect(chosen).toContain("delete");
     expect(document.querySelector("select")).toBeNull();
+  });
+
+  it("keeps the row menu open after a right-click on a link row", () => {
+    render(
+      <MemoryRouter initialEntries={["/links"]}>
+        <Routes>
+          <Route
+            path="/links"
+            element={
+              <DataTable
+                storageKey="context"
+                columns={columns}
+                rows={rows}
+                rowMenu={() => [{ id: "delete", label: "Delete", destructive: true, onSelect: () => undefined }]}
+                getRow={(row) => ({ id: row.id, label: row.name, to: `/links/${row.id}` })}
+              />
+            }
+          />
+          <Route path="/links/:id" element={<div>opened</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const row = screen.getByRole("row", { name: /Beta/ });
+    fireEvent.pointerDown(row, { button: 2, clientX: 12, clientY: 12 });
+    fireEvent.pointerUp(row, { button: 2, clientX: 12, clientY: 12 });
+    fireEvent.contextMenu(row, { clientX: 12, clientY: 12 });
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+    expect(screen.queryByText("opened")).toBeNull();
+    fireEvent.mouseDown(window, { button: 2 });
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
   });
 });

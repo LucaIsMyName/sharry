@@ -60,7 +60,7 @@ Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formular
 
 Routen sind optional. Lass die Liste leer, dann nutzt jeder Besuch das Ziel.
 
-Wenn die KI eingeschaltet ist, nimmt eine Zeile über den Routen einen Satz an, zum Beispiel „iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de“. Routen entwerfen hängt diese Regeln an die Liste. Du kannst sie ändern oder entfernen. Gespeichert werden sie erst, wenn du den Link speicherst.
+Wenn die KI eingeschaltet ist, stehen das Entwurfsfeld und Route hinzufügen in einer Zeile. Das Feld nimmt einen Satz an, zum Beispiel „iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de“. Routen entwerfen hängt diese Regeln an die Liste. Du kannst sie ändern oder entfernen. Gespeichert werden sie erst, wenn du den Link speicherst.
 
 Füge eine Route hinzu, um manche Besuche an eine andere `http`- oder `https`-URL zu schicken. Jede Route kann so viele Bedingungen haben, wie du brauchst, und jede Bedingung dieser Route muss passen. Routen laufen von oben nach unten. Die erste passende Route wird verwendet. Schiebe eine Route nach oben oder unten, um die Reihenfolge zu ändern. Eine Route kann einen Namen haben. Lass ihn leer, dann wird die Route als Route 1, Route 2 und so weiter angezeigt.
 

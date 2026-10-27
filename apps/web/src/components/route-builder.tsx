@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import {
   MAX_ROUTING_CONDITIONS,
@@ -37,12 +37,14 @@ export function RouteBuilder({
   utm,
   locale,
   onChange,
+  leading,
 }: {
   rules: RoutingRule[];
   choices: RoutingChoices | undefined;
   utm: UtmParams;
   locale: string;
   onChange: (rules: RoutingRule[]) => void;
+  leading?: ReactNode;
 }) {
   const { t } = useI18n();
   const merged = mergeChoices(choices, utm);
@@ -51,15 +53,28 @@ export function RouteBuilder({
   }
 
   return (
-    <div className="grid gap-3 border-t border-border pt-3">
-      <h2 className="text-lg font-medium">{t("Routes")}</h2>
-      <p className="text-sm text-muted-foreground">
-        {rules.length === 0
-          ? t("Visitors use the destination unless a route matches.")
-          : t(
-              "Routes run from top to bottom. The first route whose conditions all match is used. Otherwise visitors go to the destination, including when a route is out of date.",
-            )}
-      </p>
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {leading}
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0"
+          disabled={rules.length >= MAX_ROUTING_RULES}
+          onClick={() =>
+            onChange([
+              ...rules,
+              {
+                id: crypto.randomUUID(),
+                destinationUrl: "",
+                conditions: [conditionForField("browser", merged, locale)],
+              },
+            ])
+          }
+        >
+          <Plus /> {t("Add route")}
+        </Button>
+      </div>
       {rules.map((rule, index) => (
         <RouteCard
           key={rule.id}
@@ -73,23 +88,6 @@ export function RouteBuilder({
           onRemove={() => onChange(rules.filter((item) => item.id !== rule.id))}
         />
       ))}
-      <Button
-        type="button"
-        variant="outline"
-        disabled={rules.length >= MAX_ROUTING_RULES}
-        onClick={() =>
-          onChange([
-            ...rules,
-            {
-              id: crypto.randomUUID(),
-              destinationUrl: "",
-              conditions: [conditionForField("browser", merged, locale)],
-            },
-          ])
-        }
-      >
-        <Plus /> {t("Add route")}
-      </Button>
     </div>
   );
 }

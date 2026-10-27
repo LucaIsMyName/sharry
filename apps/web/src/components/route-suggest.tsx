@@ -33,21 +33,18 @@ export function RouteSuggest({ onAppend }: { onAppend: (rules: RoutingRule[]) =>
     }
   }
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          className="min-w-48 flex-1"
-          aria-label="Describe who should go where"
-          value={instruction}
-          placeholder="iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de"
-          onChange={(event) => setInstruction(event.target.value)}
-        />
-        <Button type="button" variant="outline" disabled={!instruction.trim() || pending} onClick={() => void submit()}>
-          <Sparkles /> {pending ? t("Drafting…") : t("Draft routes")}
-        </Button>
-      </div>
-      <p className="text-sm text-muted-foreground">{t("Drafted routes are not saved until you save the link.")}</p>
-      {error ? <p className="text-sm text-destructive">{t(error)}</p> : null}
-    </div>
+    <>
+      <Input
+        className="min-w-48 flex-1 basis-64"
+        aria-label="Describe who should go where"
+        value={instruction}
+        placeholder="iPhone visitors go to https://apps.example.com, Germany goes to https://example.com/de"
+        onChange={(event) => setInstruction(event.target.value)}
+      />
+      <Button type="button" variant="outline" disabled={!instruction.trim() || pending} onClick={() => void submit()}>
+        <Sparkles /> {pending ? t("Drafting…") : t("Draft routes")}
+      </Button>
+      {error ? <p className="basis-full text-sm text-destructive">{t(error)}</p> : null}
+    </>
   );
 }

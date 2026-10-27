@@ -76,6 +76,35 @@ describe("ClickableTableRow", () => {
     expect(onAction).toHaveBeenCalledOnce();
     expect(onSelect).toHaveBeenCalledOnce();
   });
+
+  it("leaves the row closed when it is right-clicked", () => {
+    const onSelect = vi.fn();
+    const onContextMenu = vi.fn();
+    renderRows(
+      <>
+        <ClickableTableRow to="/links/1" label="Summer" onContextMenu={onContextMenu}>
+          <TableCell>Summer</TableCell>
+        </ClickableTableRow>
+        <ClickableTableRow label="Folder" onSelect={onSelect} onContextMenu={onContextMenu}>
+          <TableCell>Folder</TableCell>
+        </ClickableTableRow>
+      </>,
+    );
+
+    const link = screen.getByRole("row", { name: /Summer/ });
+    fireEvent.pointerDown(link, { button: 2, clientX: 8, clientY: 8 });
+    fireEvent.pointerUp(link, { button: 2, clientX: 8, clientY: 8 });
+    fireEvent.contextMenu(link);
+    expect(onContextMenu).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("location").textContent).toBe("/start");
+
+    const folder = screen.getByRole("row", { name: /Folder/ });
+    fireEvent.pointerDown(folder, { button: 2, clientX: 8, clientY: 8 });
+    fireEvent.pointerUp(folder, { button: 2, clientX: 8, clientY: 8 });
+    fireEvent.contextMenu(folder);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByTestId("location").textContent).toBe("/start");
+  });
 });
 
 describe("TableCell", () => {

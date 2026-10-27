@@ -1114,19 +1114,21 @@ export function LinkDetailPage() {
               </p>
               </Section>
               <Section title={t("Routing")}>
-              {aiAvailable && !locked ? (
-                <RouteSuggest
-                  onAppend={(drafts) =>
-                    setRoutes((current) => [...current, ...drafts].slice(0, MAX_ROUTING_RULES))
-                  }
-                />
-              ) : null}
               <RouteBuilder
                 rules={routes}
                 choices={routingChoices}
                 utm={utm}
                 locale={locale}
                 onChange={setRoutes}
+                leading={
+                  aiAvailable && !locked ? (
+                    <RouteSuggest
+                      onAppend={(drafts) =>
+                        setRoutes((current) => [...current, ...drafts].slice(0, MAX_ROUTING_RULES))
+                      }
+                    />
+                  ) : null
+                }
               />
               </Section>
               {locked ? null : (

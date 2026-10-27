@@ -108,11 +108,14 @@ function ClickableTableRow({
   const moved = React.useRef(false);
   const origin = React.useRef({ x: 0, y: 0 });
   const openedAt = React.useRef(0);
+  const suppressClick = React.useRef(false);
 
   function open(event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>) {
+    if ("button" in event && event.button !== 0) return;
     if (Date.now() - openedAt.current < 400) return;
-    if (skipRowClick) {
+    if (skipRowClick || suppressClick.current) {
       skipRowClick = false;
+      suppressClick.current = false;
       return;
     }
     if (moved.current) return;
@@ -141,6 +144,7 @@ function ClickableTableRow({
       onPointerDown={(event) => {
         moved.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
+        if (event.button === 2) suppressClick.current = true;
       }}
       onPointerMove={(event) => {
         if (event.buttons === 0) return;
@@ -148,8 +152,17 @@ function ClickableTableRow({
           moved.current = true;
         }
       }}
-      onPointerUp={open}
-      onContextMenu={onContextMenu}
+      onPointerUp={(event) => {
+        if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
+        open(event);
+      }}
+      onContextMenu={(event) => {
+        suppressClick.current = true;
+        onContextMenu?.(event);
+        window.setTimeout(() => {
+          suppressClick.current = false;
+        }, 0);
+      }}
       onDrag={(event) => {
         if (event.clientX || event.clientY) moved.current = true;
       }}
