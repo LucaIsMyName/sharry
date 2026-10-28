@@ -40,9 +40,11 @@ Du siehst deine eigenen Links. Eine Administratorin oder ein Administrator sieht
 
 ## Anlegen und bearbeiten
 
+Das Ziel steht über der Kurzlink-Gruppe. Weiterleitungsdomain und Slug teilen sich diese Gruppe. Der Seitentitel ist der Linktitel: die Überschrift ist das Feld, und ein größeres Symbol sitzt daneben zentriert. Neuer Link nutzt dieselbe Überschrift und dieselbe Reihenfolge, ohne ein eigenes Titelfeld. Bei einem gespeicherten Link steht die Kurz-URL unter dieser Zeile, und Speichern, Kopieren und Löschen stehen in der nächsten Zeile.
+
 Ein neuer Link braucht ein `http`- oder `https`-Ziel, höchstens 4096 Zeichen. Titel und Beschreibung sind optional. Wähle einen Weiterleitungstyp oder lass die Kontovorgabe aus den Einstellungen. Eine neue Installation nutzt 302. Die anderen Möglichkeiten sind 301, 307 und 308.
 
-Wenn die KI in den Einstellungen eingeschaltet ist, zeigen die Felder für Slug und Titel bei einem neuen und bei einem gespeicherten Link je einen Knopf. Er liest die Zielseite und schlägt einen freien Slug oder den Seitentitel vor, sobald das Ziel eine gültige URL ist. Ein vorgeschlagener Slug besteht aus den ersten drei Wörtern dieses Titels, oder aus der Adresse, wenn der Titel keinen Slug ergibt. Ein Tooltip am Feld sagt, woher der Vorschlag kommt. Kann Sharry keinen Slug vorschlagen, bleibt diese Meldung im selben Tooltip. Beides kannst du ändern. Gespeichert wird erst, wenn du den Link speicherst. Die Knöpfe bleiben verborgen, solange die KI aus ist.
+Wenn die KI in den Einstellungen eingeschaltet ist, schlägt ein Funken-Symbol neben dem Titel bei einem neuen und bei einem gespeicherten Link den Seitentitel vor, und das Slug-Feld schlägt einen freien Slug vor. Beides liest die Zielseite, sobald das Ziel eine gültige URL ist. Ein vorgeschlagener Slug besteht aus den ersten drei Wörtern dieses Titels, oder aus der Adresse, wenn der Titel keinen Slug ergibt. Ein Tooltip sagt, woher der Vorschlag kommt. Kann Sharry keinen Wert vorschlagen, bleibt diese Meldung im selben Tooltip. Beide Vorschläge kannst du ändern. Gespeichert wird erst, wenn du den Link speicherst. Die Funken bleiben verborgen, solange die KI aus ist.
 
 Derselbe Schalter zeigt UTM vorschlagen über den UTM-Feldern bei einem neuen Link, einem gespeicherten Link und im Kurzlink-Formular im Chat. Eine optionale Zeile sagt, wo du den Link teilst, zum Beispiel „October newsletter“ oder „Instagram bio“. UTM vorschlagen füllt Quelle, Medium und Kampagne. Die übrigen UTM-Felder bleiben, wie sie sind. Gespeichert wird erst, wenn du speicherst.
 

@@ -604,6 +604,7 @@ export const de: Record<string, string> = {
   "This slug is reserved": "Dieser Slug ist reserviert",
   "This will replace {fields} on the destination.": "Dadurch werden {fields} am Ziel ersetzt.",
   "Title": "Titel",
+  "Untitled": "Ohne Titel",
   "Total": "Gesamt",
   "totals, daily series, referrer, country, browser, device, and utm breakdowns": "Summen, Tagesreihe, Verweise, Land, Browser, Gerät und UTM-Aufschlüsselungen",
   "totals, daily series, referrer, country, browser, device, and utm breakdowns, plus links": "Summen, Tagesreihe, Verweise, Land, Browser, Gerät und UTM-Aufschlüsselungen, plus Links",

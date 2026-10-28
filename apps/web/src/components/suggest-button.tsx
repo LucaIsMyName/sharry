@@ -11,12 +11,14 @@ export function SuggestButton({
   hint,
   error,
   disabled,
+  inline = false,
   onClick,
 }: {
   label: string;
   hint: string | null;
   error?: string;
   disabled: boolean;
+  inline?: boolean;
   onClick: () => void;
 }) {
   const { t } = useI18n();
@@ -32,7 +34,7 @@ export function SuggestButton({
           render={
             <button
               type="button"
-              className={suggestButtonClass}
+              className={inline ? "shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50" : suggestButtonClass}
               aria-label={t(label)}
               disabled={disabled}
               onClick={onClick}

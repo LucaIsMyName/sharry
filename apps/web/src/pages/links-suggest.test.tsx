@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router";
 import { setActiveLocale } from "../i18n/index.tsx";
 import { api } from "../api.ts";
-import { LinkSuggestFields } from "./links.tsx";
+import { LinkFormPage, LinkSuggestFields } from "./links.tsx";
 
 vi.mock("../api.ts", () => ({
   api: vi.fn(),
@@ -142,5 +143,60 @@ describe("link editor suggestions", () => {
       method: "POST",
       body: JSON.stringify({ destinationUrl: "https://example.org" }),
     });
+  });
+
+  it("uses the heading as the title and puts the destination above the short link", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "/api/settings/public") return { defaultRedirectType: "302" };
+      if (path.startsWith("/api/folders")) return { folders: [] };
+      if (path === "/api/ai/status") return { available: false };
+      return {};
+    });
+    render(
+      <MemoryRouter>
+        <LinkFormPage />
+      </MemoryRouter>,
+    );
+    const title = screen.getByRole("textbox", { name: "Title" });
+    const destination = screen.getByRole("textbox", { name: "Destination" });
+    const slug = screen.getByRole("textbox", { name: "Slug" });
+    expect(screen.getAllByRole("textbox", { name: "Title" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Choose icon" }).className).toContain("size-11");
+    expect(title.compareDocumentPosition(destination) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(destination.compareDocumentPosition(slug) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "New link" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Suggest a title" })).toBeNull();
+    fireEvent.change(title, { target: { value: "Launch" } });
+    expect(screen.getByDisplayValue("Launch")).toBe(title);
+  });
+
+  it("suggests a title from the sparkle beside the heading when AI is on", async () => {
+    vi.mocked(api).mockImplementation(async (path) => {
+      if (path === "/api/settings/public") return { defaultRedirectType: "302", shortUrlBase: "http://127.0.0.1:3000" };
+      if (path.startsWith("/api/folders")) return { folders: [] };
+      if (path === "/api/redirect-domains") return { domains: [] };
+      if (path === "/api/ai/status") return { available: true };
+      if (path === "/api/ai/suggest-slug") {
+        return { slug: "example-domain", title: "Example Domain", fromTitle: true };
+      }
+      return {};
+    });
+    render(
+      <MemoryRouter>
+        <LinkFormPage />
+      </MemoryRouter>,
+    );
+    const title = screen.getByRole("textbox", { name: "Title" });
+    const button = await screen.findByRole("button", { name: "Suggest a title" });
+    expect(title.parentElement?.contains(button)).toBe(true);
+    expect(button.className).not.toContain("absolute");
+    expect(button.hasAttribute("disabled")).toBe(true);
+    fireEvent.change(screen.getByRole("textbox", { name: "Destination" }), {
+      target: { value: "https://example.org" },
+    });
+    expect(button.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(button);
+    expect(await screen.findByDisplayValue("Example Domain")).toBe(title);
+    expect(await screen.findByText("Suggested from the page title.")).toBeTruthy();
   });
 });

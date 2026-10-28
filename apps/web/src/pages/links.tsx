@@ -284,6 +284,94 @@ function LinkIdentity({
   );
 }
 
+function TitleSuggestButton({
+  destinationUrl,
+  linkId,
+  onTitle,
+}: {
+  destinationUrl: string;
+  linkId?: string;
+  onTitle: (value: string) => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [hint, setHint] = useState(false);
+  const [error, setError] = useState("");
+  const ready = destinationSchema.safeParse(destinationUrl).success;
+  async function suggest() {
+    if (!ready || pending) return;
+    setPending(true);
+    setError("");
+    try {
+      const result = await api<{ title: string }>("/api/ai/suggest-slug", {
+        method: "POST",
+        body: JSON.stringify({ destinationUrl, linkId }),
+      });
+      if (!result.title.trim()) {
+        setHint(false);
+        setError("Could not suggest a title for that page.");
+        return;
+      }
+      onTitle(result.title);
+      setHint(true);
+    } catch (caught) {
+      setHint(false);
+      setError(caught instanceof ApiError ? caught.message : "Could not suggest a title for that page.");
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <SuggestButton
+      inline
+      label="Suggest a title"
+      hint={hint ? "Suggested from the page title." : null}
+      error={error}
+      disabled={!ready || pending}
+      onClick={() => void suggest()}
+    />
+  );
+}
+
+function LinkTitleRow({
+  icon,
+  title,
+  placeholder,
+  disabled = false,
+  aiAvailable,
+  destinationUrl,
+  linkId,
+  onIcon,
+  onTitle,
+}: {
+  icon: string | null;
+  title: string;
+  placeholder: string;
+  disabled?: boolean;
+  aiAvailable: boolean;
+  destinationUrl: string;
+  linkId?: string;
+  onIcon: (icon: IconName) => void;
+  onTitle: (title: string) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <IconPicker large value={icon} fallback={defaultLinkIcon} onChange={onIcon} />
+      <input
+        aria-label={t("Title")}
+        className="min-w-0 max-w-full [field-sizing:content] truncate bg-transparent font-heading text-3xl font-medium tracking-tight outline-none placeholder:text-muted-foreground"
+        value={title}
+        placeholder={placeholder}
+        disabled={disabled}
+        onChange={(event) => onTitle(event.target.value)}
+      />
+      {aiAvailable && !disabled ? (
+        <TitleSuggestButton destinationUrl={destinationUrl} linkId={linkId} onTitle={onTitle} />
+      ) : null}
+    </div>
+  );
+}
+
 export function LinkFormPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -345,16 +433,25 @@ export function LinkFormPage() {
 
   const conflicts = utmConflicts(destinationUrl, utm);
   return (
-    <section>
-      <h1 className="mb-5 font-heading text-2xl font-medium tracking-tight">
-        {t("New link")}
-      </h1>
+    <section className="grid gap-4">
+      <div className="border-b border-border pb-4">
+        <LinkTitleRow
+          icon={icon}
+          title={title}
+          placeholder={t("Untitled")}
+          aiAvailable={aiAvailable}
+          destinationUrl={destinationUrl}
+          onIcon={setIcon}
+          onTitle={setTitle}
+        />
+      </div>
       <form className="grid gap-4" onSubmit={(event) => void submit(event)}>
             <LinkIdentity
               icon={icon}
               folderId={folderId}
               folders={folders}
               tags={tags}
+              showIcon={false}
               onIcon={setIcon}
               onFolder={setFolderId}
               onTags={(next) => {
@@ -367,8 +464,9 @@ export function LinkFormPage() {
               destinationUrl={destinationUrl}
               slug={slug}
               title={title}
-              slugLabel="Custom slug"
-              titleFirst
+              hideTitle
+              destinationFirst
+              quietLabels
               destinationInfo={
                 conflicts.length > 0
                   ? t(
@@ -382,6 +480,7 @@ export function LinkFormPage() {
               onTitle={setTitle}
             >
               <RedirectDomainField
+                srOnly
                 value={redirectDomainId}
                 onValueChange={setRedirectDomainId}
               />
@@ -915,17 +1014,17 @@ export function LinkDetailPage() {
         literal={Boolean(link?.title?.trim() || link?.slug)}
       />
       <div className="grid gap-3 border-b border-border pb-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <IconPicker large value={icon} fallback={defaultLinkIcon} onChange={setIcon} />
-          <input
-            aria-label={t("Title")}
-            className="w-full min-w-0 truncate bg-transparent font-heading text-3xl font-medium tracking-tight outline-none placeholder:text-muted-foreground"
-            value={title}
-            placeholder={link?.slug || t("Untitled")}
-            disabled={locked}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </div>
+        <LinkTitleRow
+          icon={icon}
+          title={title}
+          placeholder={link?.slug || t("Untitled")}
+          disabled={locked}
+          aiAvailable={aiAvailable}
+          destinationUrl={destinationUrl}
+          linkId={id}
+          onIcon={setIcon}
+          onTitle={setTitle}
+        />
         {link ? (
           <>
             <a
