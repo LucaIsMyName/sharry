@@ -20,6 +20,23 @@ export const mediaAccept = Object.values(mediaTypes)
 
 export const rasterImageMimes: readonly string[] = [mediaTypes.jpeg.mime, mediaTypes.png.mime, mediaTypes.webp.mime]
 
+/** Uploaded photos are scaled down to fit this box. A portrait image uses the box turned upright. */
+export const MEDIA_IMAGE_MAX = { long: 1920, short: 1080 } as const
+
+/** The size an uploaded raster image is stored at: unchanged when it fits, otherwise scaled down with its aspect ratio kept. */
+export function fitMediaImage(width: number, height: number): { width: number; height: number; resized: boolean } {
+  const landscape = width >= height
+  const maxWidth = landscape ? MEDIA_IMAGE_MAX.long : MEDIA_IMAGE_MAX.short
+  const maxHeight = landscape ? MEDIA_IMAGE_MAX.short : MEDIA_IMAGE_MAX.long
+  const scale = Math.min(1, maxWidth / width, maxHeight / height)
+  if (scale === 1) return { width, height, resized: false }
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+    resized: true,
+  }
+}
+
 export const MEDIA_TYPE_MESSAGE = 'Use a JPEG, PNG, WebP, GIF, SVG, MP4, WebM, or PDF file'
 export const MEDIA_UNSAFE_SVG_MESSAGE = 'This SVG contains scripts or external content and cannot be uploaded'
 

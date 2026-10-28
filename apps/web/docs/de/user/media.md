@@ -10,6 +10,10 @@ Jede Datei erscheint beim Hochladen als Zeile mit Fortschrittsbalken, höchstens
 
 Eine SVG mit Skripten, Event-Handlern, eingebettetem HTML oder Verweisen auf andere Dateien wird abgelehnt. Exportiere sie ohne diese Teile erneut oder wandle sie in PNG um.
 
+Große Fotos werden beim Hochladen verkleinert. Ein JPEG, PNG oder WebP, das breiter als 1920 oder höher als 1080 Pixel ist, wird mit gleichen Proportionen passend verkleinert. Ein Hochformat nutzt den gedrehten Rahmen und darf bis zu 1080 breit und 1920 hoch sein. Aus einem Foto mit 4000 × 3000 wird 1440 × 1080. Aus 4000 × 5000 wird 1080 × 1350. JPEG und WebP werden mit Qualität 82 neu gespeichert, das sieht am Bildschirm gleich aus und ist ein Bruchteil der Größe. PNG bleibt verlustfrei mit stärkerer Kompression, Transparenz und scharfe Kanten bleiben also erhalten. Ein kleines, bereits komprimiertes Bild bleibt wie hochgeladen.
+
+Beim neuen Speichern wird ein Foto außerdem so gedreht, wie die Kamera es hielt, und Kameradaten wie die GPS-Position werden entfernt. GIF, SVG, Videos und PDFs werden unverändert gespeichert.
+
 Ein Name, den es im Ordner schon gibt, bekommt eine Nummer, etwa `photo (2).jpg`.
 
 ## Ordnen

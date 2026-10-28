@@ -9,9 +9,11 @@ import {
   MEDIA_TYPE_MESSAGE,
   MEDIA_UNSAFE_SVG_MESSAGE,
   detectMediaType,
+  fitMediaImage,
   mediaDisplayName,
   mediaFilePath,
   mediaKinds,
+  rasterImageMimes,
   svgIsUnsafe,
   uniqueMediaName,
   updateMediaSchema,
@@ -27,6 +29,7 @@ import { AppError, parseBody } from './support.ts'
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const thumbnailSize = 320
+const photoQuality = 82
 
 export type MediaUsage = { qrCodes: { id: string; name: string; linkId: string; linkSlug: string }[] }
 
@@ -66,7 +69,7 @@ export function registerMediaRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * Upload one file into the media library. JPEG, PNG, WebP, GIF, SVG, MP4, WebM, or PDF up to MEDIA_MAX_UPLOAD_MB. The type is read from the file contents. A name that is already used in the folder gets a number, such as "photo (2).jpg".
+   * Upload one file into the media library. JPEG, PNG, WebP, GIF, SVG, MP4, WebM, or PDF up to MEDIA_MAX_UPLOAD_MB. The type is read from the file contents. A JPEG, PNG, or WebP larger than 1920 by 1080 (1080 by 1920 upright) is scaled down, turned upright, and stored without camera metadata. A name that is already used in the folder gets a number, such as "photo (2).jpg".
    * @route POST /api/media
    * @tag Media
    * @auth api-key or session
@@ -317,18 +320,25 @@ export async function storeMedia(
   if (type.mime === 'image/svg+xml' && svgIsUnsafe(input.buffer.toString('utf8'))) {
     throw new AppError(400, MEDIA_UNSAFE_SVG_MESSAGE, 'media_unsafe')
   }
+  let buffer = input.buffer
   let width: number | null = null
   let height: number | null = null
   let thumbnail: Buffer | null = null
   if (type.kind === 'image') {
-    const meta = await sharp(input.buffer, { animated: false }).metadata().catch(() => null)
+    const meta = await sharp(buffer, { animated: false }).metadata().catch(() => null)
     if (!meta && type.mime !== 'image/svg+xml') throw new AppError(400, 'This image could not be read', 'media_type')
     if (meta?.width && meta.height) {
       const turned = (meta.orientation ?? 1) >= 5
       width = turned ? meta.height : meta.width
       height = turned ? meta.width : meta.height
     }
-    thumbnail = await sharp(input.buffer, { animated: false })
+    if (meta && width && height && rasterImageMimes.includes(type.mime) && (meta.pages ?? 1) === 1) {
+      const optimized = await optimizePhoto(buffer, type.mime, meta, width, height)
+      buffer = optimized.buffer
+      width = optimized.width
+      height = optimized.height
+    }
+    thumbnail = await sharp(buffer, { animated: false })
       .rotate()
       .resize(thumbnailSize, thumbnailSize, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 75 })
@@ -339,7 +349,7 @@ export async function storeMedia(
   const fileName = `${id}.${type.ext}`
   const name = uniqueMediaName(mediaDisplayName(input.originalName, type.ext), await namesInFolder(db, input.folderId))
   await fs.mkdir(env.MEDIA_DATA_DIR, { recursive: true })
-  await fs.writeFile(path.join(env.MEDIA_DATA_DIR, fileName), input.buffer)
+  await fs.writeFile(path.join(env.MEDIA_DATA_DIR, fileName), buffer)
   if (thumbnail) await fs.writeFile(path.join(env.MEDIA_DATA_DIR, thumbnailName(id)), thumbnail)
   try {
     const [created] = await db
@@ -352,7 +362,7 @@ export async function storeMedia(
         mime: type.mime,
         name,
         fileName,
-        size: input.buffer.length,
+        size: buffer.length,
         width,
         height,
         hasThumbnail: Boolean(thumbnail),
@@ -364,6 +374,31 @@ export async function storeMedia(
     await removeMediaFiles(env.MEDIA_DATA_DIR, { id, fileName })
     throw error
   }
+}
+
+/**
+ * Scale a JPEG, PNG, or WebP down to the MEDIA_IMAGE_MAX box and re-encode it in the same format.
+ * Re-encoding also applies the camera rotation and drops EXIF data such as GPS position.
+ * The original bytes are kept when they are already smaller and carry nothing to strip.
+ */
+export async function optimizePhoto(
+  buffer: Buffer,
+  mime: string,
+  meta: sharp.Metadata,
+  width: number,
+  height: number,
+): Promise<{ buffer: Buffer; width: number; height: number }> {
+  const target = fitMediaImage(width, height)
+  let pipeline = sharp(buffer, { animated: false }).rotate()
+  if (target.resized) pipeline = pipeline.resize(target.width, target.height, { fit: 'inside', withoutEnlargement: true })
+  if (mime === 'image/jpeg') pipeline = pipeline.jpeg({ quality: photoQuality, mozjpeg: true })
+  else if (mime === 'image/webp') pipeline = pipeline.webp({ quality: photoQuality, effort: 5, smartSubsample: true })
+  else pipeline = pipeline.png({ compressionLevel: 9, adaptiveFiltering: true })
+  const output = await pipeline.toBuffer({ resolveWithObject: true }).catch(() => null)
+  if (!output) throw new AppError(400, 'This image could not be read', 'media_type')
+  const carriesMetadata = Boolean(meta.exif || meta.xmp || meta.iptc) || (meta.orientation ?? 1) !== 1
+  if (!target.resized && !carriesMetadata && output.data.length >= buffer.length) return { buffer, width, height }
+  return { buffer: output.data, width: output.info.width, height: output.info.height }
 }
 
 export async function findMedia(db: Database, id: string): Promise<MediaRecord | undefined> {

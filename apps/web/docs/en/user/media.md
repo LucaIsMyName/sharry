@@ -10,6 +10,10 @@ Each file shows as a row with a progress bar while it uploads, at most three at 
 
 An SVG that contains scripts, event handlers, embedded HTML, or links to other files is refused. Export it again without them, or convert it to PNG.
 
+Large photos are made smaller on upload. A JPEG, PNG, or WebP wider than 1920 or taller than 1080 pixels is scaled down to fit, keeping its proportions. A portrait image uses the box turned upright, so it can be up to 1080 wide and 1920 tall. A 4000 × 3000 photo becomes 1440 × 1080. A 4000 × 5000 photo becomes 1080 × 1350. JPEG and WebP are saved again at quality 82, which looks the same on screen at a fraction of the size. PNG stays lossless with stronger compression, so transparency and sharp edges are kept. A small image that is already compressed is kept as uploaded.
+
+Saving a photo again also turns it the way the camera held it and removes camera data such as the GPS position. GIF, SVG, videos, and PDFs are stored unchanged.
+
 A name that already exists in the folder gets a number, such as `photo (2).jpg`.
 
 ## Organize

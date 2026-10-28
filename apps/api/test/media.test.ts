@@ -14,7 +14,8 @@ describe('media library', () => {
     const uploaded = await upload(ctx, user.cookie, png, 'Summer Poster.png')
     expect(uploaded.statusCode).toBe(200)
     const media = uploaded.json()
-    expect(media).toMatchObject({ name: 'Summer Poster.png', kind: 'image', mime: 'image/png', width: 40, height: 20, size: png.length })
+    expect(media).toMatchObject({ name: 'Summer Poster.png', kind: 'image', mime: 'image/png', width: 40, height: 20 })
+    expect(media.size).toBeLessThanOrEqual(png.length)
     expect(media.path).toBe(`/files/${media.id}/Summer%20Poster.png`)
     expect(media.thumbnailUrl).toBe(`/api/media/${media.id}/thumbnail`)
 
@@ -27,11 +28,12 @@ describe('media library', () => {
     expect(file.headers['content-type']).toBe('image/png')
     expect(file.headers['x-content-type-options']).toBe('nosniff')
     expect(file.headers['cross-origin-resource-policy']).toBe('cross-origin')
-    expect(file.rawPayload.equals(png)).toBe(true)
+    expect(file.rawPayload.length).toBe(media.size)
+    expect(await sharp(file.rawPayload).metadata()).toMatchObject({ format: 'png', width: 40, height: 20 })
 
     const partial = await ctx.app.inject({ method: 'GET', url: media.path, headers: { range: 'bytes=0-7' } })
     expect(partial.statusCode).toBe(206)
-    expect(partial.headers['content-range']).toBe(`bytes 0-7/${png.length}`)
+    expect(partial.headers['content-range']).toBe(`bytes 0-7/${media.size}`)
     expect(partial.rawPayload.toString('hex')).toBe('89504e470d0a1a0a')
 
     const missing = await ctx.app.inject({ method: 'GET', url: '/files/00000000-0000-4000-8000-000000000000/x.png' })
@@ -176,6 +178,51 @@ describe('media library', () => {
     expect(removed.statusCode).toBe(204)
     const file = await ctx.app.inject({ method: 'GET', url: media.path })
     expect(file.statusCode).toBe(404)
+  })
+})
+
+describe('image optimization', () => {
+  useTestApp()
+
+  it('scales large photos into 1920 by 1080, upright, without camera metadata', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+
+    const landscape = await sharp({ create: { width: 4000, height: 3000, channels: 3, background: '#3a7' } }).jpeg({ quality: 100 }).toBuffer()
+    const wide = (await upload(ctx, user.cookie, landscape, 'wide.jpg')).json()
+    expect(wide).toMatchObject({ mime: 'image/jpeg', width: 1440, height: 1080 })
+    const wideFile = await ctx.app.inject({ method: 'GET', url: wide.path })
+    expect(await sharp(wideFile.rawPayload).metadata()).toMatchObject({ format: 'jpeg', width: 1440, height: 1080 })
+    expect(wideFile.rawPayload.length).toBe(wide.size)
+
+    const sideways = await sharp({ create: { width: 4000, height: 3000, channels: 3, background: '#a37' } })
+      .jpeg()
+      .withMetadata({ orientation: 6 })
+      .toBuffer()
+    const turned = (await upload(ctx, user.cookie, sideways, 'phone.jpg')).json()
+    expect(turned).toMatchObject({ width: 1080, height: 1440 })
+    const turnedMeta = await sharp((await ctx.app.inject({ method: 'GET', url: turned.path })).rawPayload).metadata()
+    expect(turnedMeta).toMatchObject({ width: 1080, height: 1440 })
+    expect(turnedMeta.orientation).toBeUndefined()
+    expect(turnedMeta.exif).toBeUndefined()
+
+    const portrait = await sharp({ create: { width: 4000, height: 5000, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.5 } } }).png().toBuffer()
+    const tall = (await upload(ctx, user.cookie, portrait, 'tall.png')).json()
+    expect(tall).toMatchObject({ mime: 'image/png', width: 1080, height: 1350 })
+    const tallMeta = await sharp((await ctx.app.inject({ method: 'GET', url: tall.path })).rawPayload).metadata()
+    expect(tallMeta).toMatchObject({ format: 'png', width: 1080, height: 1350, hasAlpha: true })
+
+    const webp = await sharp({ create: { width: 3000, height: 3000, channels: 3, background: '#37a' } }).webp().toBuffer()
+    expect((await upload(ctx, user.cookie, webp, 'square.webp')).json()).toMatchObject({ mime: 'image/webp', width: 1080, height: 1080 })
+  })
+
+  it('keeps a small image that is already compressed as uploaded', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const small = await sharp({ create: { width: 64, height: 48, channels: 3, background: '#777' } }).jpeg({ quality: 40, mozjpeg: true }).toBuffer()
+    const kept = (await upload(ctx, user.cookie, small, 'small.jpg')).json()
+    expect(kept).toMatchObject({ width: 64, height: 48 })
+    expect(kept.size).toBeLessThanOrEqual(small.length)
   })
 })
 

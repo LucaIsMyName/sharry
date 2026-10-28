@@ -99,6 +99,7 @@ In development, Vite serves the dashboard. This process serves the API, `/health
 
 - The body limit is 1 MB. An uploaded account photo is a separate limit of 512 KB and one file. A media upload is one file up to `MEDIA_MAX_UPLOAD_MB` and returns `413` with code `file_too_large` above it.
 - A media upload is typed from its contents: JPEG, PNG, WebP, GIF, SVG, MP4, WebM, or PDF. An SVG with scripts, event handlers, embedded HTML, or external references is refused.
+- A JPEG, PNG, or WebP is scaled with sharp to fit 1920 × 1080 (1080 × 1920 for portrait), turned upright, and stripped of EXIF. JPEG and WebP are re-encoded at quality 82 (mozjpeg for JPEG), PNG losslessly at compression level 9. A small file is kept when re-encoding would not make it smaller.
 - State-changing `/api` requests that include an `Origin` header must match `APP_URL` or `SHORT_URL_BASE`. `GET`, `HEAD`, and `OPTIONS` skip that check. Outside production, an origin on `localhost` or `127.0.0.1` is allowed as well.
 - `/api/auth` rejects `Authorization: Bearer` before the handler runs. Other `/api` routes accept the session cookie or a bearer token.
 - API-key calls are limited to about 120 per minute per key. Sign-in, password change, password reset, authenticator setup, the two-factor challenge, authenticator confirmation, turning two-factor authentication off, and recovery-code replacement are each limited to 10 attempts per minute. A forgotten-password address is mailed at most 5 times an hour. Further requests still return success and send nothing.

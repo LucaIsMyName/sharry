@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   detectMediaType,
+  fitMediaImage,
   formatFileSize,
   mediaDisplayName,
   mediaFilePath,
@@ -77,5 +78,28 @@ describe('media names', () => {
     expect(formatFileSize(512)).toBe('512 B')
     expect(formatFileSize(1536)).toBe('1.5 KB')
     expect(formatFileSize(25 * 1024 * 1024)).toBe('25 MB')
+  })
+})
+
+describe('fitMediaImage', () => {
+  it('keeps an image that already fits', () => {
+    expect(fitMediaImage(1920, 1080)).toEqual({ width: 1920, height: 1080, resized: false })
+    expect(fitMediaImage(800, 600)).toEqual({ width: 800, height: 600, resized: false })
+    expect(fitMediaImage(1080, 1920)).toEqual({ width: 1080, height: 1920, resized: false })
+  })
+
+  it('scales a large landscape photo into 1920 by 1080', () => {
+    expect(fitMediaImage(4000, 3000)).toEqual({ width: 1440, height: 1080, resized: true })
+    expect(fitMediaImage(6000, 2000)).toEqual({ width: 1920, height: 640, resized: true })
+  })
+
+  it('turns the box upright for a portrait photo', () => {
+    expect(fitMediaImage(4000, 5000)).toEqual({ width: 1080, height: 1350, resized: true })
+    expect(fitMediaImage(3000, 9000)).toEqual({ width: 640, height: 1920, resized: true })
+  })
+
+  it('treats a square as landscape and never returns zero', () => {
+    expect(fitMediaImage(3000, 3000)).toEqual({ width: 1080, height: 1080, resized: true })
+    expect(fitMediaImage(20000, 1)).toEqual({ width: 1920, height: 1, resized: true })
   })
 })
