@@ -1,6 +1,6 @@
 # Kampagnen
 
-Eine Kampagne ist eine benannte Gruppe von Varianten. Sie ändert das Ziel nicht und ist kein A/B-Test. Die Kampagnenliste zeigt, wie viele Varianten jede Kampagne hat. Kampagnenordner sind von Linkordnern getrennt und folgen denselben Zeilen, dem Anlegen und dem Ziehen wie Links. Verschieben öffnet den Ordnerbaum in einem Dialog. Bei einer Kampagne ist die Überschrift der Name, ein größeres Symbol steht mittig daneben. Speichern und Löschen stehen in der nächsten Zeile. Kampagnen-Tags sind von Link-Tags getrennt.
+Eine Kampagne ist eine benannte Gruppe von Varianten. Sie ändert das Ziel nicht und ist kein A/B-Test. Die Kampagnenliste zeigt, wie viele Varianten jede Kampagne hat. Kampagnenordner sind von Linkordnern getrennt und folgen denselben Zeilen, dem Anlegen und dem Ziehen wie Links. Verschieben öffnet den Ordnerbaum in einem Dialog. Neue Kampagne öffnet einen Dialog für Name und Beschreibung. Kampagne anlegen und Abbrechen bleiben in diesem Dialog, die Liste verschiebt sich nicht. Bei einer Kampagne ist die Überschrift der Name, ein größeres Symbol steht mittig daneben. Speichern und Löschen stehen in der nächsten Zeile. Kampagnen-Tags sind von Link-Tags getrennt.
 
 ## Wofür eine Kampagne da ist
 

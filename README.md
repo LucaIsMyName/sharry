@@ -21,7 +21,7 @@ Signed-in users can also open `/docs` for the same product and developer guides 
 
 Slugs are unique without regard to case. A taken slug returns: "This short URL is already in use. Please choose a different slug."
 
-A campaign does not change the destination and it is not an A/B test. Blank variant fields keep the link’s UTM values. A variant id from another link is ignored.
+A campaign does not change the destination and it is not an A/B test. New campaign opens a dialog on the campaign list. Deleting a link from the list asks you to type delete, the same as on the link page. Blank variant fields keep the link’s UTM values. A variant id from another link is ignored.
 
 QR codes and password-reset links use the public origins from the environment. Settings can change the path prefix (`/s` by default). The prefix is not stored on each link, so a prefix change updates every displayed short URL on the next read. Printed QR codes still contain the path that was encoded. Enable legacy prefixes in Settings to keep resolving the previous path. That change asks for confirmation.
 

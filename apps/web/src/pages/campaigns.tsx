@@ -30,6 +30,14 @@ import {
 } from "../components/ui/table.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
@@ -150,21 +158,30 @@ export function CampaignsPage() {
                 <Trash2 /> {t("Delete")}
               </Button>
             ) : null}
-            {!loading && campaigns.length > 0 ? (
-              <Button type="button" size="sm" variant={creating ? "outline" : "default"} onClick={() => setCreating((open) => !open)}>
-                {creating ? t("Cancel") : (
-                  <>
-                    <Plus /> {t("New campaign")}
-                  </>
-                )}
-              </Button>
-            ) : null}
+            <Button type="button" size="sm" onClick={() => setCreating(true)}>
+              <Plus /> {t("New campaign")}
+            </Button>
           </div>
         }
       />
-      {!loading && (campaigns.length === 0 || creating) ? (
-      <Section title={t("New campaign")}>
-          <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
+      <Dialog
+        open={creating}
+        onOpenChange={(open) => {
+          setCreating(open);
+          if (!open) {
+            setName("");
+            setDescription("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form className="grid gap-4" onSubmit={(event) => void submit(event)}>
+            <DialogHeader>
+              <DialogTitle className="font-heading text-2xl">{t("New campaign")}</DialogTitle>
+              <DialogDescription>
+                {t("Name the campaign. Variants are added on its page.")}
+              </DialogDescription>
+            </DialogHeader>
             <Field label="Name">
               <Input
                 value={name}
@@ -178,12 +195,25 @@ export function CampaignsPage() {
                 onChange={(event) => setDescription(event.target.value)}
               />
             </Field>
-            <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? t("Creating…") : t("Create campaign")}
-            </Button>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreating(false);
+                  setName("");
+                  setDescription("");
+                }}
+              >
+                {t("Cancel")}
+              </Button>
+              <Button type="submit" disabled={pending}>
+                <Plus /> {pending ? t("Creating…") : t("Create campaign")}
+              </Button>
+            </DialogFooter>
           </form>
-      </Section>
-      ) : null}
+        </DialogContent>
+      </Dialog>
       <CampaignFolderBar
         folder={folder}
         breadcrumb={breadcrumb}
@@ -193,7 +223,7 @@ export function CampaignsPage() {
       {loading ? (
         <RowSkeleton label="Loading campaigns…" />
       ) : visibleRows.length === 0 ? (
-        <EmptyState>{t("No campaigns yet. Create one in the form above.")}</EmptyState>
+        <EmptyState>{t("No campaigns yet.")}</EmptyState>
       ) : (
         <CampaignTable
           rows={visibleRows}

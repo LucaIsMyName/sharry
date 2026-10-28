@@ -841,6 +841,7 @@ export const de: Record<string, string> = {
   "The transcript is removed.": "Das Gespräch wird entfernt.",
   "Report": "Bericht",
   "New campaign": "Neue Kampagne",
+  "Name the campaign. Variants are added on its page.": "Benenne die Kampagne. Varianten kommen auf ihrer Seite dazu.",
   "Confirming…": "Bestätigen…",
   "Dismissing…": "Verwerfen…",
   "Loading users…": "Benutzer werden geladen…",

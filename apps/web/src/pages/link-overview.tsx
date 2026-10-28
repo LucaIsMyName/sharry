@@ -13,7 +13,10 @@ import { useAiAvailable } from "../components/use-ai.ts";
 import { TagBadge } from "../components/tag-field.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
+import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { DataTable, loadTableView, saveTableView, type DataColumn, type TableView } from "../components/ui/data-table.tsx";
+import { Field } from "../components/ui/field.tsx";
+import { Input } from "../components/ui/input.tsx";
 import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
 import { t, useI18n } from "../i18n/index.tsx";
@@ -56,6 +59,8 @@ export function LinkOverview() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moveFor, setMoveFor] = useState<OverviewRow | null>(null);
+  const [deleteLink, setDeleteLink] = useState<LinkSummary | null>(null);
+  const [deleteText, setDeleteText] = useState("");
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -198,11 +203,13 @@ export function LinkOverview() {
     setRenameValue(item.name);
   }
 
-  async function removeLink(link: LinkSummary) {
-    if (!window.confirm(t("Delete this link?"))) return;
+  async function removeLink() {
+    if (!deleteLink || deleteText !== "delete") return;
     try {
-      await api(`/api/links/${link.id}`, { method: "DELETE" });
-      setSelected((current) => current.filter((id) => id !== `link:${link.id}`));
+      await api(`/api/links/${deleteLink.id}`, { method: "DELETE" });
+      setSelected((current) => current.filter((id) => id !== `link:${deleteLink.id}`));
+      setDeleteLink(null);
+      setDeleteText("");
       setReload((value) => value + 1);
     } catch (caught) {
       toastCaught(caught, t("Could not delete the link"));
@@ -376,7 +383,7 @@ export function LinkOverview() {
               <ExternalLink />
             </IconAction>
             {row.link.canEdit === false ? null : (
-              <IconAction label={t("Delete")} onClick={() => void removeLink(row.link)}>
+              <IconAction label={t("Delete")} onClick={() => setDeleteLink(row.link)}>
                 <Trash2 />
               </IconAction>
             )}
@@ -466,7 +473,10 @@ export function LinkOverview() {
                     id: "delete",
                     label: "Delete",
                     destructive: true,
-                    onSelect: () => void (row.kind === "folder" ? removeFolder(row.folder) : removeLink(row.link)),
+                    onSelect: () => {
+                      if (row.kind === "folder") void removeFolder(row.folder);
+                      else setDeleteLink(row.link);
+                    },
                   },
                 ]
           }
@@ -510,6 +520,29 @@ export function LinkOverview() {
           if (moveFor) void move(moveFor, parentId);
         }}
       />
+      <ConfirmDialog
+        open={deleteLink !== null}
+        title="Delete this short link?"
+        description="Type delete to remove the short link. Printed codes and saved URLs will stop working."
+        confirmLabel="Delete link"
+        destructive
+        confirmDisabled={deleteText !== "delete"}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteLink(null);
+            setDeleteText("");
+          }
+        }}
+        onConfirm={() => void removeLink()}
+      >
+        <Field label="Type delete">
+          <Input
+            value={deleteText}
+            onChange={(event) => setDeleteText(event.target.value)}
+            autoComplete="off"
+          />
+        </Field>
+      </ConfirmDialog>
     </section>
   );
 
