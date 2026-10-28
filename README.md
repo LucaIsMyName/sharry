@@ -2,7 +2,7 @@
 
 Sharry is a self-hosted link shortener. One Node.js process serves the dashboard, the JSON API, and public redirects. PostgreSQL stores users, links, campaigns, QR styles, click events, sessions, and settings. There is no Docker image and no separate frontend host in production.
 
-People create short links, attach UTM parameters, group tracked copies in campaigns, design QR codes, and read click analytics. Links and campaigns can sit in nested folders, carry an icon, and share tags. Administrators add accounts, API keys, redirect domains, and mail settings. Registration is closed. Two-factor authentication stays off until someone turns it on from Account, or an administrator requires it in Settings.
+People create short links, attach UTM parameters, group tracked copies in campaigns, design QR codes, and read click analytics. Links and campaigns can sit in nested folders, carry an icon, and share tags. Move to opens that folder tree in a dialog. Administrators add accounts, API keys, redirect domains, and mail settings. Registration is closed. Two-factor authentication stays off until someone turns it on from Account, or an administrator requires it in Settings.
 
 Signed-in users can also open `/docs` for the same product and developer guides that live in this repository as markdown. This file is the map of the whole project: what it does, how to run it locally, how a change fits into the code, and how a release reaches a server.
 

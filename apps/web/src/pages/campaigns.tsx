@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { defaultCampaignIcon, defaultFolderIcon, type UtmParams } from "@sharry/shared";
 import { api, type ShortLink } from "../api.ts";
 import { AppIcon } from "../components/app-icon.tsx";
+import { FolderMoveDialog } from "../components/folder-move-dialog.tsx";
 import { IconPicker } from "../components/icon-picker.tsx";
 import { TagBadge, TagField, type EditorTag } from "../components/tag-field.tsx";
 import { EmptyState } from "../components/empty-state.tsx";
@@ -217,15 +218,17 @@ export function CampaignsPage() {
           onDrop={(payload, targetId) => void dropCampaign(payload, targetId.startsWith("folder:") ? targetId.slice(7) : null)}
         />
       )}
-      {moveFor ? (
-        <div className="grid max-w-sm gap-1 rounded-lg border border-border p-3">
-          <p className="text-sm font-medium">{t("Move to…")}</p>
-          <FolderMoveList folders={tree} rootLabel={t("Campaigns")} onPick={(parentId) => void moveRow(moveFor, parentId)} />
-          <Button type="button" variant="ghost" size="sm" onClick={() => setMoveFor(null)}>
-            {t("Cancel")}
-          </Button>
-        </div>
-      ) : null}
+      <FolderMoveDialog
+        open={moveFor !== null}
+        folders={tree}
+        rootLabel={t("Campaigns")}
+        onOpenChange={(open) => {
+          if (!open) setMoveFor(null);
+        }}
+        onPick={(parentId) => {
+          if (moveFor) void moveRow(moveFor, parentId);
+        }}
+      />
     </section>
   );
 
@@ -1091,50 +1094,6 @@ function FolderNameInput({
         }
       }}
     />
-  );
-}
-
-function FolderMoveList({
-  folders,
-  rootLabel,
-  onPick,
-}: {
-  folders: FolderItem[];
-  rootLabel: string;
-  onPick: (id: string | null) => void;
-}) {
-  const byParent = new Map<string | null, FolderItem[]>();
-  for (const folder of folders) {
-    const key = folder.parentId ?? null;
-    byParent.set(key, [...(byParent.get(key) ?? []), folder]);
-  }
-  const rows: { item: FolderItem; depth: number }[] = [];
-  function walk(parentId: string | null, depth: number) {
-    for (const item of byParent.get(parentId) ?? []) {
-      rows.push({ item, depth });
-      walk(item.id, depth + 1);
-    }
-  }
-  walk(null, 1);
-  return (
-    <>
-      <button type="button" className="flex items-center gap-2 text-left text-sm hover:underline" onClick={() => onPick(null)}>
-        <AppIcon name={defaultFolderIcon} />
-        {rootLabel}
-      </button>
-      {rows.map(({ item, depth }) => (
-        <button
-          key={item.id}
-          type="button"
-          className="flex items-center gap-2 text-left text-sm hover:underline"
-          style={{ paddingInlineStart: depth * 14 }}
-          onClick={() => onPick(item.id)}
-        >
-          <AppIcon name={item.icon ?? defaultFolderIcon} />
-          {item.name}
-        </button>
-      ))}
-    </>
   );
 }
 
