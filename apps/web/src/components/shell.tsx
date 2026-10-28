@@ -30,6 +30,7 @@ import { Button } from "./ui/button.tsx";
 import { cardBevel } from "./ui/card.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { CommandMenu } from "./command-menu.tsx";
+import { RouteErrorBoundary } from "./route-error-boundary.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
 export function Shell() {
@@ -107,7 +108,9 @@ export function Shell() {
           <Outlet context={{ admin }} />
         </div>
       </main>
-      <CommandMenu open={searchOpen} onOpenChange={setSearchOpen} admin={admin} />
+      <RouteErrorBoundary resetKey={pathname} message={t("Search could not be opened.")}>
+        <CommandMenu open={searchOpen} onOpenChange={setSearchOpen} admin={admin} />
+      </RouteErrorBoundary>
     </div>
   );
 }
