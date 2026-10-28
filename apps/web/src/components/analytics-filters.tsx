@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { AnalyticsOptions, LinkStat } from "../api.ts";
 import { useI18n } from "../i18n/index.tsx";
 import { Button } from "./ui/button.tsx";
+import { Checkbox } from "./ui/checkbox.tsx";
 import { FilterChip } from "./ui/filter-chip.tsx";
-import { MultiSelect } from "./ui/multi-select.tsx";
+import { Input } from "./ui/input.tsx";
 
 const filterKeys = [
   "link",
@@ -20,9 +21,11 @@ const filterKeys = [
   "utm_content",
 ] as const;
 
+type FilterKey = (typeof filterKeys)[number];
+
 const notSet = "Not set";
 
-const labels: Record<(typeof filterKeys)[number], string> = {
+const labels: Record<FilterKey, string> = {
   link: "Links",
   country: "Country",
   browser: "Browser",
@@ -49,8 +52,28 @@ export function AnalyticsFilters({
   onChange: (next: URLSearchParams) => void;
 }) {
   const { t } = useI18n();
-  const [adding, setAdding] = useState<(typeof filterKeys)[number] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [category, setCategory] = useState<FilterKey>("link");
+  const [query, setQuery] = useState("");
+  const root = useRef<HTMLDivElement>(null);
+  const panelId = useId();
   const active = filterKeys.some((key) => params.get(key));
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: PointerEvent) {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   function setList(key: string, values: string[]) {
     const next = new URLSearchParams(params);
@@ -67,17 +90,86 @@ export function AnalyticsFilters({
     const next = new URLSearchParams(params);
     for (const key of filterKeys) next.delete(key);
     onChange(next);
-    setAdding(null);
+    setOpen(false);
+  }
+
+  function toggle(value: string, checked: boolean) {
+    const current = params.getAll(category);
+    const next = checked ? [...current, value] : current.filter((item) => item !== value);
+    setList(category, [...new Set(next)]);
   }
 
   const choices = optionMap(links, options);
+  const values = params.getAll(category);
+  const shown = (choices[category] ?? [])
+    .map((value) => ({
+      value,
+      label: category === "link" ? linkLabel(links, value) : value === notSet ? t("Not set") : value,
+    }))
+    .filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="mb-4 grid gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="outline" size="sm" aria-expanded={adding !== null} onClick={() => setAdding((current) => (current ? null : "link"))}>
-          {t("Add filter")}
-        </Button>
+        <div className="relative" ref={root}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen((current) => !current)}
+          >
+            {t("Add filter")}
+          </Button>
+          {open ? (
+            <div
+              id={panelId}
+              role="dialog"
+              aria-label={t("Add filter")}
+              className="absolute top-full left-0 z-30 mt-2 grid w-80 gap-2 rounded-md bg-popover p-2 text-popover-foreground shadow-md ring-1 ring-foreground/10"
+            >
+              <div className="flex flex-wrap gap-1">
+                {filterKeys.map((key) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant={category === key ? "secondary" : "ghost"}
+                    onClick={() => {
+                      setCategory(key);
+                      setQuery("");
+                    }}
+                  >
+                    {t(labels[key])}
+                  </Button>
+                ))}
+              </div>
+              <Input
+                value={query}
+                placeholder="Search"
+                aria-label={t("Search")}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              <div className="grid max-h-56 gap-1 overflow-auto">
+                {shown.length === 0 ? (
+                  <p className="px-2 py-1.5 text-sm text-muted-foreground">{t("No data yet.")}</p>
+                ) : (
+                  shown.map((option) => (
+                    <div key={option.value} className="flex items-center gap-2 rounded-md px-2 py-1.5">
+                      <Checkbox
+                        checked={values.includes(option.value)}
+                        aria-label={option.label}
+                        onCheckedChange={(checked) => toggle(option.value, checked === true)}
+                      />
+                      <span className="truncate text-sm">{option.label}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
+        </div>
         {filterKeys.flatMap((key) =>
           params.getAll(key).map((value) => (
             <FilterChip
@@ -93,24 +185,6 @@ export function AnalyticsFilters({
           </Button>
         ) : null}
       </div>
-      {adding ? (
-        <div className="flex flex-wrap items-end gap-2">
-          {filterKeys.map((key) => (
-            <Button key={key} type="button" size="sm" variant={adding === key ? "secondary" : "ghost"} onClick={() => setAdding(key)}>
-              {t(labels[key])}
-            </Button>
-          ))}
-          <MultiSelect
-            label={t(labels[adding])}
-            values={params.getAll(adding)}
-            options={(choices[adding] ?? []).map((value) => ({
-              value,
-              label: adding === "link" ? linkLabel(links, value) : value === notSet ? t("Not set") : value,
-            }))}
-            onChange={(values) => setList(adding, values)}
-          />
-        </div>
-      ) : null}
     </div>
   );
 }

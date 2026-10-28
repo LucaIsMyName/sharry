@@ -116,10 +116,12 @@ describe("analytics page", () => {
     fireEvent.click(busyBox);
     fireEvent.click(screen.getByRole("checkbox", { name: "Select Quiet" }));
     fireEvent.click(add);
+    expect(screen.getByRole("dialog", { name: "Add filter" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Country" }));
-    const countryTriggers = screen.getAllByRole("button", { name: "Country" });
-    fireEvent.click(countryTriggers[countryTriggers.length - 1]!);
     fireEvent.click(screen.getByRole("checkbox", { name: "DE" }));
+    expect(screen.getByRole("dialog", { name: "Add filter" })).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("dialog", { name: "Add filter" })).toBeNull();
     await waitFor(() => {
       const last = calls.filter((path) => path.startsWith("/api/analytics")).at(-1) ?? "";
       expect(last).toContain(`link=${busy}`);

@@ -16,7 +16,7 @@ Country and region stay empty unless `GEOIP_DB_PATH` points at a local MaxMind d
 
 ## Filters
 
-The date slider is the main control. Add filter opens links, country, browser, operating system, referrer, device, and each UTM key. Active filters are removable chips. Clear removes them all. The address bar keeps the same query parameters.
+The date slider is the main control. Add filter opens a panel for links, country, browser, operating system, referrer, device, and each UTM key. Choose a category, set its values, then click outside the panel to close it. Active filters stay as removable chips. Clear removes them all. The address bar keeps the same query parameters.
 
 The date slider under the heading sets the range. Click a day on the chart to keep that day. Hover still shows the tooltip. Click a breakdown row to toggle that value as a filter, including referrer and device. A selected row stays highlighted. The Links heading has the shared data table. Checkboxes there choose which links the charts include, and a row selects that one link. The table’s own sort, column filters, and column widths stay in this browser and do not change the chart filters.
 

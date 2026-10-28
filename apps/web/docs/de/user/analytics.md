@@ -16,7 +16,7 @@ Land und Region bleiben leer, außer `GEOIP_DB_PATH` zeigt auf eine lokale MaxMi
 
 ## Filter
 
-Der Datumsregler ist die Hauptsteuerung. Filter hinzufügen öffnet Links, Land, Browser, Betriebssystem, Referrer, Gerät und jeden UTM-Schlüssel. Aktive Filter sind entfernbare Chips. Zurücksetzen entfernt sie alle. Die Adresszeile behält dieselben Parameter.
+Der Datumsregler ist die Hauptsteuerung. Filter hinzufügen öffnet ein Fenster für Links, Land, Browser, Betriebssystem, Referrer, Gerät und jeden UTM-Schlüssel. Wähle eine Kategorie, setze ihre Werte, und klicke dann neben das Fenster, um es zu schließen. Aktive Filter bleiben als entfernbare Chips. Zurücksetzen entfernt sie alle. Die Adresszeile behält dieselben Parameter.
 
 Der Datumsregler unter der Überschrift setzt den Zeitraum. Ein Klick auf einen Tag behält diesen Tag. Die Kurzinfo beim Darüberfahren bleibt. Ein Klick auf eine Aufschlüsselungszeile schaltet diesen Wert als Filter um, auch Referrer und Gerät. Eine gewählte Zeile bleibt hervorgehoben. Unter der Überschrift Links steht dieselbe Datentabelle. Die Kontrollkästchen wählen, welche Links die Diagramme zeigen, und eine Zeile wählt genau diesen einen Link. Sortierung, Spaltenfilter und Spaltenbreiten der Tabelle bleiben in diesem Browser und ändern die Diagrammfilter nicht.
 
