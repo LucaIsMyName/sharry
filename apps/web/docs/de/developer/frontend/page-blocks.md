@@ -141,7 +141,9 @@ Ein Block mit `slots: [{ name: 'children', label: 'Content' }]` bekommt das gere
 Öffentliche Seiten werden mit einer Content Security Policy ausgeliefert, die Skripte, Frames, Formulare und fremde Ressourcen sperrt. Halte `render` in diesen Grenzen:
 
 - Escape jeden Textwert mit `escapeHtml`, auch Attributwerte.
-- Baue `style`-Attribute mit `styleAttr`. Es überspringt leere Werte und escaped das Ergebnis. Gib Farben durch `color()` und Skalenschlüssel durch `pick()`, denn ein gespeicherter Wert kann aus einer älteren Version des Blocks stammen.
+- Baue `style`-Attribute mit `styleAttr`. Es überspringt leere Werte und escaped das Ergebnis. Gib Farben durch `color()` und Skalenschlüssel durch `pick()`, denn ein gespeicherter Wert kann aus einer älteren Version des Blocks stammen. `rgba()` macht aus einer gespeicherten Farbe und einer Deckkraft einen `rgba()`-Wert, und `cssUrl()` verpackt einen Medienpfad für `background-image` und kodiert dabei Anführungszeichen, Klammern und Leerzeichen.
+- Baue eine `id` aus Text der Person mit `anchorId()`. Es behält Kleinbuchstaben, Ziffern und Bindestriche.
+- Teile Markup zwischen Blöcken über einen exportierten Helfer, wie `buttonHtml()` und `buttonCss` in `button.ts` für Button und Button-Gruppe. Das CSS eines Blocks kommt nur in Seiten, die ihn nutzen. Ein Block, der Klassen eines anderen Blocks wiederverwendet, muss deshalb auch dessen CSS mitbringen.
 - Gib Rich Text vor der Ausgabe noch einmal durch `cleanRichText`.
 - Prüfe Links mit `isSafeHref`, bevor du ein `href` schreibst.
 - Löse Medien mit `context.media(id)` auf. Es liefert `null` für eine fehlende oder gelöschte Datei, und der Block rendert dann nichts oder einen Ersatz.

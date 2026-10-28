@@ -27,13 +27,16 @@ Eine Seite kann bis zu 300 Blöcke enthalten, höchstens 4 Ebenen tief verschach
 
 | Block | Wofür | Wichtige Einstellungen |
 | --- | --- | --- |
-| Container | Ein Abschnitt, der andere Blöcke gruppiert | Inhaltsbreite, Abstand oben und unten, Abstand an den Seiten, Außenabstand, Ecken, Hintergrund, Textfarbe |
+| Container | Ein Abschnitt, der andere Blöcke gruppiert | Inhaltsbreite, Mindesthöhe, vertikale Position, horizontale Ausrichtung, Abstand oben und unten, Abstand an den Seiten, Außenabstand, Ecken, Hintergrund, Textfarbe, Rahmen, Schatten, Hintergrundbild mit Überlagerung, Anker |
 | Zwei Spalten | Zwei Bereiche nebeneinander. Auf dem Handy stehen sie untereinander | Spaltenbreiten, Zwischenraum, vertikale Ausrichtung, Innenabstand, Hintergrund, Textfarbe |
 | Überschrift | Ein Titel. Nutze eine Überschrift 1 pro Seite | Ebene 1 bis 3, Ausrichtung, Schrift, Farbe |
 | Text | Formatierter Text | Fett, kursiv, unterstrichen, durchgestrichen, Zwischenüberschriften, Listen, Zitate, Links, Textausrichtung, Größe, Schrift, Farbe |
 | Button | Ein Aufruf zum Handeln | Beschriftung, Link, Tooltip, neuer Tab, gefüllt oder Umriss, Farben, Ecken, Größe, Schrift, Breite, Innenabstand, Ausrichtung |
+| Button-Gruppe | Bis zu vier Buttons nebeneinander, etwa ein Haupt- und ein zweiter Aufruf zum Handeln | Pro Button: Beschriftung, Link, gefüllt oder Umriss, neuer Tab. Für die Gruppe: Farben, Ecken, Textgröße, Zwischenraum, Ausrichtung, auf Handys untereinander |
+| Feature-Raster | Bis zu 12 Karten in zwei, drei oder vier Spalten. Handys zeigen eine Spalte | Pro Karte: Bild, Titel, formatierter Text. Für das Raster: Spalten, kleines Symbol oder Bild in voller Breite, schlichte, umrandete oder gefüllte Karten, Kartenfarbe, Ecken, Zwischenraum, Ausrichtung |
 | Bild | Ein Bild aus der Mediathek | Alternativtext, Bildunterschrift, Link, Breite, Ausrichtung, Ecken, Rahmen, Abstand, Filter |
 | Video | Ein MP4- oder WebM-Video aus der Mediathek | Vorschaubild, Steuerelemente, stumm in Schleife abspielen, Ecken |
+| Bildergalerie | Bis zu 24 Bilder aus der Mediathek in einem Raster. Handys zeigen zwei Spalten | Pro Bild: Datei, Alternativtext, Bildunterschrift. Für die Galerie: Spalten, Form (Original, quadratisch, 4:3, 16:9), Zwischenraum, Ecken, Bildunterschriften zeigen, ganzes Bild beim Klick öffnen |
 | Akkordeon | Fragen oder Abschnitte, die sich beim Anklicken öffnen | Einträge mit Überschrift und formatierter Antwort, Pfeil oder Plus, ersten Eintrag öffnen, Ecken, Farben, Linien |
 | Zitat | Ein Zitat oder eine Kundenstimme | Quelle, schlichter Stil, Linie an der Seite oder groß, Ausrichtung, Schrift, Farbe |
 | Abstand | Leerer Raum zwischen Blöcken | Höhe |
@@ -43,7 +46,13 @@ Das Feld Link eines Buttons schlägt beim Tippen deine Kurzlinks vor, damit ein 
 
 Die Textformatierung ist auf das beschränkt, was die öffentliche Seite sicher zeigen kann. Eingefügter Inhalt behält Fett, Kursiv, Unterstrichen, Durchgestrichen, Inline-Code, Links, Listen, Zwischenüberschriften, Zitate und Textausrichtung. Alles andere, etwa Farben, Schriften und eingebettete Inhalte, wird entfernt.
 
-Der Alternativtext eines Bildes kommt aus der Mediathek. Fülle Alternativtext im Block aus, um auf dieser Seite einen anderen Text zu nutzen. Eine Datei, die du in einem Bild- oder Video-Block wählst oder ablegst, landet in der Mediathek. Siehe [Medien](/docs/user/media).
+Der Alternativtext eines Bildes kommt aus der Mediathek. Fülle Alternativtext im Block aus, um auf dieser Seite einen anderen Text zu nutzen. Eine Datei, die du in einem Bild-, Video-, Bildergalerie- oder Feature-Raster-Block oder als Container-Hintergrund wählst oder ablegst, landet in der Mediathek. Siehe [Medien](/docs/user/media).
+
+Die Mindesthöhe eines Containers macht einen Abschnitt höher als seinen Inhalt, bis zum ganzen Bildschirm für einen Hero-Abschnitt. Die vertikale Position setzt den Inhalt dann oben, mittig oder unten hin oder verteilt die Blöcke. Die horizontale Ausrichtung lässt Blöcke die volle Breite nutzen (Strecken) oder ihre eigene Breite links, mittig oder rechts behalten.
+
+Ein Hintergrundbild füllt den ganzen Abschnitt und wird passend beschnitten. Die Überlagerung legt eine Farbe darüber, leicht, mittel oder stark, damit Text darauf lesbar bleibt. Stelle die Textfarbe des Containers passend ein.
+
+Der Anker gibt einem Container einen Namen, etwa `preise`. Ein Button oder Link mit der Adresse `#preise` springt dann zu diesem Abschnitt. Der Name wird kleingeschrieben und nur mit Buchstaben, Ziffern und Bindestrichen gespeichert. Nutze jeden Namen nur einmal pro Seite.
 
 Akkordeons öffnen und schließen ohne JavaScript. Jeder Eintrag hat eine Überschrift und eine formatierte Antwort, das Symbol ist ein Pfeil oder ein Plus.
 

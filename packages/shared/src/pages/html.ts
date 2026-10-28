@@ -31,3 +31,14 @@ export function isSafeHref(value: string): boolean {
     return false
   }
 }
+
+/** An element id a link can target with #name: lowercase letters, digits, and hyphens. Empty when nothing usable is left. */
+export function anchorId(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}

@@ -3,6 +3,45 @@ import { field } from '../fields.ts'
 import { escapeHtml, isSafeHref } from '../html.ts'
 import { alignOptions, color, fontOptions, fonts, justify, pick, radius, radiusOptions, spacing, spacingOptions, styleAttr, textSizeOptions, textSizes } from '../style.ts'
 
+export const buttonCss =
+  '.b-button{display:inline-block;box-sizing:border-box;text-align:center;text-decoration:none;font-weight:600;line-height:1.2;border:2px solid transparent}'
+
+export type ButtonLook = {
+  label: string
+  href: string
+  title?: string
+  newTab: boolean
+  variant: string
+  background: string | null
+  textColor: string | null
+  radius: string
+  size: string
+}
+
+/** One button link. Shared by Button and Button group so both look the same. */
+export function buttonHtml(button: ButtonLook, extra: Record<string, string | null> = {}): string {
+  const fill = color(button.background) ?? '#13119b'
+  const label = color(button.textColor) ?? '#ffffff'
+  const outline = button.variant === 'outline'
+  const style = styleAttr({
+    'background-color': outline ? 'transparent' : fill,
+    'border-color': fill,
+    color: outline ? fill : label,
+    'border-radius': pick(radius, button.radius, 'sm'),
+    'font-size': pick(textSizes, button.size, 'md'),
+    ...extra,
+  })
+  const href = isSafeHref(button.href) && button.href ? button.href : '#'
+  const attributes = [
+    `href="${escapeHtml(href)}"`,
+    button.title ? `title="${escapeHtml(button.title)}"` : '',
+    button.newTab ? 'target="_blank" rel="noopener noreferrer"' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return `<a class="b-button" ${attributes}${style}>${escapeHtml(button.label)}</a>`
+}
+
 export const buttonBlock = defineBlock({
   type: 'button',
   label: 'Button',
@@ -39,30 +78,14 @@ export const buttonBlock = defineBlock({
     paddingBlock: field.choice({ label: 'Space above and below', default: 'sm', options: spacingOptions }),
     align: field.choice({ label: 'Alignment', default: 'left', options: alignOptions }),
   },
-  css: '.b-button-row{display:flex}.b-button{display:inline-block;box-sizing:border-box;text-align:center;text-decoration:none;font-weight:600;line-height:1.2;border:2px solid transparent}',
+  css: `.b-button-row{display:flex}${buttonCss}`,
   render(props) {
-    const fill = color(props.background) ?? '#13119b'
-    const label = color(props.textColor) ?? '#ffffff'
-    const outline = props.variant === 'outline'
-    const style = styleAttr({
-      'background-color': outline ? 'transparent' : fill,
-      'border-color': fill,
-      color: outline ? fill : label,
-      'border-radius': pick(radius, props.radius, 'sm'),
-      'font-size': pick(textSizes, props.size, 'md'),
+    const row = styleAttr({ 'justify-content': justify[props.align] ?? 'flex-start' })
+    const button = buttonHtml(props, {
       'font-family': props.font === 'inherit' ? null : pick(fonts, props.font, 'inherit'),
       padding: `${pick(spacing, props.paddingBlock, 'sm')} ${pick(spacing, props.paddingInline, 'md')}`,
       width: props.width === 'full' ? '100%' : null,
     })
-    const href = isSafeHref(props.href) && props.href ? props.href : '#'
-    const attributes = [
-      `href="${escapeHtml(href)}"`,
-      props.title ? `title="${escapeHtml(props.title)}"` : '',
-      props.newTab ? 'target="_blank" rel="noopener noreferrer"' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
-    const row = styleAttr({ 'justify-content': justify[props.align] ?? 'flex-start' })
-    return `<div class="b-button-row"${row}><a class="b-button" ${attributes}${style}>${escapeHtml(props.label)}</a></div>`
+    return `<div class="b-button-row"${row}>${button}</div>`
   },
 })

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import sharp from 'sharp'
 import { redirectDomains } from '@sharry/database'
-import { createBlock, type PageContent } from '@sharry/shared'
+import { createBlock, cssUrl, type PageContent } from '@sharry/shared'
 import { invalidateRedirectHosts } from '../src/redirect-domains.ts'
 import { PAGE_CSP } from '../src/pages.ts'
 import { createSessionUser, getContext, useTestApp, type TestContext } from './helpers.ts'
@@ -177,6 +177,38 @@ describe('landing pages', () => {
 
     const listed = await ctx.app.inject({ method: 'GET', url: '/api/media', headers })
     expect(listed.json().media[0].usageCount).toBe(1)
+  })
+
+  it('counts gallery images and container backgrounds as media uses', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const headers = { cookie: user.cookie }
+    const page = (await createPage(ctx, user.cookie, { title: 'Photos', slug: 'photos' })).json()
+    const photo = (await uploadImage(ctx, user.cookie)).json()
+    const backdrop = (await uploadImage(ctx, user.cookie)).json()
+
+    const gallery = createBlock('gallery', () => 'g1')
+    gallery.props = { ...gallery.props, items: [{ mediaId: photo.id, alt: '', caption: 'Harbor' }] }
+    const section = createBlock('container', () => 'c1')
+    section.props = { ...section.props, backgroundImageId: backdrop.id, anchor: 'photos' }
+    section.slots = { children: [gallery] }
+    const saved = await ctx.app.inject({ method: 'POST', url: `/api/pages/${page.id}/publish`, headers, payload: { content: { blocks: [section] } } })
+    expect(saved.statusCode).toBe(200)
+
+    const live = await ctx.app.inject({ method: 'GET', url: '/l/photos' })
+    expect(live.body).toContain(`<figure><img src="${photo.path}"`)
+    expect(live.body).toContain('id="photos"')
+    const backgroundUrl = cssUrl(backdrop.path)
+    expect(live.body).toContain(backgroundUrl.replace(/"/g, '&quot;'))
+    const served = await ctx.app.inject({ method: 'GET', url: backgroundUrl.slice('url("'.length, -'")'.length) })
+    expect(served.statusCode).toBe(200)
+
+    for (const file of [photo, backdrop]) {
+      const usage = await ctx.app.inject({ method: 'GET', url: `/api/media/${file.id}/usage`, headers })
+      expect(usage.json().pages).toEqual([{ id: page.id, title: 'Photos', slug: 'photos' }])
+      const blocked = await ctx.app.inject({ method: 'DELETE', url: `/api/media/${file.id}`, headers })
+      expect(blocked.statusCode).toBe(409)
+    }
   })
 
   it('marks noindex pages for search engines and writes social tags', async () => {

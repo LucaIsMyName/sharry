@@ -1,9 +1,12 @@
 import type { BlockDefinition } from './block.ts'
 import { accordionBlock } from './blocks/accordion.ts'
 import { buttonBlock } from './blocks/button.ts'
+import { buttonGroupBlock } from './blocks/button-group.ts'
 import { columnsBlock } from './blocks/columns.ts'
 import { containerBlock } from './blocks/container.ts'
 import { dividerBlock } from './blocks/divider.ts'
+import { featuresBlock } from './blocks/features.ts'
+import { galleryBlock } from './blocks/gallery.ts'
 import { headingBlock } from './blocks/heading.ts'
 import { imageBlock } from './blocks/image.ts'
 import { quoteBlock } from './blocks/quote.ts'
@@ -21,7 +24,10 @@ export const pageBlocks: readonly BlockDefinition[] = [
   headingBlock,
   textBlock,
   buttonBlock,
+  buttonGroupBlock,
+  featuresBlock,
   imageBlock,
+  galleryBlock,
   videoBlock,
   accordionBlock,
   quoteBlock,

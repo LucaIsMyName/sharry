@@ -2,11 +2,14 @@ import {
   Columns2,
   Heading,
   Image,
+  Images,
+  LayoutGrid,
   ListCollapse,
   Minus,
   MousePointerClick,
   MoveVertical,
   Quote,
+  RectangleHorizontal,
   Square,
   Type,
   Video,
@@ -27,6 +30,9 @@ export const blockIcons: Record<BlockIconName, LucideIcon> = {
   Quote,
   MoveVertical,
   Minus,
+  RectangleHorizontal,
+  LayoutGrid,
+  Images,
 };
 
 export function BlockIcon({ name, className }: { name: BlockIconName; className?: string }) {

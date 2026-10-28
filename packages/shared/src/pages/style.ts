@@ -60,6 +60,20 @@ export function color(value: string | null | undefined): string | null {
   return value && HEX_COLOR.test(value) ? value : null
 }
 
+/** A hex color with an alpha between 0 and 1, as rgba(). Null when the color is not valid. */
+export function rgba(value: string | null | undefined, alpha: number): string | null {
+  const hex = color(value)
+  if (!hex) return null
+  const [r, g, b] = [1, 3, 5].map((start) => Number.parseInt(hex.slice(start, start + 2), 16))
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
+/** A CSS url() for a path on this host. Characters that could end the url or the declaration are percent-encoded. */
+export function cssUrl(path: string): string {
+  const safe = path.replace(/["'()\\\s;<>]/g, (character) => `%${character.charCodeAt(0).toString(16).padStart(2, '0').toUpperCase()}`)
+  return `url("${safe}")`
+}
+
 /** Build a style attribute from declarations. Empty values are skipped and the result is escaped. */
 export function styleAttr(declarations: Record<string, string | null | undefined | false>): string {
   const css = Object.entries(declarations)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RenderContext } from './block.ts'
-import { renderPage } from './render.ts'
+import { renderBlocks, renderPage } from './render.ts'
 import { defaultPageSettings, pageContentSchema, pageMediaIds, pageSettingsSchema, PAGE_MAX_BLOCKS, type PageBlock } from './schema.ts'
 import {
   createBlock,
@@ -184,5 +184,156 @@ describe('renderPage', () => {
     expect(fromLibrary).toContain('alt="A red boat"')
     image.props.alt = 'Custom'
     expect(renderPage({ title: 'x', settings: defaultPageSettings, content: { blocks: [image] } }, { media })).toContain('alt="Custom"')
+  })
+})
+
+describe('container options', () => {
+  it('renders a default container exactly as before the new options existed', () => {
+    expect(renderBlocks([createBlock('container', () => 'c')], { media })).toBe(
+      '<section class="b-container" style="padding:64px 32px;margin:0 0;border-radius:0"><div class="b-inner" style="max-width:860px"></div></section>',
+    )
+  })
+
+  it('sets height, content position, alignment, border, and shadow', () => {
+    const section = createBlock('container', () => 'c')
+    section.props = { ...section.props, minHeight: 'screen', justify: 'center', align: 'center', borderColor: '#e4e4e7', shadow: 'soft' }
+    const html = renderBlocks([section], { media })
+    expect(html).toContain('min-height:100vh;justify-content:center;border:1px solid #e4e4e7;box-shadow:0 4px 16px rgba(0,0,0,.08)')
+    expect(html).toContain('<div class="b-inner" style="max-width:860px;align-items:center">')
+  })
+
+  it('layers the overlay over the background image and skips a missing file', () => {
+    const section = createBlock('container', () => 'c')
+    section.props = { ...section.props, backgroundImageId: imageId, overlayColor: '#102030', overlayOpacity: 'medium' }
+    expect(renderBlocks([section], { media })).toContain(
+      `background-image:linear-gradient(rgba(16,32,48,0.5),rgba(16,32,48,0.5)),url(&quot;/files/${imageId}/cover.png&quot;);background-size:cover;background-position:center`,
+    )
+    section.props.overlayOpacity = 'none'
+    expect(renderBlocks([section], { media })).toContain(`background-image:url(&quot;/files/${imageId}/cover.png&quot;)`)
+    section.props.backgroundImageId = '33333333-3333-4333-8333-333333333333'
+    expect(renderBlocks([section], { media })).not.toContain('background-image')
+  })
+
+  it('escapes a file name that tries to break out of the CSS url', () => {
+    const hostile: RenderContext['media'] = (id) =>
+      id ? { id, path: `/files/${id}/a"); background:url(x) ;"b.png`, mime: 'image/png', alt: null, width: null, height: null } : null
+    const section = createBlock('container', () => 'c')
+    section.props.backgroundImageId = imageId
+    const html = renderBlocks([section], { media: hostile })
+    expect(html).toContain(`url(&quot;/files/${imageId}/a%22%29%3B%20background:url%28x%29%20%3B%22b.png&quot;)`)
+    expect(html).not.toContain('url(x)')
+  })
+
+  it('turns the anchor into a safe id and leaves it out when nothing usable is left', () => {
+    const section = createBlock('container', () => 'c')
+    section.props.anchor = ' Our Prices! '
+    expect(renderBlocks([section], { media })).toContain('<section class="b-container" id="our-prices"')
+    section.props.anchor = '"><script>'
+    expect(renderBlocks([section], { media })).toContain('id="script"')
+    section.props.anchor = '!!!'
+    expect(renderBlocks([section], { media })).not.toContain(' id=')
+  })
+})
+
+describe('button group', () => {
+  it('renders each button with the shared colors and drops unsafe links', () => {
+    const group = createBlock('buttons', () => 'g')
+    group.props.items = [
+      { label: 'Buy <now>', href: 'https://example.com/buy', variant: 'solid', newTab: true },
+      { label: 'Read more', href: 'javascript:alert(1)', variant: 'outline', newTab: false },
+    ]
+    const html = renderBlocks([group], { media })
+    expect(html.match(/<a class="b-button"/g)).toHaveLength(2)
+    expect(html).toContain('href="https://example.com/buy" target="_blank" rel="noopener noreferrer"')
+    expect(html).toContain('>Buy &lt;now&gt;</a>')
+    expect(html).toContain('href="#" style="background-color:transparent;border-color:#13119b;color:#13119b')
+    expect(html).not.toContain('javascript:')
+  })
+
+  it('stacks on phones only when asked', () => {
+    const group = createBlock('buttons', () => 'g')
+    expect(renderBlocks([group], { media })).toContain('<div class="b-buttons" style')
+    group.props.stack = true
+    expect(renderBlocks([group], { media })).toContain('<div class="b-buttons b-buttons-stack"')
+  })
+
+  it('brings the button styles even when the page has no single Button block', () => {
+    const html = renderPage({ title: 'x', settings: defaultPageSettings, content: { blocks: [createBlock('buttons', () => 'g')] } }, { media })
+    expect(html).toContain('.b-button{display:inline-block')
+  })
+})
+
+describe('feature grid', () => {
+  it('renders the chosen columns and card style with clean text', () => {
+    const grid = createBlock('features', () => 'f')
+    grid.props = {
+      ...grid.props,
+      columns: '4',
+      cardStyle: 'filled',
+      items: [{ mediaId: imageId, title: '<b>Fast</b>', html: '<p onclick="x">Quick<script>1</script></p>' }],
+    }
+    const html = renderBlocks([grid], { media })
+    expect(html).toContain('<div class="b-features b-features-c4"')
+    expect(html).toContain('background-color:#f4f4f5')
+    expect(html).toContain('<h3>&lt;b&gt;Fast&lt;/b&gt;</h3>')
+    expect(html).toContain('<div class="b-feature-text"><p>Quick</p></div>')
+    expect(html).toContain(`<img class="b-feature-icon" src="/files/${imageId}/cover.png" alt="A red boat"`)
+  })
+
+  it('uses three columns by default and draws a line around bordered cards', () => {
+    const grid = createBlock('features', () => 'f')
+    grid.props.cardStyle = 'bordered'
+    const html = renderBlocks([grid], { media })
+    expect(html).toContain('<div class="b-features" style')
+    expect(html.match(/class="b-feature"/g)).toHaveLength(3)
+    expect(html).toContain('border:1px solid #f4f4f5')
+  })
+})
+
+describe('image gallery', () => {
+  it('skips images without a file and renders nothing when none are left', () => {
+    const gallery = createBlock('gallery', () => 'g')
+    expect(renderBlocks([gallery], { media })).toBe('')
+    gallery.props.items = [
+      { mediaId: '33333333-3333-4333-8333-333333333333', alt: '', caption: 'Gone' },
+      { mediaId: imageId, alt: '', caption: 'Boat <1>' },
+    ]
+    const html = renderBlocks([gallery], { media })
+    expect(html.match(/<figure>/g)).toHaveLength(1)
+    expect(html).toContain('alt="A red boat"')
+    expect(html).toContain('<figcaption>Boat &lt;1&gt;</figcaption>')
+    expect(html).not.toContain('Gone')
+  })
+
+  it('applies the shape, columns, alt override, captions switch, and full image link', () => {
+    const gallery = createBlock('gallery', () => 'g')
+    gallery.props = {
+      ...gallery.props,
+      columns: '2',
+      shape: 'wide',
+      captions: false,
+      openFull: true,
+      items: [{ mediaId: imageId, alt: 'Custom "alt"', caption: 'Hidden caption' }],
+    }
+    const html = renderBlocks([gallery], { media })
+    expect(html).toContain('<div class="b-gallery b-gallery-c2"')
+    expect(html).toContain('aspect-ratio:16 / 9')
+    expect(html).toContain('alt="Custom &quot;alt&quot;"')
+    expect(html).toContain(`<a href="/files/${imageId}/cover.png" target="_blank" rel="noopener noreferrer"><img`)
+    expect(html).not.toContain('figcaption')
+  })
+})
+
+describe('media used by the new options', () => {
+  it('counts the container background and the images in features and galleries', () => {
+    const [a, b, c] = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222', '44444444-4444-4444-8444-444444444444']
+    const section = createBlock('container', () => 'c')
+    section.props.backgroundImageId = a
+    const grid = createBlock('features', () => 'f')
+    grid.props.items = [{ mediaId: b, title: 'x', html: '' }]
+    const gallery = createBlock('gallery', () => 'g')
+    gallery.props.items = [{ mediaId: c, alt: '', caption: '' }]
+    section.slots = { children: [grid, gallery] }
+    expect(pageMediaIds({ blocks: [section] }).sort()).toEqual([a, b, c].sort())
   })
 })

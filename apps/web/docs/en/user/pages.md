@@ -27,13 +27,16 @@ A page can hold up to 300 blocks, nested up to 4 levels deep. A move or an addit
 
 | Block | Use it for | Notable settings |
 | --- | --- | --- |
-| Container | A section that groups other blocks | Content width, space above and below, space at the sides, outer space, corners, background, text color |
+| Container | A section that groups other blocks | Content width, minimum height, vertical position, horizontal alignment, space above and below, space at the sides, outer space, corners, background, text color, border, shadow, background image with overlay, anchor |
 | Two columns | Two areas side by side. They stack on a phone | Column widths, gap, vertical alignment, inner space, background, text color |
 | Heading | A title. Use one Heading 1 per page | Level 1 to 3, alignment, font, color |
 | Text | Formatted text | Bold, italic, underline, strikethrough, subheadings, lists, quotes, links, text alignment, size, font, color |
 | Button | A call to action | Label, link, tooltip, new tab, filled or outline, colors, corners, size, font, width, padding, alignment |
+| Button group | Up to four buttons side by side, such as a main and a second call to action | Per button: label, link, filled or outline, new tab. For the group: colors, corners, text size, gap, alignment, stack on phones |
+| Feature grid | Up to 12 cards in two, three, or four columns. Phones show one column | Per card: image, title, formatted text. For the grid: columns, small icon or full-width image, plain, bordered, or filled cards, card color, corners, gap, alignment |
 | Image | An image from the media library | Alt text, caption, link, width, alignment, corners, border, space, filter |
 | Video | An MP4 or WebM video from the media library | Cover image, controls, play muted on a loop, corners |
+| Image gallery | Up to 24 images from the media library in a grid. Phones show two columns | Per image: file, alt text, caption. For the gallery: columns, shape (original, square, 4:3, 16:9), gap, corners, show captions, open full image on click |
 | Accordion | Questions or sections that open on click | Items with a headline and formatted answer, arrow or plus marker, open the first item, corners, colors, lines |
 | Quote | A quote or testimonial | Source, plain, line at the side, or large style, alignment, font, color |
 | Spacer | Empty space between blocks | Height |
@@ -43,7 +46,13 @@ The Link field of a button suggests your short links while you type, so a button
 
 Text formatting is limited to what the public page can show safely. Pasted content keeps bold, italic, underline, strikethrough, inline code, links, lists, subheadings, quotes, and text alignment. Everything else, such as colors, fonts, and embedded content, is removed.
 
-Image alt text comes from the media library. Fill in Alt text on the block to use a different text on this page. Choosing or dropping a file in an Image or Video block adds it to the media library. See [Media](/docs/user/media).
+Image alt text comes from the media library. Fill in Alt text on the block to use a different text on this page. Choosing or dropping a file in an Image, Video, Image gallery, or Feature grid block, or as a container background, adds it to the media library. See [Media](/docs/user/media).
+
+A container's minimum height makes a section taller than its content, up to the full screen for a hero section. Vertical position then places the content at the top, center, or bottom, or spreads the blocks out. Horizontal alignment keeps blocks at full width (Stretch) or lets them keep their own width on the left, center, or right.
+
+A background image covers the whole section and is cropped to fit. Overlay lays a color over it, Light, Medium, or Strong, so text on top stays readable. Set the text color of the container to match.
+
+Anchor gives a container a name, such as `prices`. A button or link with the address `#prices` then scrolls to that section. The name is stored in lowercase with letters, digits, and hyphens only. Use each name once per page.
 
 Accordions open and close without JavaScript. Each item has a headline and a formatted answer, and the marker is an arrow or a plus.
 

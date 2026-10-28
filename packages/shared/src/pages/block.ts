@@ -31,6 +31,9 @@ export const blockIconNames = [
   'Quote',
   'MoveVertical',
   'Minus',
+  'RectangleHorizontal',
+  'LayoutGrid',
+  'Images',
 ] as const
 export type BlockIconName = (typeof blockIconNames)[number]
 

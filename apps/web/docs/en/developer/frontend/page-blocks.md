@@ -141,7 +141,9 @@ A block with `slots: [{ name: 'children', label: 'Content' }]` receives the rend
 Public pages are served with a Content Security Policy that blocks scripts, frames, forms, and outside resources. Keep `render` within those limits:
 
 - Escape every text value with `escapeHtml`, including attribute values.
-- Build `style` attributes with `styleAttr`. It skips empty values and escapes the result. Pass colors through `color()` and scale keys through `pick()`, because a stored value may come from an older version of the block.
+- Build `style` attributes with `styleAttr`. It skips empty values and escapes the result. Pass colors through `color()` and scale keys through `pick()`, because a stored value may come from an older version of the block. `rgba()` turns a stored color and an opacity into an `rgba()` value, and `cssUrl()` wraps a media path for `background-image` with quotes, parentheses, and spaces encoded.
+- Build an `id` from user text with `anchorId()`, which keeps lowercase letters, digits, and hyphens.
+- Share markup between blocks with an exported helper, as `buttonHtml()` and `buttonCss` in `button.ts` do for Button and Button group. A block's CSS is only added to pages that use that block, so a block that reuses another block's classes must include that CSS too.
 - Pass rich text through `cleanRichText` again before output.
 - Check links with `isSafeHref` before writing an `href`.
 - Resolve media with `context.media(id)`. It returns `null` for a missing or deleted file, and the block should then render nothing or a fallback.
