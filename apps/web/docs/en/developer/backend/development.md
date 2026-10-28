@@ -58,6 +58,6 @@ On first startup Sharry creates the initial administrator from `INITIAL_ADMIN_US
 
 `npm test` writes `apps/web/public/test-results.csv` when the run finishes, including a run that has failures. The file has one row per test file: passed, failed, skipped, and duration. It is not committed. The dashboard shows that file under Docs, in Developer, as Tests → Last run (`/docs/developer/tests`). Vite serves it from `public` during `npm run dev`, and a dashboard build copies whatever file is there at build time. `npm run deploy` runs the full suite before it uploads, so the production build includes that CSV and the server serves it at `/test-results.csv` to a signed-in session.
 
-QR center images are written under `QR_DATA_DIR` (default `data/qr-logos`). Account photos are written under `AVATAR_DATA_DIR` (default `data/avatars`). Both live inside `data/`, which `npm run dev` does not delete.
+Media library files and their thumbnails are written under `MEDIA_DATA_DIR` (default `data/media`). Account photos are written under `AVATAR_DATA_DIR` (default `data/avatars`). `QR_DATA_DIR` (default `data/qr-logos`) only holds center images from older versions until startup moves them into the library. All three live inside `data/`, which `npm run dev` does not delete.
 
 `REDIS_URL` is reserved and unused. Country and region on click events stay empty until `GEOIP_DB_PATH` points at a local MaxMind database.

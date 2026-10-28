@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { sql, type SQL } from 'drizzle-orm'
 import type { Database } from '@sharry/database'
 import { requireUser, type Actor } from './auth.ts'
-import { visibleLinksWhere } from './links.ts'
+import { visibleLinksWhere, visibleOwnedWhere } from './links.ts'
 import { getSettings, rowsOf, type AppSettings } from './settings-store.ts'
 
 const groupLimit = 8
@@ -34,6 +34,8 @@ export type SearchChat = {
   snippet: string | null
 }
 
+export type SearchMedia = { id: string; name: string; kind: string; folderId: string | null }
+
 export type SearchUser = { id: string; username: string; email: string }
 export type SearchDomain = { id: string; hostname: string }
 export type SearchApiKey = { id: string; name: string; tokenPrefix: string }
@@ -50,6 +52,7 @@ export type SearchResults = {
   links: SearchLink[]
   campaigns: SearchCampaign[]
   chats: SearchChat[]
+  media: SearchMedia[]
   users?: SearchUser[]
   domains?: SearchDomain[]
   apiKeys?: SearchApiKey[]
@@ -63,7 +66,7 @@ export function registerSearchRoutes(app: FastifyInstance): void {
    * @tag Search
    * @auth api-key or session
    * @query q string Text to match. A blank value returns empty groups.
-   * @response 200 Links, campaigns, and chats. Administrators also receive users, domains, API keys, and audit rows. Secrets are omitted.
+   * @response 200 Links, campaigns, chats, and media. Administrators also receive users, domains, API keys, and audit rows. Secrets are omitted.
    */
   app.get('/api/search', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -125,7 +128,7 @@ export function textMatches(query: string, field: string): boolean {
 }
 
 function emptySearch(admin: boolean): SearchResults {
-  const base = { links: [], campaigns: [], chats: [] }
+  const base = { links: [], campaigns: [], chats: [], media: [] }
   if (!admin) return base
   return { ...base, users: [], domains: [], apiKeys: [], audit: [] }
 }
@@ -136,6 +139,7 @@ function mergeResults(results: SearchResults[], admin: boolean): SearchResults {
     merged.links = mergeById(merged.links, result.links)
     merged.campaigns = mergeById(merged.campaigns, result.campaigns)
     merged.chats = mergeById(merged.chats, result.chats)
+    merged.media = mergeById(merged.media, result.media)
     if (!admin) continue
     merged.users = mergeById(merged.users ?? [], result.users ?? [])
     merged.domains = mergeById(merged.domains ?? [], result.domains ?? [])
@@ -160,16 +164,18 @@ async function searchPhrase(db: Database, actor: Actor, settings: AppSettings, p
   const admin = actor.role === 'admin'
   const visibility = visibleLinksWhere(actor, settings, 'links')
   const owner = actor.role === 'admin' ? sql`true` : sql`tracking_campaigns.user_id = ${actor.id}`
-  const [links, campaigns, chats, users, domains, apiKeys, audit] = await Promise.all([
+  const mediaVisibility = visibleOwnedWhere(actor, settings, sql`media_assets.user_id`)
+  const [links, campaigns, chats, media, users, domains, apiKeys, audit] = await Promise.all([
     searchLinks(db, phrase, visibility),
     searchCampaigns(db, phrase, owner),
     searchChats(db, actor.id, phrase),
+    searchMedia(db, phrase, mediaVisibility),
     admin ? searchUsers(db, phrase) : Promise.resolve([]),
     admin ? searchDomains(db, phrase) : Promise.resolve([]),
     admin ? searchApiKeys(db, phrase) : Promise.resolve([]),
     admin ? searchAudit(db, phrase) : Promise.resolve([]),
   ])
-  return { links, campaigns, chats, ...(admin ? { users, domains, apiKeys, audit } : {}) }
+  return { links, campaigns, chats, media, ...(admin ? { users, domains, apiKeys, audit } : {}) }
 }
 
 async function searchLinks(db: Database, phrase: string, visibility: SQL | null): Promise<SearchLink[]> {
@@ -281,6 +287,24 @@ async function searchChats(db: Database, userId: string, phrase: string): Promis
     title: row.title,
     snippet: row.snippet?.replace(/\s+/g, ' ').trim() || null,
   }))
+}
+
+async function searchMedia(db: Database, phrase: string, visibility: SQL | null): Promise<SearchMedia[]> {
+  const rows = rowsOf<{ id: string; name: string; kind: string; folder_id: string | null }>(
+    await db.execute(sql`
+      select id::text as id, name, kind, folder_id::text as folder_id
+      from (
+        select media_assets.id, media_assets.name, media_assets.kind, media_assets.folder_id, media_assets.updated_at,
+               lower(concat_ws(' ', media_assets.name, coalesce(media_assets.alt, ''), coalesce(media_assets.title, ''))) as haystack
+        from media_assets
+        where (${visibility ?? sql`true`})
+      ) as candidate
+      where ${phraseSql(sql`candidate.haystack`, phrase)}
+      order by updated_at desc
+      limit ${groupLimit}
+    `),
+  )
+  return rows.map((row) => ({ id: row.id, name: row.name, kind: row.kind, folderId: row.folder_id }))
 }
 
 async function searchUsers(db: Database, phrase: string): Promise<SearchUser[]> {

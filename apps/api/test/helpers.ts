@@ -45,6 +45,8 @@ export function testEnv(databaseUrl: string): RuntimeEnv {
     EMAIL_FROM: '',
     QR_DATA_DIR: 'data/qr-test',
     AVATAR_DATA_DIR: 'data/avatars-test',
+    MEDIA_DATA_DIR: 'data/media-test',
+    MEDIA_MAX_UPLOAD_MB: '2',
   })
 }
 
@@ -77,6 +79,7 @@ export async function resetDatabase(db: Database): Promise<void> {
       link_password_attempts,
       click_events,
       qr_codes,
+      media_assets,
       tracking_variants,
       tracking_configs,
       tracking_campaigns,

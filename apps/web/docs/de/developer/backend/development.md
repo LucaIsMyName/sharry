@@ -58,6 +58,6 @@ Beim ersten Start legt Sharry die erste Administratorin oder den ersten Administ
 
 `npm test` schreibt `apps/web/public/test-results.csv`, wenn der Lauf endet, auch wenn Tests fehlschlagen. Die Datei hat eine Zeile pro Testdatei: bestanden, fehlgeschlagen, übersprungen und Dauer. Sie wird nicht committet. Das Dashboard zeigt diese Datei unter Docs, in Entwickler, als Tests → Letzter Lauf (`/docs/developer/tests`). Vite liefert sie während `npm run dev` aus `public`, und ein Dashboard-Build kopiert die Datei, die zum Bauzeitpunkt dort liegt. `npm run deploy` führt die komplette Suite aus, bevor es hochlädt, deshalb enthält der Produktionsbuild dieses CSV und der Server liefert es unter `/test-results.csv` an eine angemeldete Sitzung.
 
-QR-Mittelbilder werden unter `QR_DATA_DIR` geschrieben (Vorgabe `data/qr-logos`). Kontofotos werden unter `AVATAR_DATA_DIR` geschrieben (Vorgabe `data/avatars`). Beides liegt in `data/`, das `npm run dev` nicht löscht.
+Dateien der Mediathek und ihre Vorschaubilder werden unter `MEDIA_DATA_DIR` geschrieben (Vorgabe `data/media`). Kontofotos werden unter `AVATAR_DATA_DIR` geschrieben (Vorgabe `data/avatars`). `QR_DATA_DIR` (Vorgabe `data/qr-logos`) enthält nur Mittelbilder älterer Versionen, bis der Start sie in die Mediathek verschiebt. Alle drei liegen in `data/`, das `npm run dev` nicht löscht.
 
 `REDIS_URL` ist reserviert und ungenutzt. Land und Region bei Klickereignissen bleiben leer, bis `GEOIP_DB_PATH` auf eine lokale MaxMind-Datenbank zeigt.

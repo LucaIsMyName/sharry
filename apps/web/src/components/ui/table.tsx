@@ -79,6 +79,20 @@ function withHitTarget(children: React.ReactNode, hit: React.ReactNode) {
   ];
 }
 
+function carriesFiles(transfer: DataTransfer | null): boolean {
+  return Boolean(transfer && Array.from(transfer.types ?? []).includes("Files"));
+}
+
+function setCountDragImage(transfer: DataTransfer, count: number) {
+  const badge = document.createElement("div");
+  badge.textContent = String(count);
+  badge.className =
+    "fixed -top-20 left-0 flex size-8 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground shadow-md";
+  document.body.append(badge);
+  transfer.setDragImage(badge, 16, 16);
+  window.setTimeout(() => badge.remove(), 0);
+}
+
 function ClickableTableRow({
   to,
   onSelect,
@@ -88,7 +102,9 @@ function ClickableTableRow({
   draggable = false,
   droppable = false,
   dragPayload,
+  dragCount,
   onRowDrop,
+  onFilesDrop,
   onContextMenu,
   id,
 }: {
@@ -100,7 +116,9 @@ function ClickableTableRow({
   draggable?: boolean;
   droppable?: boolean;
   dragPayload?: string;
+  dragCount?: number;
   onRowDrop?: (payload: string) => void;
+  onFilesDrop?: (files: File[]) => void;
   onContextMenu?: (event: React.MouseEvent<HTMLTableRowElement>) => void;
   id?: string;
 }) {
@@ -170,9 +188,11 @@ function ClickableTableRow({
         if (!draggable || !dragPayload) return;
         event.dataTransfer.setData("text/plain", dragPayload);
         event.dataTransfer.effectAllowed = "move";
+        if (dragCount && dragCount > 1) setCountDragImage(event.dataTransfer, dragCount);
       }}
       onDragOver={(event) => {
         if (!droppable) return;
+        if (carriesFiles(event.dataTransfer) && !onFilesDrop) return;
         event.preventDefault();
         event.currentTarget.dataset.drop = "true";
       }}
@@ -180,8 +200,19 @@ function ClickableTableRow({
         event.currentTarget.dataset.drop = "false";
       }}
       onDrop={(event) => {
-        if (!droppable || !onRowDrop) return;
+        if (!droppable) return;
+        const files = Array.from(event.dataTransfer.files ?? []);
+        if (files.length > 0) {
+          if (!onFilesDrop) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.currentTarget.dataset.drop = "false";
+          onFilesDrop(files);
+          return;
+        }
+        if (!onRowDrop) return;
         event.preventDefault();
+        event.stopPropagation();
         event.currentTarget.dataset.drop = "false";
         const payload = event.dataTransfer.getData("text/plain");
         if (payload) onRowDrop(payload);

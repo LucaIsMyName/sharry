@@ -8,6 +8,7 @@ Tippen sucht weiter:
 
 - Links, nach Titel, Beschreibung, Slug, Ziel, einem Routennamen, einem UTM-Wert oder einem QR-Code-Namen. Ein Treffer öffnet den Link. Derselbe Link steht unter Analysen und öffnet die Klicks dieses Links. Die Seite Analysen ist die Summe für jeden Link, den du sehen kannst.
 - Kampagnen, nach Name, Beschreibung oder einem Variantennamen.
+- Mediendateien, nach Name, Alternativtext oder Titel. Ein Treffer öffnet die Datei in ihrem Ordner.
 - Deine eigenen Chats, nach Titel oder Nachrichtentext.
 - Die Docs in deiner Sprache, nach Titel oder Seitentext.
 - Abschnitte auf Konto und Einstellungen, zum Beispiel Passwort, Zwei-Faktor-Authentifizierung, das öffentliche Präfix und der Mailserver.

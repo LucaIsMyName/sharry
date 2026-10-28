@@ -33,4 +33,19 @@ describe("toast", () => {
       ),
     ).toBe(true);
   });
+
+  it("runs a success action such as Undo once", async () => {
+    const undo = vi.fn();
+    render(
+      <ToastProvider>
+        <div />
+      </ToastProvider>,
+    );
+    act(() => {
+      toast.success("Moved 1 item.", { label: "Undo", onClick: undo });
+    });
+    const button = await screen.findByRole("button", { name: "Undo" });
+    act(() => button.click());
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
 });

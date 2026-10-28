@@ -12,7 +12,7 @@ describe('API docs extractor', () => {
     const links = docs.find((doc) => doc.method === 'GET' && doc.path === '/api/links')
     expect(links?.tag).toBe('Links')
     expect(links?.auth).toBe('api-key or session')
-    expect(links?.query.map((item) => item.name)).toEqual(['q', 'limit', 'offset'])
+    expect(links?.query.map((item) => item.name)).toEqual(['q', 'limit', 'offset', 'folder', 'status', 'sort', 'dir', 'tag'])
     const login = docs.find((doc) => doc.method === 'POST' && doc.path === '/api/auth/login')
     expect(login?.auth).toBe('session')
     expect(new Set(docs.map((doc) => `${doc.method} ${doc.path}`)).size).toBe(docs.length)

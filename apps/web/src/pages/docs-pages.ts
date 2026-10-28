@@ -12,6 +12,7 @@ const pageOrder = [
   "user/links",
   "user/campaigns",
   "user/qr-codes",
+  "user/media",
   "user/analytics",
   "user/api-keys",
   "user/settings",

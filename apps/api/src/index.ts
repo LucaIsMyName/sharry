@@ -7,6 +7,7 @@ import { purgeExpiredResetTokens } from './auth.ts'
 import { recheckVerifiedDomains } from './redirect-domains.ts'
 import { purgeLinkPasswordAttempts } from './redirect.ts'
 import { loadEnvFile } from './load-env.ts'
+import { moveQrLogosToMedia } from './media-backfill.ts'
 import { provisionAdmin } from './provision.ts'
 import { buildApp } from './server.ts'
 import { getSettings } from './settings-store.ts'
@@ -29,6 +30,8 @@ try {
     info: (message) => console.log(message),
     error: (message) => console.error(message),
   })
+  const moved = await moveQrLogosToMedia(db, env)
+  if (moved > 0) console.log(`Moved ${moved} QR center images into the media library`)
 } catch (error) {
   console.error(startupMessage(error))
   await pool.end()

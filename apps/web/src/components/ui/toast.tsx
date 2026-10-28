@@ -9,13 +9,25 @@ const manager = Toast.createToastManager();
 
 type ToastTone = "error" | "info" | "success";
 
-function show(tone: ToastTone, message: string) {
+export type ToastAction = { label: string; onClick: () => void };
+
+function show(tone: ToastTone, message: string, action?: ToastAction) {
+  const id = action ? `${tone}:${message}:${Date.now()}` : `${tone}:${message}`;
   manager.add({
-    id: `${tone}:${message}`,
+    id,
     title: message,
     type: tone,
     priority: tone === "error" ? "high" : "low",
-    timeout: 5000,
+    timeout: action ? 8000 : 5000,
+    actionProps: action
+      ? {
+          children: action.label,
+          onClick: () => {
+            manager.close(id);
+            action.onClick();
+          },
+        }
+      : undefined,
   });
 }
 
@@ -26,8 +38,8 @@ export const toast = {
   info(message: string) {
     show("info", message);
   },
-  success(message: string) {
-    show("success", message);
+  success(message: string, action?: ToastAction) {
+    show("success", message, action);
   },
 };
 
@@ -62,6 +74,9 @@ function Toaster() {
             <Toast.Content className="min-w-0 flex-1">
               <Toast.Title className="text-sm leading-snug font-medium" />
             </Toast.Content>
+            {item.actionProps ? (
+              <Toast.Action className="shrink-0 rounded-sm px-1.5 text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50" />
+            ) : null}
             <Toast.Close
               aria-label={t("Dismiss")}
               className="shrink-0 rounded-sm opacity-70 outline-none hover:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"

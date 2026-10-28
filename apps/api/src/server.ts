@@ -17,6 +17,7 @@ import { registerSystemRoutes } from './system.ts'
 import { registerAnalyticsRoutes } from './analytics.ts'
 import { registerAuthRoutes, requireUser } from './auth.ts'
 import { registerLinkRoutes } from './links.ts'
+import { registerMediaRoutes } from './media.ts'
 import { registerOrganizeRoutes } from './organize.ts'
 import type { Mailer } from './mail.ts'
 import { registerQrRoutes } from './qr.ts'
@@ -95,7 +96,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (!(await isVerifiedRedirectHost(app.db, requestHostname(request)))) return
     const pathname = request.url.split('?')[0] ?? ''
     const settings = await getSettings(app.db, app.env)
-    if (isShortLinkPath(pathname, settings)) return
+    if (isShortLinkPath(pathname, settings) || pathname.startsWith('/files/')) return
     return reply.code(404).type('text/plain').send('Not found')
   })
 
@@ -141,6 +142,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerAuthRoutes(app, options.mailer ?? null)
   registerLinkRoutes(app)
   registerOrganizeRoutes(app)
+  registerMediaRoutes(app)
   registerTrackingRoutes(app)
   registerAnalyticsRoutes(app)
   registerQrRoutes(app)

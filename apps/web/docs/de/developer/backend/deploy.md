@@ -72,7 +72,9 @@ Diese werden auf den Server kopiert. Leere Zeichenketten gelten als nicht gesetz
 | `SMTP_PASSWORD` | leer | Fallback-Mailpasswort |
 | `EMAIL_FROM` | leer | Fallback-Absenderadresse |
 | `GEOIP_DB_PATH` | leer | Lokale MaxMind-Datenbank. Land und Region bleiben ohne sie leer |
-| `QR_DATA_DIR` | `data/qr-logos` | Mittelbilder. Auf dem Server liegt das unter `shared/data` |
+| `QR_DATA_DIR` | `data/qr-logos` | Mittelbilder älterer Versionen. Der Start verschiebt sie in die Mediathek |
+| `MEDIA_DATA_DIR` | `data/media` | Dateien und Vorschaubilder der Mediathek. Auf dem Server liegt das unter `shared/data` |
+| `MEDIA_MAX_UPLOAD_MB` | `25` | Größter Medien-Upload in Megabyte, 1 bis 1024 |
 | `AVATAR_DATA_DIR` | `data/avatars` | Kontofotos, ebenfalls unter `shared/data` |
 
 ### Nur-Deploy-Variablen

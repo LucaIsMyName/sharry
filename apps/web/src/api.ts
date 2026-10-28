@@ -153,7 +153,37 @@ export type QrCode = {
   name: string;
   style: QrStyle;
   hasLogo: boolean;
+  logoMediaId: string | null;
+  logoUrl: string | null;
   createdAt: string;
   url: string;
   warnings: string[];
+};
+
+export type MediaKind = "image" | "video" | "document";
+
+export type MediaItem = {
+  id: string;
+  name: string;
+  kind: MediaKind;
+  mime: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  alt: string | null;
+  title: string | null;
+  folderId: string | null;
+  userId: string;
+  path: string;
+  url: string;
+  thumbnailUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owner?: LinkPerson | null;
+  canEdit?: boolean;
+  usageCount?: number;
+};
+
+export type MediaUsage = {
+  qrCodes: { id: string; name: string; linkId: string; linkSlug: string }[];
 };

@@ -444,21 +444,25 @@ export async function getLinkForActor(
     .where(eq(links.id, id))
     .limit(1)
   const row = found[0]
-  if (!row || !canAccessLink(actor, row.link, row.ownerRole, settings, 'view')) throw new AppError(404, 'Link not found')
-  if (mode === 'edit' && !canAccessLink(actor, row.link, row.ownerRole, settings, 'edit')) {
+  if (!row || !canAccessOwned(actor, row.link, row.ownerRole, settings, 'view')) throw new AppError(404, 'Link not found')
+  if (mode === 'edit' && !canAccessOwned(actor, row.link, row.ownerRole, settings, 'edit')) {
     throw new AppError(403, 'You can view this link but not change it.')
   }
   return row.link
 }
 
 export function visibleLinksWhere(actor: Actor, settings: AppSettings, alias: 'links' | 'l'): SQL | null {
-  if (actor.role === 'admin' || (settings.linkSharing && settings.linkSharingShowAdmin)) return null
-  const column = alias === 'l' ? sql`l.user_id` : sql`links.user_id`
-  if (!settings.linkSharing) return sql`${column} = ${actor.id}`
-  return sql`${column} = ${actor.id} or ${column} in (select id from users where role <> 'admin')`
+  return visibleOwnedWhere(actor, settings, alias === 'l' ? sql`l.user_id` : sql`links.user_id`)
 }
 
-function canAccessLink(
+/** Owner-based visibility shared by links and the media library. Sharing follows the link sharing settings. */
+export function visibleOwnedWhere(actor: Actor, settings: AppSettings, ownerColumn: SQL): SQL | null {
+  if (actor.role === 'admin' || (settings.linkSharing && settings.linkSharingShowAdmin)) return null
+  if (!settings.linkSharing) return sql`${ownerColumn} = ${actor.id}`
+  return sql`(${ownerColumn} = ${actor.id} or ${ownerColumn} in (select id from users where role <> 'admin'))`
+}
+
+export function canAccessOwned(
   actor: Actor,
   link: { userId: string },
   ownerRole: string,
@@ -669,7 +673,7 @@ async function decorateLinks(
       ...serializeLink(row, settings, configs.get(row.id), hosts),
       tags: (tagMap.get(row.id) ?? []).sort((left, right) => left.name.localeCompare(right.name)),
       folderPath: row.folderId ? (paths.get(row.folderId) ?? []) : [],
-      canEdit: canAccessLink(actor, row, owner?.role ?? 'user', settings, 'edit'),
+      canEdit: canAccessOwned(actor, row, owner?.role ?? 'user', settings, 'edit'),
       ...(includePeople ? { owner, updatedBy: editor } : {}),
     }
   })

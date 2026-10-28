@@ -735,6 +735,7 @@ const pageCatalog: { path: string; label: string; admin: boolean; keywords: stri
   { path: '/links', label: 'Links', admin: false, keywords: 'short links list' },
   { path: '/links/new', label: 'New link', admin: false, keywords: 'create short link form' },
   { path: '/campaigns', label: 'Campaigns', admin: false, keywords: 'utm variants campaign' },
+  { path: '/media', label: 'Media', admin: false, keywords: 'media library images files uploads folders' },
   { path: '/analytics', label: 'Analytics', admin: false, keywords: 'clicks report stats' },
   { path: '/chat', label: 'Chat', admin: false, keywords: 'assistant ai' },
   { path: '/account', label: 'Account', admin: false, keywords: 'password profile locale photo two-factor mfa' },
@@ -743,6 +744,7 @@ const pageCatalog: { path: string; label: string; admin: boolean; keywords: stri
   { path: '/docs/user/campaigns', label: 'Campaign guide', admin: false, keywords: 'docs campaigns' },
   { path: '/docs/user/analytics', label: 'Analytics guide', admin: false, keywords: 'docs analytics' },
   { path: '/docs/user/qr-codes', label: 'QR codes', admin: false, keywords: 'docs qr code' },
+  { path: '/docs/user/media', label: 'Media guide', admin: false, keywords: 'docs media library images uploads' },
   { path: '/docs/user/domains', label: 'Domains guide', admin: false, keywords: 'docs domains' },
   { path: '/docs/user/api-keys', label: 'API keys guide', admin: false, keywords: 'docs api keys' },
   { path: '/docs/user/users', label: 'Users guide', admin: false, keywords: 'docs users' },
@@ -809,6 +811,9 @@ function matchList(found: SearchResults, pages: { label: string; path: string }[
   for (const chat of found.chats) {
     matches.push({ kind: 'Chat', label: chat.title, path: `/chat/${chat.id}` })
   }
+  for (const file of found.media) {
+    matches.push({ kind: 'Media', label: file.name, path: mediaPath(file) })
+  }
   for (const page of pages) matches.push({ kind: 'Page', label: page.label, path: page.path })
   for (const user of found.users ?? []) {
     matches.push({ kind: 'User', label: user.username, detail: user.email, path: `/admin/users?focus=${user.id}` })
@@ -830,8 +835,12 @@ function matchList(found: SearchResults, pages: { label: string; path: string }[
   return matches
 }
 
+function mediaPath(file: { id: string; folderId: string | null }): string {
+  return file.folderId ? `/media?folder=${file.folderId}&file=${file.id}` : `/media?file=${file.id}`
+}
+
 function emptyActorSearch(admin: boolean): SearchResults {
-  const base = { links: [], campaigns: [], chats: [] }
+  const base = { links: [], campaigns: [], chats: [], media: [] }
   if (!admin) return base
   return { ...base, users: [], domains: [], apiKeys: [], audit: [] }
 }

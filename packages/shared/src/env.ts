@@ -53,6 +53,14 @@ export const runtimeEnvSchema = z
       (value) => (value === undefined || value === '' ? 'data/avatars' : value),
       z.string().min(1),
     ),
+    MEDIA_DATA_DIR: z.preprocess(
+      (value) => (value === undefined || value === '' ? 'data/media' : value),
+      z.string().min(1),
+    ),
+    MEDIA_MAX_UPLOAD_MB: z.preprocess(
+      (value) => (value === undefined || value === '' ? 25 : value),
+      z.coerce.number().int().min(1).max(1024),
+    ),
   })
   .superRefine((value, ctx) => {
     const prefixError = validatePrefix(value.SHORT_URL_PREFIX)

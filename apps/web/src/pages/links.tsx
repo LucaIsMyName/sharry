@@ -28,6 +28,7 @@ import {
   type RoutingChoices,
   type RoutingRule,
   type UtmParams,
+  rasterImageMimes,
 } from "@sharry/shared";
 import {
   ApiError,
@@ -67,7 +68,7 @@ import { Field, FieldMessage } from "../components/ui/field.tsx";
 import { FieldGroup, FieldGroupLine } from "../components/ui/field-group.tsx";
 import { Section } from "../components/ui/section.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
-import { ImageUpload } from "../components/ui/image-upload.tsx";
+import { MediaField, type MediaFieldValue } from "../components/media-field.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -708,9 +709,7 @@ export function LinkDetailPage() {
   const [qrCodes, setQrCodes] = useState<QrCode[]>([]);
   const [style, setStyle] = useState<QrStyle>(defaultQrStyle);
   const [qrName, setQrName] = useState("Default");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoInputKey, setLogoInputKey] = useState(0);
+  const [logo, setLogo] = useState<MediaFieldValue | null>(null);
   const [activeQr, setActiveQr] = useState<QrCode | null>(null);
   const [variants, setVariants] = useState<LinkVariant[]>([]);
   const [trackingVariantId, setTrackingVariantId] = useState(noVariant);
@@ -719,7 +718,6 @@ export function LinkDetailPage() {
   const [saving, setSaving] = useState(false);
   const [savingQr, setSavingQr] = useState(false);
   const [copied, setCopied] = useState(false);
-  const logoRequest = useRef(0);
   const aiAvailable = useAiAvailable();
   const earliest = link?.createdAt.slice(0, 10);
   const report = useReportRange(earliest);
@@ -748,8 +746,7 @@ export function LinkDetailPage() {
     setAnalytics(null);
     setVariants([]);
     setTrackingVariantId(noVariant);
-    setLogoUrl(null);
-    setLogoFile(null);
+    setLogo(null);
     void (async () => {
       try {
         const [next, codes, variantData] = await Promise.all([
@@ -775,7 +772,7 @@ export function LinkDetailPage() {
         setQrCodes(codes.qrCodes);
         setVariants(variantData.variants);
         const saved = codes.qrCodes[0];
-        if (saved) await showQr(saved, () => cancelled);
+        if (saved) showQr(saved);
         else setTrackingVariantId(noVariant);
       } catch (caught) {
         if (!cancelled) toastCaught(caught, t("Could not load this link"));
@@ -811,12 +808,6 @@ export function LinkDetailPage() {
       cancelled = true;
     };
   }, [id, aiAvailable, report.range.from, report.range.to]);
-
-  useEffect(() => {
-    if (!logoUrl?.startsWith("blob:")) return;
-    const current = logoUrl;
-    return () => URL.revokeObjectURL(current);
-  }, [logoUrl]);
 
   useEffect(() => {
     return () => {
@@ -904,31 +895,16 @@ export function LinkDetailPage() {
     }
   }
 
-  async function showQr(code: QrCode, cancelled: () => boolean = () => false) {
-    const requestId = ++logoRequest.current;
+  function showQr(code: QrCode) {
     setActiveQr(code);
     setStyle(code.style);
     setQrName(code.name);
     setTrackingVariantId(code.trackingVariantId ?? noVariant);
-    setLogoFile(null);
-    if (!code.hasLogo) {
-      setLogoUrl(null);
-      return;
-    }
-    const response = await fetch(`/api/qr/${code.id}/logo`, {
-      credentials: "include",
-    });
-    if (cancelled() || logoRequest.current !== requestId) return;
-    if (!response.ok) {
-      setLogoUrl(null);
-      return;
-    }
-    const blob = URL.createObjectURL(await response.blob());
-    if (cancelled() || logoRequest.current !== requestId) {
-      URL.revokeObjectURL(blob);
-      return;
-    }
-    setLogoUrl(blob);
+    setLogo(
+      code.logoMediaId && code.logoUrl
+        ? { id: code.logoMediaId, url: code.logoUrl, name: logoName(code.logoUrl) }
+        : null,
+    );
   }
 
   async function createQr(event: FormEvent) {
@@ -945,6 +921,7 @@ export function LinkDetailPage() {
               name: qrName,
               style,
               trackingVariantId: variantId,
+              logoMediaId: logo?.id ?? null,
             }),
           })
         : await api<QrCode>("/api/qr", {
@@ -954,17 +931,11 @@ export function LinkDetailPage() {
               name: qrName,
               style,
               trackingVariantId: variantId,
+              logoMediaId: logo?.id ?? null,
             }),
           });
-      if (logoFile) {
-        const body = new FormData();
-        body.set("file", logoFile);
-        await api(`/api/qr/${created.id}/logo`, { method: "POST", body });
-        created.hasLogo = true;
-        setStyle((current) => ({ ...current, errorCorrectionLevel: "H" }));
-      }
       setActiveQr(created);
-      setLogoFile(null);
+      setStyle(created.style);
       setQrCodes((current) => [
         created,
         ...current.filter((code) => code.id !== created.id),
@@ -981,7 +952,7 @@ export function LinkDetailPage() {
     if (activeQr?.hasLogo) {
       try {
         await api(`/api/qr/${activeQr.id}/logo`, { method: "DELETE" });
-        const next = { ...activeQr, hasLogo: false };
+        const next = { ...activeQr, hasLogo: false, logoMediaId: null, logoUrl: null };
         setActiveQr(next);
         setQrCodes((current) =>
           current.map((code) => (code.id === next.id ? next : code)),
@@ -991,14 +962,13 @@ export function LinkDetailPage() {
         return;
       }
     }
-    setLogoFile(null);
-    setLogoUrl(null);
-    setLogoInputKey((key) => key + 1);
+    setLogo(null);
     toast.success(t("Center image removed."));
   }
 
   const locked = link?.canEdit === false;
   const conflicts = utmConflicts(destinationUrl, utm);
+  const logoUrl = logo?.url ?? null;
   const scanWarnings = qrWarnings(style, Boolean(logoUrl));
   const scanWarning = (key: QrWarning["key"]) =>
     scanWarnings.find((warning) => warning.key === key)?.message;
@@ -1392,24 +1362,21 @@ export function LinkDetailPage() {
                   />
                 </Field>
                 <Field label="Center image">
-                  <ImageUpload
-                    key={logoInputKey}
-                    previewUrl={logoUrl}
-                    fileName={logoFile?.name}
-                    onFile={(file) => {
-                      setLogoFile(file);
-                      setLogoUrl(URL.createObjectURL(file));
+                  <MediaField
+                    value={logo}
+                    accept={rasterImageMimes}
+                    acceptLabel={t("PNG, JPEG, or WebP")}
+                    disabled={locked}
+                    removeLabel={t("Remove center image")}
+                    onChange={(media) => {
+                      if (!media) {
+                        void removeCenterImage();
+                        return;
+                      }
+                      setLogo({ id: media.id, url: media.path, name: media.name });
+                      setStyle((current) => ({ ...current, errorCorrectionLevel: "H" }));
                     }}
                   />
-                  {logoUrl && !locked ? (
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={() => void removeCenterImage()}
-                    >
-                      <Trash2 /> {t("Remove center image")}
-                    </Button>
-                  ) : null}
                 </Field>
                 {locked ? null : (
                   <Button type="submit" disabled={savingQr}>
@@ -1489,7 +1456,7 @@ export function LinkDetailPage() {
                           type="button"
                           aria-pressed={selected}
                           className="text-left font-medium"
-                          onClick={() => void showQr(code)}
+                          onClick={() => showQr(code)}
                         >
                           {code.name}
                         </button>
@@ -1557,4 +1524,8 @@ export function LinkDetailPage() {
       </ConfirmDialog>
     </section>
   );
+}
+
+function logoName(url: string): string {
+  return decodeURIComponent(url.split("/").at(-1) ?? "");
 }

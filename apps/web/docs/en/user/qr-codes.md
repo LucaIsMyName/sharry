@@ -37,6 +37,8 @@ Scan warnings sit on the control they describe: foreground contrast, center imag
 
 Downloads are PNG, JPEG, and SVG. JPEG always uses a solid background. JPEG cannot store transparency, so a transparent design is flattened onto the JPEG background color.
 
-Center images are stored on disk, not in PostgreSQL. Use a PNG, JPEG, or WebP file, 512 KB or smaller, and at most 1024 pixels on each side. On a server the directory is `QR_DATA_DIR` under `shared/data`, which each release links as `data`.
+Center images come from the [media library](/docs/user/media). Choose from library picks an existing file. Dropping a PNG, JPEG, or WebP file onto the field uploads it to the library and selects it. Choosing an image switches error correction to H. An image larger than 1024 pixels on a side is scaled down in downloads. Remove center image clears it from the code, and the file stays in the library. A file cannot be deleted from the library while a QR code uses it.
+
+Center images that older versions stored in `QR_DATA_DIR` move into the library when the server starts. Each one is named after the link slug and the code, such as `summer-sale Default QR center image.png`, and belongs to the link owner.
 
 A downloaded image keeps the address that was encoded at the time. Redirects match the path, so a host that still reaches this process keeps working. Changing the public prefix or the domain does not rewrite a file you already downloaded. Enable legacy prefixes, or download a new code, when those addresses must keep resolving.

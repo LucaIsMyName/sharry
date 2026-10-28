@@ -37,6 +37,8 @@ Scan-Hinweise sitzen an der Steuerung, die sie beschreiben: Vordergrundkontrast,
 
 Downloads gibt es als PNG, JPEG und SVG. JPEG nutzt immer einen deckenden Hintergrund. JPEG kann keine Transparenz speichern, deshalb wird ein transparentes Design auf die JPEG-Hintergrundfarbe gelegt.
 
-Mittelbilder liegen auf der Festplatte, nicht in PostgreSQL. Nutze eine PNG-, JPEG- oder WebP-Datei, höchstens 512 KB und höchstens 1024 Pixel je Seite. Auf einem Server ist das Verzeichnis `QR_DATA_DIR` unter `shared/data`, das jede Veröffentlichung als `data` verknüpft.
+Mittelbilder kommen aus der [Mediathek](/docs/user/media). Aus der Mediathek wählen nimmt eine vorhandene Datei. Eine PNG-, JPEG- oder WebP-Datei, die du auf das Feld ziehst, wird in die Mediathek hochgeladen und ausgewählt. Die Auswahl eines Bildes stellt die Fehlerkorrektur auf H. Ein Bild mit mehr als 1024 Pixeln je Seite wird in Downloads verkleinert. Mittelbild entfernen löst es vom Code, die Datei bleibt in der Mediathek. Solange ein QR-Code eine Datei nutzt, kann sie nicht aus der Mediathek gelöscht werden.
+
+Mittelbilder, die ältere Versionen in `QR_DATA_DIR` gespeichert haben, wandern beim Serverstart in die Mediathek. Jedes erhält den Link-Slug und den Codenamen als Namen, etwa `summer-sale Default QR center image.png`, und gehört dem Linkbesitzer.
 
 Ein heruntergeladenes Bild behält die Adresse, die damals kodiert wurde. Weiterleitungen passen auf den Pfad, deshalb funktioniert ein Host weiter, der diesen Prozess noch erreicht. Eine Änderung des öffentlichen Präfixes oder der Domain schreibt eine schon heruntergeladene Datei nicht um. Schalte alte Präfixe ein oder lade einen neuen Code herunter, wenn diese Adressen weiter aufgelöst werden müssen.

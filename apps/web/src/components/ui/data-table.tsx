@@ -103,6 +103,8 @@ export function DataTable<T>({
   onViewChange,
   empty,
   onRowDrop,
+  onFilesDrop,
+  dragSelection = false,
   selectable = false,
   selectedIds = [],
   onSelectedIds,
@@ -117,6 +119,10 @@ export function DataTable<T>({
   onViewChange?: (view: TableView) => void;
   empty?: ReactNode;
   onRowDrop?: (payload: string, targetId: string) => void;
+  /** Files dropped from the computer onto a droppable row. */
+  onFilesDrop?: (files: File[], targetId: string) => void;
+  /** Dragging a selected row carries every selected row id, joined with commas. */
+  dragSelection?: boolean;
   selectable?: boolean;
   selectedIds?: string[];
   onSelectedIds?: (ids: string[]) => void;
@@ -206,6 +212,7 @@ export function DataTable<T>({
   const selectableIds = visibleMetas.filter((item) => item.meta.selectable !== false).map((item) => item.meta.id);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
   const columnCount = columns.length + (selectable ? 1 : 0);
+  const groupDrag = (meta: DataRow) => dragSelection && selectedIds.length > 1 && selectedIds.includes(meta.id);
   const sized = Object.keys(current.widths).length > 0;
 
   return (
@@ -319,9 +326,11 @@ export function DataTable<T>({
                 className={meta.className}
                 draggable={meta.draggable}
                 droppable={meta.droppable}
-                dragPayload={meta.dragPayload}
+                dragPayload={groupDrag(meta) ? selectedIds.join(",") : meta.dragPayload}
+                dragCount={groupDrag(meta) ? selectedIds.length : undefined}
                 id={meta.domId}
                 onRowDrop={meta.droppable ? (payload) => onRowDrop?.(payload, meta.id) : undefined}
+                onFilesDrop={meta.droppable && onFilesDrop ? (files) => onFilesDrop(files, meta.id) : undefined}
                 onContextMenu={
                   rowMenu
                     ? (event) => {

@@ -25,6 +25,7 @@ const LinkFormPage = lazyPage(() => linksModule().then((module) => module.LinkFo
 const LinkDetailPage = lazyPage(() => linksModule().then((module) => module.LinkDetailPage))
 const CampaignsPage = lazyPage(() => campaignsModule().then((module) => module.CampaignsPage))
 const CampaignDetailPage = lazyPage(() => campaignsModule().then((module) => module.CampaignDetailPage))
+const MediaPage = lazyPage(() => import('./pages/media.tsx').then((module) => module.MediaPage))
 const AnalyticsPage = lazyPage(() => import('./pages/analytics.tsx').then((module) => module.AnalyticsPage))
 const ChatPage = lazyPage(() => import('./pages/chat.tsx').then((module) => module.ChatPage))
 const DocsPage = lazyPage(() => import('./pages/docs.tsx').then((module) => module.DocsPage))
@@ -135,6 +136,7 @@ export const router = createBrowserRouter([
           { path: 'links/:id', handle: { title: 'Link' }, element: <Routed><LinkDetailPage /></Routed> },
           { path: 'campaigns', handle: { title: 'Campaigns' }, element: <Routed><CampaignsPage /></Routed> },
           { path: 'campaigns/:id', handle: { title: 'Campaign' }, element: <Routed><CampaignDetailPage /></Routed> },
+          { path: 'media', handle: { title: 'Media' }, element: <Routed><MediaPage /></Routed> },
           { path: 'analytics', handle: { title: 'Analytics' }, element: <Routed><AnalyticsPage /></Routed> },
           { path: 'chat', handle: { title: 'Chat' }, element: <Routed><ChatPage /></Routed> },
           { path: 'chat/:id', handle: { title: 'Chat' }, element: <Routed><ChatPage /></Routed> },

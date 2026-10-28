@@ -42,6 +42,7 @@ export const docSlugs = [
   'campaigns',
   'analytics',
   'qr-codes',
+  'media',
   'domains',
   'api-keys',
   'users',

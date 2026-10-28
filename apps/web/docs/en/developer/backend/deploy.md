@@ -72,7 +72,9 @@ These are copied to the server. Empty strings are treated as unset where a defau
 | `SMTP_PASSWORD` | empty | Fallback mail password |
 | `EMAIL_FROM` | empty | Fallback From address |
 | `GEOIP_DB_PATH` | empty | Local MaxMind database. Country and region stay empty without it |
-| `QR_DATA_DIR` | `data/qr-logos` | Center images. On the server this is under `shared/data` |
+| `QR_DATA_DIR` | `data/qr-logos` | Center images from older versions. Startup moves them into the media library |
+| `MEDIA_DATA_DIR` | `data/media` | Media library files and thumbnails. On the server this is under `shared/data` |
+| `MEDIA_MAX_UPLOAD_MB` | `25` | Largest media upload in megabytes, 1 to 1024 |
 | `AVATAR_DATA_DIR` | `data/avatars` | Account photos, also under `shared/data` |
 
 ### Deploy-only variables

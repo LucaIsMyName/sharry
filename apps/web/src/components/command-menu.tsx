@@ -8,6 +8,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Link as LinkIcon,
+  Images,
   Megaphone,
   MessageSquare,
   ScrollText,
@@ -55,6 +56,13 @@ export type SearchCampaign = {
   icon?: string | null;
 };
 
+export type SearchMedia = {
+  id: string;
+  name: string;
+  kind: "image" | "video" | "document";
+  folderId: string | null;
+};
+
 export type SearchChat = {
   id: string;
   title: string;
@@ -76,6 +84,7 @@ export type SearchAudit = {
 export type SearchResponse = {
   links: SearchLink[];
   campaigns: SearchCampaign[];
+  media?: SearchMedia[];
   chats: SearchChat[];
   users?: SearchUser[];
   domains?: SearchDomain[];
@@ -224,6 +233,18 @@ export function CommandMenu({
                 />
               ))}
             </Group>
+            <Group heading={translate("Media")}>
+              {(result?.media ?? []).map((item) => (
+                <Row
+                  key={item.id}
+                  value={`media-${item.id}`}
+                  to={mediaPath(item)}
+                  title={item.name}
+                  icon={<Images size={18} />}
+                  onSelect={() => go(mediaPath(item))}
+                />
+              ))}
+            </Group>
             <Group heading={translate("Chats")}>
               {(result?.chats ?? []).map((chat) => (
                 <Row
@@ -367,6 +388,7 @@ function routeIcon(to: string): ReactNode {
   if (path === "/") return <LayoutDashboard size={18} />;
   if (path.startsWith("/links")) return <LinkIcon size={18} />;
   if (path.startsWith("/campaigns")) return <Megaphone size={18} />;
+  if (path.startsWith("/media")) return <Images size={18} />;
   if (path.startsWith("/analytics")) return <ChartColumn size={18} />;
   if (path.startsWith("/chat")) return <MessageSquare size={18} />;
   if (path.startsWith("/docs")) return <BookOpen size={18} />;
@@ -396,4 +418,8 @@ function auditLabel(action: string, translate: (message: string) => string): str
 
 function isAbort(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
+}
+
+function mediaPath(item: SearchMedia): string {
+  return item.folderId ? `/media?folder=${item.folderId}&file=${item.id}` : `/media?file=${item.id}`;
 }

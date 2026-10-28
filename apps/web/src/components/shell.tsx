@@ -4,6 +4,7 @@ import {
   BookOpen,
   ChartColumn,
   Globe,
+  Images,
   KeyRound,
   LayoutDashboard,
   Link,
@@ -138,6 +139,9 @@ function Navigation({
       </Item>
       <Item to="/campaigns" icon={<Megaphone size={18} />}>
         {t("Campaigns")}
+      </Item>
+      <Item to="/media" icon={<Images size={18} />}>
+        {t("Media")}
       </Item>
       <Item to="/analytics" icon={<ChartColumn size={18} />}>
         {t("Analytics")}

@@ -222,6 +222,33 @@ export const trackingVariants = pgTable(
   ],
 )
 
+export const mediaAssets = pgTable(
+  'media_assets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    folderId: uuid('folder_id').references(() => folders.id, { onDelete: 'set null' }),
+    kind: text('kind').notNull(),
+    mime: text('mime').notNull(),
+    name: text('name').notNull(),
+    fileName: text('file_name').notNull(),
+    size: integer('size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    alt: text('alt'),
+    title: text('title'),
+    hasThumbnail: boolean('has_thumbnail').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('media_assets_user_id_idx').on(table.userId),
+    index('media_assets_folder_id_idx').on(table.folderId),
+  ],
+)
+
 export const qrCodes = pgTable(
   'qr_codes',
   {
@@ -235,9 +262,10 @@ export const qrCodes = pgTable(
     name: text('name').notNull(),
     styleConfig: jsonb('style_config').$type<QrStyle>().notNull(),
     logoPath: text('logo_path'),
+    logoMediaId: uuid('logo_media_id').references(() => mediaAssets.id, { onDelete: 'restrict' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('qr_codes_link_id_idx').on(table.linkId)],
+  (table) => [index('qr_codes_link_id_idx').on(table.linkId), index('qr_codes_logo_media_id_idx').on(table.logoMediaId)],
 )
 
 export const clickEvents = pgTable(
@@ -398,6 +426,7 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
 
 export type UserRecord = typeof users.$inferSelect
 export type LinkRecord = typeof links.$inferSelect
+export type MediaRecord = typeof mediaAssets.$inferSelect
 export type RedirectDomainRecord = typeof redirectDomains.$inferSelect
 export type SessionRecord = typeof sessions.$inferSelect
 export type ApiKeyRecord = typeof apiKeys.$inferSelect

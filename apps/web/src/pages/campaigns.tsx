@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { defaultCampaignIcon, defaultFolderIcon, type UtmParams } from "@sharry/shared";
 import { api, type ShortLink } from "../api.ts";
 import { AppIcon } from "../components/app-icon.tsx";
+import { FolderCrumbs } from "../components/folder-crumbs.tsx";
 import { FolderMoveDialog } from "../components/folder-move-dialog.tsx";
 import { IconPicker } from "../components/icon-picker.tsx";
 import { TagBadge, TagField, type EditorTag } from "../components/tag-field.tsx";
@@ -382,48 +383,13 @@ function CampaignFolderBar({
 }) {
   const { t } = useI18n();
   return (
-    <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label={t("Folder")}>
-      <Crumb label={t("Campaigns")} active={folder === "root"} onOpen={() => onOpen(null)} onDrop={(payload) => onDrop(payload, null)} />
-      {breadcrumb.map((item, index) => (
-        <span key={item.id} className="inline-flex items-center gap-1">
-          <span className="text-muted-foreground">/</span>
-          <Crumb
-            label={item.name}
-            active={index === breadcrumb.length - 1}
-            onOpen={() => onOpen(item.id)}
-            onDrop={(payload) => onDrop(payload, item.id)}
-          />
-        </span>
-      ))}
-    </nav>
-  );
-}
-
-function Crumb({
-  label,
-  active,
-  onOpen,
-  onDrop,
-}: {
-  label: string;
-  active: boolean;
-  onOpen: () => void;
-  onDrop: (payload: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={active ? "rounded px-1.5 py-0.5 font-medium" : "rounded px-1.5 py-0.5 text-muted-foreground hover:text-foreground"}
-      onClick={onOpen}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        const payload = event.dataTransfer.getData("text/plain");
-        if (payload) onDrop(payload);
-      }}
-    >
-      {label}
-    </button>
+    <FolderCrumbs
+      rootLabel={t("Campaigns")}
+      folder={folder}
+      breadcrumb={breadcrumb}
+      onOpen={onOpen}
+      onDrop={onDrop}
+    />
   );
 }
 

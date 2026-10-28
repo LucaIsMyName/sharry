@@ -185,7 +185,7 @@ export const createCampaignSchema = z.object({
 export const updateCampaignSchema = createCampaignSchema.partial()
 
 export const createFolderSchema = z.object({
-  kind: z.enum(['link', 'campaign']),
+  kind: z.enum(['link', 'campaign', 'media']),
   name: z.string().trim().min(1).max(80),
   parentId: z.string().uuid().nullable().optional(),
   icon: optionalIcon,
@@ -223,12 +223,21 @@ export const createQrSchema = z.object({
   name: z.string().trim().min(1).max(120),
   style: qrStyleSchema,
   trackingVariantId: z.string().uuid().nullable().optional(),
+  logoMediaId: z.string().uuid().nullable().optional(),
 })
 
 export const updateQrSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   style: qrStyleSchema.optional(),
   trackingVariantId: z.string().uuid().nullable().optional(),
+  logoMediaId: z.string().uuid().nullable().optional(),
+})
+
+export const updateMediaSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  alt: z.string().trim().max(500).nullable().optional(),
+  title: z.string().trim().max(200).nullable().optional(),
+  folderId: z.string().uuid().nullable().optional(),
 })
 
 export const settingsUpdateSchema = z.object({

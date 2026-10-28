@@ -8,6 +8,7 @@ Typing searches further:
 
 - Links, by title, description, slug, destination, a routing rule name, a UTM value, or a QR code name. A match opens the link. The same link is listed under Analytics, which opens that link’s clicks. The Analytics page itself is the total for every link you can see.
 - Campaigns, by name, description, or a variant name.
+- Media files, by name, alt text, or title. A match opens the file in its folder.
 - Your own chats, by title or message text.
 - The docs in your language, by title or page text.
 - Sections on Account and Settings, such as password, two-factor authentication, the public prefix, and the mail server.

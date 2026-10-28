@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, FolderInput, FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { defaultFolderIcon, defaultLinkIcon } from "@sharry/shared";
 import { api, type LinkSummary } from "../api.ts";
 import { AppIcon } from "../components/app-icon.tsx";
+import { FolderCrumbs } from "../components/folder-crumbs.tsx";
+import { FolderNameInput } from "../components/folder-name-input.tsx";
 import { FolderMoveDialog } from "../components/folder-move-dialog.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { BulkLinksDialog } from "../components/bulk-links.tsx";
@@ -421,20 +423,14 @@ export function LinkOverview() {
       {aiAvailable ? (
         <BulkLinksDialog open={bulkOpen} onOpenChange={setBulkOpen} onCreated={() => setReload((value) => value + 1)} />
       ) : null}
-      <nav className="mb-3 flex flex-wrap items-center gap-1 text-sm" aria-label={t("Folder")}>
-        <Crumb label={t("Links")} active={folder === "root"} onOpen={() => openFolder(null)} onDrop={(payload) => void dropOn(payload, null)} />
-        {breadcrumb.map((item, index) => (
-          <span key={item.id} className="inline-flex items-center gap-1">
-            <span className="text-muted-foreground">/</span>
-            <Crumb
-              label={item.name}
-              active={index === breadcrumb.length - 1}
-              onOpen={() => openFolder(item.id)}
-              onDrop={(payload) => void dropOn(payload, item.id)}
-            />
-          </span>
-        ))}
-      </nav>
+      <FolderCrumbs
+        className="mb-3"
+        rootLabel={t("Links")}
+        folder={folder}
+        breadcrumb={breadcrumb}
+        onOpen={openFolder}
+        onDrop={(payload, parentId) => void dropOn(payload, parentId)}
+      />
       {loading ? (
         <RowSkeleton label="Loading links…" />
       ) : failed ? (
@@ -556,74 +552,4 @@ export function LinkOverview() {
       await move({ kind: "link", link }, parentId);
     }
   }
-}
-
-function Crumb({
-  label,
-  active,
-  onOpen,
-  onDrop,
-}: {
-  label: string;
-  active: boolean;
-  onOpen: () => void;
-  onDrop: (payload: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn("rounded px-1.5 py-0.5", active ? "font-medium" : "text-muted-foreground hover:text-foreground")}
-      onClick={onOpen}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        const payload = event.dataTransfer.getData("text/plain");
-        if (payload) onDrop(payload);
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-function FolderNameInput({
-  value,
-  onChange,
-  onCommit,
-  onCancel,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useI18n();
-  const ref = useRef<HTMLInputElement>(null);
-  const skip = useRef(false);
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    node.focus();
-    node.select();
-  }, []);
-  return (
-    <input
-      ref={ref}
-      aria-label={t("Folder name")}
-      className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm"
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      onBlur={() => {
-        if (skip.current) return;
-        onCommit();
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") event.currentTarget.blur();
-        if (event.key === "Escape") {
-          skip.current = true;
-          onCancel();
-        }
-      }}
-    />
-  );
 }

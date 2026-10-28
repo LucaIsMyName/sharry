@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aiChats, aiMessages, apiKeys, auditLogs, links, qrCodes, redirectDomains, trackingCampaigns, trackingVariants } from '@sharry/database'
+import { aiChats, aiMessages, apiKeys, auditLogs, links, mediaAssets, qrCodes, redirectDomains, trackingCampaigns, trackingVariants } from '@sharry/database'
 import { defaultQrStyle } from '@sharry/shared'
 import { searchPhrases, textMatches } from '../src/search.ts'
 import { writeSetting } from '../src/settings-store.ts'
@@ -77,7 +77,7 @@ describe('search', () => {
     )
 
     const blank = await search(ctx, ada.cookie, '   ')
-    expect(blank.json()).toEqual({ links: [], campaigns: [], chats: [] })
+    expect(blank.json()).toEqual({ links: [], campaigns: [], chats: [], media: [] })
 
     const byTitle = await search(ctx, ada.cookie, 'harbor')
     expect(byTitle.statusCode).toBe(200)
@@ -88,6 +88,7 @@ describe('search', () => {
         slug: 'beacon',
         destinationUrl: 'https://example.com/lighthouse',
         description: 'Painted tower',
+        icon: null,
       },
     ])
     expect(byTitle.json()).not.toHaveProperty('users')
@@ -100,8 +101,20 @@ describe('search', () => {
     }
 
     const campaigns = (await search(ctx, ada.cookie, 'spring')).json().campaigns
-    expect(campaigns).toEqual([{ id: campaign.id, name: 'Spring launch', description: 'Outdoor posters' }])
+    expect(campaigns).toEqual([{ id: campaign.id, name: 'Spring launch', description: 'Outdoor posters', icon: null }])
     expect((await search(ctx, ada.cookie, 'poster north')).json().campaigns[0].id).toBe(campaign.id)
+
+    const [photo] = await ctx.db
+      .insert(mediaAssets)
+      .values({ userId: ada.id, name: 'harbor.png', fileName: 'a.png', mime: 'image/png', kind: 'image', size: 10, alt: 'Red lighthouse at dusk' })
+      .returning()
+    await ctx.db
+      .insert(mediaAssets)
+      .values({ userId: grace.id, name: 'grace-harbor.png', fileName: 'b.png', mime: 'image/png', kind: 'image', size: 10 })
+    expect((await search(ctx, ada.cookie, 'lighthouse dusk')).json().media).toEqual([
+      { id: photo!.id, name: 'harbor.png', kind: 'image', folderId: null },
+    ])
+    expect((await search(ctx, grace.cookie, 'harbor')).json().media.map((item: { name: string }) => item.name)).toEqual(['grace-harbor.png'])
 
     const chats = (await search(ctx, ada.cookie, 'keeper')).json().chats
     expect(chats[0]).toMatchObject({ id: chat.id, title: 'Planning notes' })

@@ -21,6 +21,7 @@ export default defineConfig({
       '/health': 'http://127.0.0.1:3000',
       // Match the short prefix without catching Vite's /src modules.
       '^/s/': 'http://127.0.0.1:3000',
+      '^/files/': 'http://127.0.0.1:3000',
     },
   },
 })

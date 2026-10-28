@@ -10,6 +10,7 @@ Dieselbe Bereinigung läuft jede Stunde. `SIGINT` und `SIGTERM` schließen den H
 
 - `auth.ts` für Sitzungen, Passwörter und Zwei-Faktor-Authentifizierung
 - `links.ts`, `tracking.ts`, `analytics.ts` und `qr.ts` für das Produkt
+- `media.ts` für die Mediathek: Uploads mit Typ aus dem Dateiinhalt, Vorschaubilder, Ordner, Verwendung und öffentliche Dateien unter `/files/<id>/<name>`. `media-backfill.ts` verschiebt ältere QR-Mittelbilder beim Start in die Mediathek
 - `admin.ts` für Benutzer, Einstellungen, Audit, Exporte und API-Schlüssel
 - `ai/chat.ts` für die Assistenz: Aufrufe an den Anbieter bleiben auf dem Server, Chats werden pro Person gespeichert, und Link-, Kampagnen- und Auswertungsformulare werden im Chat ausgefüllt, bevor etwas angelegt wird
 - `redirect-domains.ts` für eigene Weiterleitungsdomains und die Zertifikat-Allowlist
@@ -18,7 +19,7 @@ Dieselbe Bereinigung läuft jede Stunde. `SIGINT` und `SIGTERM` schließen den H
 
 PostgreSQL wird über Drizzle in `packages/database` angesprochen. Schemaänderungen laufen über `npm run db:generate` und `npm run db:migrate`. Anfragekörper werden mit Zod-Schemas in `packages/shared` geprüft.
 
-In Produktion liefert derselbe Prozess `apps/web/dist`. Dateien mit Hash liegen unter `/assets/`. Jedes andere `GET` oder `HEAD`, das kein Kurzlink ist, gibt das Dashboard-`index.html` zurück, wenn der Host die Deployment-Domain ist. Eine verifizierte Weiterleitungsdomain liefert nur Kurzlinks. Andere Pfade auf diesem Host geben 404 zurück, einschließlich Dashboard und `/api`. `POST` auf einen unbekannten Pfad und jeder unbekannte `/api`-Pfad geben 404 zurück. In der Entwicklung liefert Vite das Dashboard, und dieser Prozess liefert nur die API, den Health-Check und Kurzlinks. Produktion sendet eine Content-Security-Policy, die `blob:`-Verbindungen erlaubt, damit ein QR-Mittelbild eingebettet werden kann.
+In Produktion liefert derselbe Prozess `apps/web/dist`. Dateien mit Hash liegen unter `/assets/`. Jedes andere `GET` oder `HEAD`, das kein Kurzlink ist, gibt das Dashboard-`index.html` zurück, wenn der Host die Deployment-Domain ist. Eine verifizierte Weiterleitungsdomain liefert nur Kurzlinks und öffentliche Mediendateien unter `/files/`. Andere Pfade auf diesem Host geben 404 zurück, einschließlich Dashboard und `/api`. `POST` auf einen unbekannten Pfad und jeder unbekannte `/api`-Pfad geben 404 zurück. In der Entwicklung liefert Vite das Dashboard, und dieser Prozess liefert nur die API, den Health-Check, öffentliche Mediendateien und Kurzlinks. Produktion sendet eine Content-Security-Policy, die `blob:`-Verbindungen erlaubt, damit ein QR-Mittelbild eingebettet werden kann.
 
 ## Anfragepfad
 

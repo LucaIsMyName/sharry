@@ -13,7 +13,8 @@ Signed-in users can also open `/docs` for the same product and developer guides 
 | Links | Random or custom slugs, editable destinations, optional expiry, disable, password, and redirect type `301`, `302`, `307`, or `308` |
 | UTM | `utm_source`, `utm_medium`, `utm_campaign`, `utm_id`, `utm_term`, and `utm_content` are stored on the link and merged onto the destination at redirect time |
 | Campaigns | A named group of variants. A variant belongs to one link and can override that link’s UTM fields. It is selected with `?v=<variant id>` |
-| QR codes | Encode the short URL plus a `qr` id, so a destination change does not require a new code. Styles, colors, and a center image are saved. Downloads are PNG, JPEG, and SVG |
+| QR codes | Encode the short URL plus a `qr` id, so a destination change does not require a new code. Styles, colors, and a center image from the media library are saved. Downloads are PNG, JPEG, and SVG |
+| Media | A library of images, videos, and PDFs in folders. Upload and move by drag and drop. Each file has a public URL under `/files/`, alt text, and a title. Every file except account photos lives here |
 | Analytics | Clicks, unique visitors, bots, a daily series, and breakdowns for referrer, country, browser, operating system, device, bots, and each UTM field |
 | Domains | The deployment host is the default. Administrators can add more hostnames after a DNS TXT check. Each link can pick a verified domain |
 | Access | Two roles, `admin` and `user`. API keys act as the user they are bound to. Account routes accept only the session cookie |
@@ -77,6 +78,8 @@ TypeScript throughout. The API and the dashboard import `@sharry/shared` and `@s
 | `tracking.ts` | Campaigns and variants |
 | `analytics.ts` | Click queries and retention |
 | `qr.ts` | QR records and center images |
+| `media.ts` | Media library uploads, folders, usage, and public `/files/` serving |
+| `media-backfill.ts` | Moves older QR center images into the media library at startup |
 | `admin.ts` | Users, settings, audit, CSV export |
 | `api-keys.ts` | Bearer tokens |
 | `redirect-domains.ts` | Custom hostnames and the Caddy certificate allow-list |
@@ -94,7 +97,8 @@ In development, Vite serves the dashboard. This process serves the API, `/health
 
 ### Request checks
 
-- The body limit is 1 MB. An uploaded image is a separate limit of 512 KB and one file.
+- The body limit is 1 MB. An uploaded account photo is a separate limit of 512 KB and one file. A media upload is one file up to `MEDIA_MAX_UPLOAD_MB` and returns `413` with code `file_too_large` above it.
+- A media upload is typed from its contents: JPEG, PNG, WebP, GIF, SVG, MP4, WebM, or PDF. An SVG with scripts, event handlers, embedded HTML, or external references is refused.
 - State-changing `/api` requests that include an `Origin` header must match `APP_URL` or `SHORT_URL_BASE`. `GET`, `HEAD`, and `OPTIONS` skip that check. Outside production, an origin on `localhost` or `127.0.0.1` is allowed as well.
 - `/api/auth` rejects `Authorization: Bearer` before the handler runs. Other `/api` routes accept the session cookie or a bearer token.
 - API-key calls are limited to about 120 per minute per key. Sign-in, password change, password reset, authenticator setup, the two-factor challenge, authenticator confirmation, turning two-factor authentication off, and recovery-code replacement are each limited to 10 attempts per minute. A forgotten-password address is mailed at most 5 times an hour. Further requests still return success and send nothing.
@@ -191,9 +195,9 @@ It then runs two processes:
 - `tsx watch apps/api/src/index.ts` on `APP_PORT` (3000). API file changes reload this process, which applies migrations again.
 - Vite for `@sharry/web` on `http://127.0.0.1:5173`.
 
-Vite proxies `/api` and `/health` to port 3000, and paths that start with `/s/`, so the default prefix can be opened from the dashboard origin. A prefix you change in Settings is served by the API. Vite does not grow a new proxy rule for it. Point `SHORT_URL_BASE` at the API origin so every prefix resolves.
+Vite proxies `/api`, `/health`, and `/files/` to port 3000, and paths that start with `/s/`, so the default prefix can be opened from the dashboard origin. A prefix you change in Settings is served by the API. Vite does not grow a new proxy rule for it. Point `SHORT_URL_BASE` at the API origin so every prefix resolves.
 
-QR center images go to `QR_DATA_DIR` (default `data/qr-logos`). Account photos go to `AVATAR_DATA_DIR` (default `data/avatars`). Both live under `data/`, which `npm run dev` does not delete. Keep `data/` out of Git.
+Media library files go to `MEDIA_DATA_DIR` (default `data/media`). Account photos go to `AVATAR_DATA_DIR` (default `data/avatars`). `QR_DATA_DIR` (default `data/qr-logos`) only holds center images from older versions until startup moves them into the library. All three live under `data/`, which `npm run dev` does not delete. Keep `data/` out of Git.
 
 ## Everyday commands
 
@@ -253,8 +257,10 @@ Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password 
 | `SMTP_PASSWORD` | empty | Fallback mail password |
 | `EMAIL_FROM` | empty | Fallback From address |
 | `GEOIP_DB_PATH` | empty | Local MaxMind database |
-| `QR_DATA_DIR` | `data/qr-logos` | Center images. On the server this is under `shared/data` |
+| `QR_DATA_DIR` | `data/qr-logos` | Center images from older versions. Startup moves them into the media library |
 | `AVATAR_DATA_DIR` | `data/avatars` | Account photos |
+| `MEDIA_DATA_DIR` | `data/media` | Media library files and thumbnails. On the server this is under `shared/data` |
+| `MEDIA_MAX_UPLOAD_MB` | `25` | Largest media upload in megabytes, 1 to 1024 |
 
 ### Deploy-only variables
 
@@ -341,6 +347,7 @@ When Settings require two-factor authentication, a key works only after that use
 | `/` | Overview |
 | `/links`, `/links/new`, `/links/:id` | Links |
 | `/campaigns`, `/campaigns/:id` | Campaigns |
+| `/media` | Media library. `?folder=` opens a folder and `?file=` opens a file |
 | `/analytics` | Analytics |
 | `/docs`, `/docs/*` | Guides. `/docs` redirects to `/docs/user/signing-in` |
 | `/account` | Language, password, photo, two-factor authentication |
@@ -568,7 +575,7 @@ A failed health check restores the previous release and restarts the service whe
 
 The in-app guides under `apps/web/docs/en` are the longer form of the product and of the API. Start with:
 
-- `user/signing-in.md`, `user/links.md`, `user/campaigns.md`, `user/qr-codes.md`, `user/analytics.md`, `user/search.md` for day-to-day use
+- `user/signing-in.md`, `user/links.md`, `user/campaigns.md`, `user/qr-codes.md`, `user/media.md`, `user/analytics.md`, `user/search.md` for day-to-day use
 - `user/domains.md`, `user/api-keys.md`, `user/settings.md`, `user/users.md`, `user/server.md` for administration
 - `developer/backend/overview.md`, `development.md`, `auth.md`, `redirects.md`, `deploy.md` for the server
 - `developer/frontend/overview.md`, `routing.md`, `api-client.md` for the dashboard
