@@ -150,13 +150,13 @@ export function LinksPage() {
 }
 
 
-const defaultRedirectDomain = "default";
+export const defaultRedirectDomain = "default";
 
-function redirectDomainPayload(value: string): string | null {
+export function redirectDomainPayload(value: string): string | null {
   return value === defaultRedirectDomain ? null : value;
 }
 
-function RedirectDomainField({
+export function RedirectDomainField({
   value,
   onValueChange,
   srOnly = false,

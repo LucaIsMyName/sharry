@@ -45,9 +45,15 @@ Actions you will see include:
 | `campaign.created` | A campaign is created |
 | `campaign.deleted` | A campaign is deleted |
 | `qr.created` | A QR code is saved |
+| `page.created` | A landing page is created |
+| `page.published` | A landing page is published |
+| `page.hidden` | A landing page is hidden from visitors |
+| `page.duplicated` | A landing page is duplicated |
+| `page.deleted` | A landing page is deleted |
 | `api_key.create` | An API key is created |
 | `api_key.revoke` | An API key is revoked |
 | `settings.prefix_changed` | The public prefix changes |
+| `settings.page_prefix_changed` | The landing page prefix changes |
 | `settings.mfa_required` | The two-factor requirement changes |
 | `settings.link_sharing` | Who can see or change another person's links changes |
 | `settings.smtp_updated` | The mail server is saved |

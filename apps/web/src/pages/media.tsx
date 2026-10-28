@@ -470,7 +470,7 @@ export function MediaPage() {
       cell: (row) =>
         row.kind === "media" && (row.media.usageCount ?? 0) > 0 ? (
           <Badge variant="secondary">
-            {row.media.usageCount === 1 ? t("1 QR code") : t("{count} QR codes", { count: row.media.usageCount ?? 0 })}
+            {row.media.usageCount === 1 ? t("1 use") : t("{count} uses", { count: row.media.usageCount ?? 0 })}
           </Badge>
         ) : null,
     },

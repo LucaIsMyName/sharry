@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { ZodError, type ZodType } from 'zod'
+import { ZodError, type ZodType, type ZodTypeDef } from 'zod'
 
 export class AppError extends Error {
   constructor(
@@ -11,7 +11,7 @@ export class AppError extends Error {
   }
 }
 
-export function parseBody<T>(schema: ZodType<T>, body: unknown): T {
+export function parseBody<T>(schema: ZodType<T, ZodTypeDef, unknown>, body: unknown): T {
   const result = schema.safeParse(body)
   if (!result.success) {
     throw new AppError(400, issues(result.error), 'validation')

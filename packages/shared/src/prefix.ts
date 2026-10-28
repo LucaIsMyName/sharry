@@ -11,6 +11,7 @@ export const RESERVED_PREFIXES = [
   'docs',
   'media',
   'files',
+  'pages',
 ] as const
 
 export const RESERVED_SLUGS = [
@@ -28,7 +29,15 @@ export const RESERVED_SLUGS = [
   'docs',
   'media',
   'files',
+  'pages',
 ] as const
+
+export const PAGE_PREFIX_CONFLICT = 'Short links and landing pages need different prefixes'
+
+/** Prefixes a new short-link or page prefix must not reuse: the other kind's current and legacy prefixes. */
+export function prefixConflict(prefix: string, other: { current: string; legacy: readonly string[] }): string | null {
+  return prefix === other.current || other.legacy.includes(prefix) ? PAGE_PREFIX_CONFLICT : null
+}
 
 export function validatePrefix(prefix: string): string | null {
   if (!prefix.startsWith('/')) return 'Prefix must start with /'

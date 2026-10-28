@@ -12,6 +12,13 @@ const valid = {
 }
 
 describe('environment', () => {
+  it('defaults the landing page prefix to /l and keeps it apart from short links', () => {
+    expect(parseRuntimeEnv(valid).LANDING_PAGE_PREFIX).toBe('/l')
+    expect(parseRuntimeEnv({ ...valid, LANDING_PAGE_PREFIX: '/p' }).LANDING_PAGE_PREFIX).toBe('/p')
+    expect(() => parseRuntimeEnv({ ...valid, LANDING_PAGE_PREFIX: '/s' })).toThrow(/LANDING_PAGE_PREFIX/)
+    expect(() => parseRuntimeEnv({ ...valid, LANDING_PAGE_PREFIX: '/pages' })).toThrow(/LANDING_PAGE_PREFIX/)
+  })
+
   it('rejects an incomplete configuration without echoing secrets', () => {
     const secret = 'super-secret-value-that-must-stay-hidden'
     expect(() => parseRuntimeEnv({})).toThrow(/Invalid environment/)

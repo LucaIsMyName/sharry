@@ -28,6 +28,6 @@ A pending row can open the same dialog again with Setup. A taken hostname return
 
 ## After verification
 
-Every signed-in person sees verified domains in the redirect domain menu on New link and on the link editor. Pending domains stay off that menu.
+Every signed-in person sees verified domains in the redirect domain menu on New link and on the link editor. Pending domains stay off that menu. The same menu is in the page settings of a landing page. A page with a redirect domain is served on that host and on the deployment domain, and every other redirect domain answers “not found” for it. See [Pages](/docs/user/pages).
 
-Delete removes the domain. Links that used it show the deployment domain the next time they are read. A certificate that was already issued keeps working until it expires. Printed QR codes keep the host they were created with.
+Delete removes the domain. Links that used it show the deployment domain the next time they are read. A certificate that was already issued keeps working until it expires. Printed QR codes keep the host they were created with. Pages that used it are served only on the deployment domain.

@@ -67,7 +67,7 @@ export function MediaField({
         onDragLeave={() => setDropActive(false)}
         onDrop={(event) => void drop(event)}
       >
-        {value ? (
+        {value?.url ? (
           <img src={value.url} alt="" className="size-12 shrink-0 rounded-md object-cover" />
         ) : (
           <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">

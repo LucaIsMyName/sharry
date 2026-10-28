@@ -1,6 +1,6 @@
 # Medien
 
-Die Mediathek enthält die Dateien, die die App nutzt, etwa Mittelbilder von QR-Codes. Nur Kontofotos liegen außerhalb. Öffne Medien in der Seitenleiste. Dateien und Ordner teilen sich eine Tabelle mit denselben Zeilen, derselben Auswahl, Sortierung, Filtern und Spalteneinstellungen wie Links und Kampagnen.
+Die Mediathek enthält die Dateien, die die App nutzt, etwa Mittelbilder von QR-Codes sowie Bilder und Videos auf Landingpages. Nur Kontofotos liegen außerhalb. Öffne Medien in der Seitenleiste. Dateien und Ordner teilen sich eine Tabelle mit denselben Zeilen, derselben Auswahl, Sortierung, Filtern und Spalteneinstellungen wie Links und Kampagnen.
 
 ## Hochladen per Ziehen
 
@@ -37,9 +37,9 @@ Die Suche in der Tabelle filtert nach Namen. Die Suche in der oberen Leiste find
 
 ## Dateidetails
 
-Wähle eine Zeile, um die Datei rechts zu öffnen. Du kannst sie umbenennen, Alternativtext und Titel schreiben, die öffentliche URL kopieren und sehen, welche QR-Codes sie nutzen. Die Dateiendung ändert sich beim Umbenennen nie. Der Alternativtext beschreibt das Bild für Menschen, die es nicht sehen können. Der Filter Alternativtext listet Bilder, denen er noch fehlt.
+Wähle eine Zeile, um die Datei rechts zu öffnen. Du kannst sie umbenennen, Alternativtext und Titel schreiben, die öffentliche URL kopieren und sehen, welche QR-Codes und Landingpages sie nutzen. Die Dateiendung ändert sich beim Umbenennen nie. Der Alternativtext beschreibt das Bild für Menschen, die es nicht sehen können. Der Filter Alternativtext listet Bilder, denen er noch fehlt.
 
-Eine verwendete Datei kann nicht gelöscht werden. Entferne sie zuerst aus den QR-Codes unter Verwendet von.
+Eine verwendete Datei kann nicht gelöscht werden. Entferne sie zuerst aus den QR-Codes und Seiten unter Verwendet von. Eine Landingpage zählt, solange ihr gespeicherter Entwurf oder ihre veröffentlichte Fassung die Datei nutzt. Die Spalte Verwendet von zählt jede Verwendung.
 
 ## Öffentliche URLs und Datenschutz
 
@@ -50,3 +50,7 @@ Wer welche Dateien sieht, folgt den Einstellungen zum Teilen von Links in den [E
 ## QR-Codes
 
 Das Feld Mittelbild im QR-Code-Editor nutzt die Mediathek. Aus der Mediathek wählen öffnet eine Auswahl mit Ordnern und Suche. Eine Datei, die du auf das Feld oder in die Auswahl ziehst, wird in die Mediathek hochgeladen und ausgewählt. Nur PNG, JPEG und WebP können Mittelbild sein. Siehe [QR-Codes](/docs/user/qr-codes).
+
+## Landingpages
+
+Bild- und Video-Blöcke, das Vorschaubild eines Videos und das Bild beim Teilen einer Seite nutzen die Mediathek. Aus der Mediathek wählen öffnet dieselbe Auswahl, und eine auf das Feld gezogene Datei wird hochgeladen und ausgewählt. Siehe [Seiten](/docs/user/pages).

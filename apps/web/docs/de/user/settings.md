@@ -26,6 +26,12 @@ Vier Schalter entscheiden, ob ein Benutzer einen Link sehen oder ändern kann, d
 
 Kampagnen bleiben privat. Ein Benutzer kann einen Link, den er ansehen darf, an die eigene Kampagne hängen.
 
+## Landingpages
+
+Präfix für Landingpages ist der erste Abschnitt jeder Seitenadresse, etwa `/l` in `https://share.example.com/l/spring-sale`. Der Standard kommt aus `LANDING_PAGE_PREFIX`. Es gelten dieselben Regeln wie für das öffentliche Präfix, und es darf weder das öffentliche Präfix noch eines seiner früheren Präfixe sein. Umgekehrt kann das öffentliche Präfix nicht das Seitenpräfix übernehmen.
+
+Eine Änderung fragt nach einer Bestätigung, denn jede Seitenadresse ändert sich. Schalte im Dialog „Bisheriges Seitenpräfix weiter nutzen“ ein, damit geteilte Links und gedruckte Codes weiter funktionieren. „Frühere Seitenpräfixe weiter nutzen“ steuert die ganze Liste, die darunter steht. Siehe [Seiten](/docs/user/pages).
+
 ## Sitzungen
 
 Analysen aufbewahren, Tage, löscht Klickereignisse, die älter als diese Anzahl Tage sind. Die Bereinigung läuft beim Prozessstart und danach jede Stunde. Nutze `0`, um Ereignisse zu behalten. Das Maximum ist 3650. Die Vorgabe ist 365.

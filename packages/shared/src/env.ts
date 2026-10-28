@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { validatePrefix } from './prefix.ts'
+import { PAGE_PREFIX_CONFLICT, validatePrefix } from './prefix.ts'
 
 const emptyToUndefined = (value: unknown) => {
   if (typeof value === 'string' && value.trim() === '') return undefined
@@ -29,6 +29,7 @@ export const runtimeEnvSchema = z
     APP_PORT: port(3000),
     SHORT_URL_BASE: z.string().url(),
     SHORT_URL_PREFIX: z.string().min(2),
+    LANDING_PAGE_PREFIX: z.preprocess(emptyToUndefined, z.string().min(2).default('/l')),
     DATABASE_URL: z.string().min(1),
     INITIAL_ADMIN_USERNAME: z.preprocess(emptyToUndefined, z.string().min(3).max(32).optional()),
     INITIAL_ADMIN_EMAIL: z.preprocess(emptyToUndefined, z.string().email().optional()),
@@ -66,6 +67,10 @@ export const runtimeEnvSchema = z
     const prefixError = validatePrefix(value.SHORT_URL_PREFIX)
     if (prefixError) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['SHORT_URL_PREFIX'], message: prefixError })
+    }
+    const pageError = validatePrefix(value.LANDING_PAGE_PREFIX) ?? (value.LANDING_PAGE_PREFIX === value.SHORT_URL_PREFIX ? PAGE_PREFIX_CONFLICT : null)
+    if (pageError) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['LANDING_PAGE_PREFIX'], message: pageError })
     }
   })
 

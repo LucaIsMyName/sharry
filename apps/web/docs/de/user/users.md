@@ -45,9 +45,15 @@ Aktionen, die du siehst, sind unter anderem:
 | `campaign.created` | Eine Kampagne wird angelegt |
 | `campaign.deleted` | Eine Kampagne wird gelöscht |
 | `qr.created` | Ein QR-Code wird gespeichert |
+| `page.created` | Eine Landingpage wird erstellt |
+| `page.published` | Eine Landingpage wird veröffentlicht |
+| `page.hidden` | Eine Landingpage wird vor Besuchern verborgen |
+| `page.duplicated` | Eine Landingpage wird dupliziert |
+| `page.deleted` | Eine Landingpage wird gelöscht |
 | `api_key.create` | Ein API-Schlüssel wird angelegt |
 | `api_key.revoke` | Ein API-Schlüssel wird widerrufen |
 | `settings.prefix_changed` | Das öffentliche Präfix ändert sich |
+| `settings.page_prefix_changed` | Das Präfix der Landingpages ändert sich |
 | `settings.mfa_required` | Die Zwei-Faktor-Pflicht ändert sich |
 | `settings.link_sharing` | Wer die Links einer anderen Person sehen oder ändern kann, ändert sich |
 | `settings.smtp_updated` | Der Mailserver wird gespeichert |

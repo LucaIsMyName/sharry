@@ -20,6 +20,9 @@ export type AppSettings = {
   shortUrlPrefix: string
   legacyPrefixEnabled: boolean
   legacyPrefixes: string[]
+  pagePrefix: string
+  legacyPagePrefixEnabled: boolean
+  legacyPagePrefixes: string[]
   appUrl: string
   shortUrlBase: string
   defaultRedirectType: RedirectType
@@ -58,6 +61,9 @@ export function defaultSettings(env: RuntimeEnv): AppSettings {
     shortUrlPrefix: env.SHORT_URL_PREFIX,
     legacyPrefixEnabled: false,
     legacyPrefixes: [],
+    pagePrefix: env.LANDING_PAGE_PREFIX,
+    legacyPagePrefixEnabled: false,
+    legacyPagePrefixes: [],
     appUrl: trimSlash(env.APP_URL),
     shortUrlBase: trimSlash(env.SHORT_URL_BASE),
     defaultRedirectType: '302',
@@ -91,6 +97,9 @@ export function settingsToRows(settings: AppSettings): Record<string, string> {
     short_url_prefix: settings.shortUrlPrefix,
     legacy_prefix_enabled: settings.legacyPrefixEnabled ? 'true' : 'false',
     legacy_prefixes: JSON.stringify(settings.legacyPrefixes),
+    landing_page_prefix: settings.pagePrefix,
+    legacy_page_prefix_enabled: settings.legacyPagePrefixEnabled ? 'true' : 'false',
+    legacy_page_prefixes: JSON.stringify(settings.legacyPagePrefixes),
     app_url: settings.appUrl,
     short_url_base: settings.shortUrlBase,
     default_redirect_type: settings.defaultRedirectType,
@@ -130,11 +139,20 @@ export async function getSettings(db: Database, env: RuntimeEnv): Promise<AppSet
 export function parseSettings(map: Record<string, string | undefined>, env: RuntimeEnv): AppSettings {
   const defaults = defaultSettings(env)
   const prefix = map.short_url_prefix ?? defaults.shortUrlPrefix
+  const shortUrlPrefix = validatePrefix(prefix) ? defaults.shortUrlPrefix : prefix
+  const storedPagePrefix = map.landing_page_prefix ?? defaults.pagePrefix
+  const pagePrefix =
+    validatePrefix(storedPagePrefix) || storedPagePrefix === shortUrlPrefix ? defaults.pagePrefix : storedPagePrefix
   return {
     initialized: map.initialized === 'true',
-    shortUrlPrefix: validatePrefix(prefix) ? defaults.shortUrlPrefix : prefix,
+    shortUrlPrefix,
     legacyPrefixEnabled: map.legacy_prefix_enabled === 'true',
     legacyPrefixes: parseStringArray(map.legacy_prefixes).filter((prefix) => validatePrefix(prefix) === null),
+    pagePrefix,
+    legacyPagePrefixEnabled: map.legacy_page_prefix_enabled === 'true',
+    legacyPagePrefixes: parseStringArray(map.legacy_page_prefixes).filter(
+      (prefix) => validatePrefix(prefix) === null && prefix !== shortUrlPrefix,
+    ),
     appUrl: defaults.appUrl,
     shortUrlBase: defaults.shortUrlBase,
     defaultRedirectType: isRedirect(map.default_redirect_type) ? map.default_redirect_type : defaults.defaultRedirectType,

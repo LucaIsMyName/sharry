@@ -77,7 +77,7 @@ describe('search', () => {
     )
 
     const blank = await search(ctx, ada.cookie, '   ')
-    expect(blank.json()).toEqual({ links: [], campaigns: [], chats: [], media: [] })
+    expect(blank.json()).toEqual({ links: [], campaigns: [], chats: [], media: [], pages: [] })
 
     const byTitle = await search(ctx, ada.cookie, 'harbor')
     expect(byTitle.statusCode).toBe(200)

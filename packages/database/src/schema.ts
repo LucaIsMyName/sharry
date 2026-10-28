@@ -12,7 +12,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
-import type { AiProposal, ChatBlock, QrStyle, RoutingRule } from '@sharry/shared'
+import type { AiProposal, ChatBlock, PageContent, PageSettings, QrStyle, RoutingRule } from '@sharry/shared'
 
 export const users = pgTable(
   'users',
@@ -222,6 +222,36 @@ export const trackingVariants = pgTable(
   ],
 )
 
+export const landingPages = pgTable(
+  'landing_pages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    folderId: uuid('folder_id').references(() => folders.id, { onDelete: 'set null' }),
+    redirectDomainId: uuid('redirect_domain_id').references(() => redirectDomains.id, { onDelete: 'set null' }),
+    slug: text('slug').notNull(),
+    title: text('title').notNull(),
+    settings: jsonb('settings').$type<PageSettings>().notNull(),
+    content: jsonb('content').$type<PageContent>().notNull(),
+    publishedTitle: text('published_title'),
+    publishedSettings: jsonb('published_settings').$type<PageSettings>(),
+    publishedContent: jsonb('published_content').$type<PageContent>(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    hidden: boolean('hidden').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  },
+  (table) => [
+    uniqueIndex('landing_pages_slug_lower_idx').on(sql`lower(${table.slug})`),
+    index('landing_pages_user_id_idx').on(table.userId),
+    index('landing_pages_folder_id_idx').on(table.folderId),
+    index('landing_pages_redirect_domain_id_idx').on(table.redirectDomainId),
+  ],
+)
+
 export const mediaAssets = pgTable(
   'media_assets',
   {
@@ -427,6 +457,7 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
 export type UserRecord = typeof users.$inferSelect
 export type LinkRecord = typeof links.$inferSelect
 export type MediaRecord = typeof mediaAssets.$inferSelect
+export type LandingPageRecord = typeof landingPages.$inferSelect
 export type RedirectDomainRecord = typeof redirectDomains.$inferSelect
 export type SessionRecord = typeof sessions.$inferSelect
 export type ApiKeyRecord = typeof apiKeys.$inferSelect

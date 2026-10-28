@@ -3,7 +3,7 @@ import path from 'node:path'
 import { desc, eq, inArray, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { apiKeys, auditLogs, links, qrCodes, sessions, trackingCampaigns, users, type Database, type UserRecord } from '@sharry/database'
-import { aiBaseUrlError, apiKeySecretPrefix, apiKeyTokenPrefix, appSlug, buildShortUrl, createApiKeySchema, createUserSchema, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
+import { aiBaseUrlError, apiKeySecretPrefix, apiKeyTokenPrefix, appSlug, buildShortUrl, createApiKeySchema, createUserSchema, prefixConflict, settingsUpdateSchema, updateUserSchema, validatePrefix, type RuntimeEnv } from '@sharry/shared'
 import { requireAdmin } from './auth.ts'
 import { writeAudit } from './audit.ts'
 import { loadVerifiedHosts, originForLink, removeLogo } from './links.ts'
@@ -18,7 +18,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
    * @route GET /api/settings/public
    * @tag Settings
    * @auth api-key or session
-   * @response 200 { shortUrlPrefix, shortUrlBase, appUrl, defaultRedirectType, slugLength, defaultQrStyle, appName }
+   * @response 200 { shortUrlPrefix, pagePrefix, shortUrlBase, appUrl, defaultRedirectType, slugLength, defaultQrStyle, appName }
    */
   app.get('/api/settings/public', async (request) => {
     const { requireUser } = await import('./auth.ts')
@@ -184,7 +184,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
    * @route PATCH /api/admin/settings
    * @tag Settings
    * @auth admin api-key or admin session
-   * @body JSON settings fields. shortUrlPrefix changes require confirmPrefixChange
+   * @body JSON settings fields. shortUrlPrefix changes require confirmPrefixChange and pagePrefix changes require confirmPagePrefixChange
    * @response 200 Settings
    */
   app.patch('/api/admin/settings', async (request) => {
@@ -192,7 +192,9 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     const body = parseBody(settingsUpdateSchema, request.body)
     const current = await getSettings(app.db, app.env)
     if (body.shortUrlPrefix && body.shortUrlPrefix !== current.shortUrlPrefix) {
-      const error = validatePrefix(body.shortUrlPrefix)
+      const error =
+        validatePrefix(body.shortUrlPrefix) ??
+        prefixConflict(body.shortUrlPrefix, { current: body.pagePrefix ?? current.pagePrefix, legacy: current.legacyPagePrefixes })
       if (error) throw new AppError(400, error, 'validation')
       if (!body.confirmPrefixChange) {
         throw new AppError(
@@ -220,6 +222,7 @@ export function registerAdminRoutes(app: FastifyInstance): void {
     } else if (body.legacyPrefixEnabled !== undefined) {
       await writeSetting(app.db, 'legacy_prefix_enabled', body.legacyPrefixEnabled ? 'true' : 'false', actor.id)
     }
+    await savePagePrefix(app.db, actor.id, body, current)
     if (body.defaultRedirectType) await writeSetting(app.db, 'default_redirect_type', body.defaultRedirectType, actor.id)
     if (body.slugLength) await writeSetting(app.db, 'slug_length', String(body.slugLength), actor.id)
     if (body.analyticsRetentionDays !== undefined) {
@@ -608,6 +611,47 @@ async function saveLinkSharing(
   })
 }
 
+async function savePagePrefix(
+  db: Database,
+  actorId: string,
+  body: { shortUrlPrefix?: string; pagePrefix?: string; confirmPagePrefixChange?: boolean; legacyPagePrefixEnabled?: boolean },
+  current: AppSettings,
+): Promise<void> {
+  if (!body.pagePrefix || body.pagePrefix === current.pagePrefix) {
+    if (body.legacyPagePrefixEnabled !== undefined) {
+      await writeSetting(db, 'legacy_page_prefix_enabled', body.legacyPagePrefixEnabled ? 'true' : 'false', actorId)
+    }
+    return
+  }
+  const shortPrefix = body.shortUrlPrefix ?? current.shortUrlPrefix
+  const shortLegacy = current.legacyPrefixEnabled ? [...current.legacyPrefixes, current.shortUrlPrefix] : current.legacyPrefixes
+  const error = validatePrefix(body.pagePrefix) ?? prefixConflict(body.pagePrefix, { current: shortPrefix, legacy: shortLegacy })
+  if (error) throw new AppError(400, error, 'validation')
+  if (!body.confirmPagePrefixChange) {
+    throw new AppError(
+      400,
+      'Changing the landing page prefix updates every page address. Confirm the change to continue.',
+      'confirm_page_prefix',
+    )
+  }
+  const legacyEnabled = body.legacyPagePrefixEnabled ?? current.legacyPagePrefixEnabled
+  const legacy = legacyEnabled
+    ? [...new Set([...current.legacyPagePrefixes, current.pagePrefix])].filter((prefix) => prefix !== body.pagePrefix)
+    : current.legacyPagePrefixes.filter((prefix) => prefix !== body.pagePrefix)
+  await writeSetting(db, 'landing_page_prefix', body.pagePrefix, actorId)
+  await writeSetting(db, 'legacy_page_prefixes', JSON.stringify(legacy), actorId)
+  if (body.legacyPagePrefixEnabled !== undefined) {
+    await writeSetting(db, 'legacy_page_prefix_enabled', body.legacyPagePrefixEnabled ? 'true' : 'false', actorId)
+  }
+  await writeAudit(db, {
+    actorUserId: actorId,
+    action: 'settings.page_prefix_changed',
+    entityType: 'settings',
+    entityId: 'landing_page_prefix',
+    metadata: { from: current.pagePrefix, to: body.pagePrefix, legacy: legacyEnabled },
+  })
+}
+
 function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
   return {
     appUrl: settings.appUrl,
@@ -615,6 +659,9 @@ function adminSettingsView(settings: AppSettings, env: RuntimeEnv) {
     shortUrlPrefix: settings.shortUrlPrefix,
     legacyPrefixEnabled: settings.legacyPrefixEnabled,
     legacyPrefixes: settings.legacyPrefixes,
+    pagePrefix: settings.pagePrefix,
+    legacyPagePrefixEnabled: settings.legacyPagePrefixEnabled,
+    legacyPagePrefixes: settings.legacyPagePrefixes,
     defaultRedirectType: settings.defaultRedirectType,
     slugLength: settings.slugLength,
     analyticsRetentionDays: settings.analyticsRetentionDays,
@@ -706,6 +753,7 @@ async function saveAiSettings(
 function publicSettings(settings: AppSettings, admin: boolean) {
   return {
     shortUrlPrefix: settings.shortUrlPrefix,
+    pagePrefix: settings.pagePrefix,
     shortUrlBase: settings.shortUrlBase,
     appUrl: settings.appUrl,
     defaultRedirectType: settings.defaultRedirectType,

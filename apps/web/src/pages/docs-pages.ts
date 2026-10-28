@@ -13,6 +13,7 @@ const pageOrder = [
   "user/campaigns",
   "user/qr-codes",
   "user/media",
+  "user/pages",
   "user/analytics",
   "user/api-keys",
   "user/settings",
@@ -29,6 +30,7 @@ const pageOrder = [
   "developer/frontend/overview",
   "developer/frontend/routing",
   "developer/frontend/api-client",
+  "developer/frontend/page-blocks",
 ];
 
 const rawPages = import.meta.glob("../../docs/*/**/*.md", {

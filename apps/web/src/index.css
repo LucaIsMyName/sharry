@@ -127,6 +127,17 @@
     min-width: 0;
     max-width: 66rem;
   }
+  .page-wide {
+    max-width: none;
+  }
+  .rich-text h2 { @apply text-xl font-semibold; }
+  .rich-text h3 { @apply text-lg font-semibold; }
+  .rich-text h4 { @apply font-semibold; }
+  .rich-text ul { @apply list-disc pl-5; }
+  .rich-text ol { @apply list-decimal pl-5; }
+  .rich-text blockquote { @apply border-l-2 border-border pl-3 text-muted-foreground; }
+  .rich-text a { @apply text-primary underline; }
+  .rich-text > * + * { @apply mt-2; }
 }
 
 @layer base {

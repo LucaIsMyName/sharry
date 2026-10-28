@@ -1,4 +1,4 @@
-import type { Locale, QrStyle, RoutingChoices, RoutingRule, UtmParams, UtmPresets } from "@sharry/shared";
+import type { Locale, PageContent, PageMediaRef, PageSettings, QrStyle, RoutingChoices, RoutingRule, UtmParams, UtmPresets } from "@sharry/shared";
 
 export class ApiError extends Error {
   constructor(
@@ -94,6 +94,7 @@ export type LinkSummary = ShortLink & { clicks: number };
 export type PublicSettings = {
   appName: string;
   shortUrlPrefix: string;
+  pagePrefix: string;
   shortUrlBase: string;
   appUrl: string;
   defaultRedirectType: ShortLink["redirectType"];
@@ -184,6 +185,32 @@ export type MediaItem = {
   usageCount?: number;
 };
 
+export type PageStatus = "draft" | "published" | "changed" | "hidden";
+
+export type LandingPageSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  url: string;
+  status: PageStatus;
+  hidden: boolean;
+  publishedAt: string | null;
+  folderId: string | null;
+  redirectDomainId: string | null;
+  userId: string;
+  owner: LinkPerson | null;
+  canEdit: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LandingPage = LandingPageSummary & {
+  content: PageContent;
+  settings: PageSettings;
+  media: Record<string, PageMediaRef>;
+};
+
 export type MediaUsage = {
   qrCodes: { id: string; name: string; linkId: string; linkSlug: string }[];
+  pages: { id: string; title: string; slug: string }[];
 };

@@ -7,6 +7,7 @@ import {
   Images,
   KeyRound,
   LayoutDashboard,
+  LayoutTemplate,
   Link,
   MessageSquare,
   LogOut,
@@ -42,6 +43,7 @@ export function Shell() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const chat = pathname === "/chat" || pathname.startsWith("/chat/");
+  const builder = pathname.startsWith("/pages/");
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const admin = me.user.role === "admin";
@@ -105,7 +107,7 @@ export function Shell() {
             </SheetContent>
           </Sheet>
         </div>
-        <div className={cn(chat ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "page px-5 py-5 md:px-7 md:py-7")}>
+        <div className={cn(chat ? "flex min-h-0 flex-1 flex-col overflow-hidden" : cn("page px-5 py-5 md:px-7 md:py-7", builder && "page-wide"))}>
           <Outlet context={{ admin }} />
         </div>
       </main>
@@ -139,6 +141,9 @@ function Navigation({
       </Item>
       <Item to="/campaigns" icon={<Megaphone size={18} />}>
         {t("Campaigns")}
+      </Item>
+      <Item to="/pages" icon={<LayoutTemplate size={18} />}>
+        {t("Pages")}
       </Item>
       <Item to="/media" icon={<Images size={18} />}>
         {t("Media")}

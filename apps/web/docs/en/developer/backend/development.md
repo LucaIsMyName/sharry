@@ -23,7 +23,7 @@ The script starts an embedded PostgreSQL, then runs the API and the dashboard to
 
 The embedded server is created only when `DATABASE_URL` points at `127.0.0.1`, `localhost`, or `::1`, and nothing is already accepting connections on that port. Its data stays in `data/pg-dev`. Closing the terminal stops it. The next `npm run dev` starts it again and keeps the same data. If the port is already open, Sharry uses that database and does not start another one. A `DATABASE_URL` on another host is left alone.
 
-The API is `tsx watch apps/api/src/index.ts`. It listens on `APP_PORT`, which defaults to 3000, and reloads when API files change. The dashboard is Vite on `http://127.0.0.1:5173`. Vite proxies `/api` and `/health` to port 3000, and it also proxies paths that start with `/s/` so the default short-link prefix can be opened from the dashboard origin during development.
+The API is `tsx watch apps/api/src/index.ts`. It listens on `APP_PORT`, which defaults to 3000, and reloads when API files change. The dashboard is Vite on `http://127.0.0.1:5173`. Vite proxies `/api` and `/health` to port 3000, and it also proxies paths that start with `/s/`, `/l/`, and `/files/` so the default short-link prefix, the default landing page prefix, and media files can be opened from the dashboard origin during development.
 
 On startup the API loads the environment, runs migrations, creates the initial administrator when none exists, deletes expired click events and password-reset tokens, and then listens. The same purge runs again every hour.
 
@@ -31,9 +31,11 @@ On startup the API loads the environment, runs migrations, creates the initial a
 
 `APP_URL` is the origin of password-reset links: `{APP_URL}/login/reset?token=...`.
 
-`SHORT_URL_BASE` is the origin of short links shown in the dashboard, in link CSV export, and in newly encoded QR codes. In development it should be the API origin, `http://127.0.0.1:3000`, so every prefix resolves. Vite only proxies the `/s/` prefix. A prefix you change in Settings is served by the API, not by a new Vite rule.
+`SHORT_URL_BASE` is the origin of short links shown in the dashboard, in link CSV export, and in newly encoded QR codes. In development it should be the API origin, `http://127.0.0.1:3000`, so every prefix resolves. Vite only proxies the `/s/` and `/l/` prefixes. A prefix you change in Settings is served by the API, not by a new Vite rule.
 
 `SHORT_URL_PREFIX` is the default public path segment, such as `/s`. Settings can change the live prefix after installation. The environment value is the fallback when no prefix has been saved.
+
+`LANDING_PAGE_PREFIX` is the default path segment of landing pages, `/l` when empty. It follows the same rules and cannot equal `SHORT_URL_PREFIX`. Settings can change it later.
 
 ## The first administrator
 

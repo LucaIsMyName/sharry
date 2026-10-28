@@ -19,6 +19,12 @@ describe('API docs extractor', () => {
     expect(docs.length).toBeGreaterThan(40)
   })
 
+  it('groups media and landing page routes after QR codes', () => {
+    const tags = [...new Set(extractApiDocs(apiDir).map((doc) => doc.tag))]
+    expect(tags.indexOf('Media')).toBe(tags.indexOf('QR codes') + 1)
+    expect(tags.indexOf('Pages')).toBe(tags.indexOf('Media') + 1)
+  })
+
   it('rejects a JSDoc route that does not match the call', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sharry-docs-'))
     fs.writeFileSync(

@@ -12,6 +12,7 @@ export const pageCatalog: CatalogItem[] = [
   { id: "links", title: "Links", to: "/links", keywords: ["short links"] },
   { id: "new-link", title: "New link", to: "/links/new", keywords: ["create"] },
   { id: "campaigns", title: "Campaigns", to: "/campaigns", keywords: ["utm"] },
+  { id: "pages", title: "Pages", to: "/pages", keywords: ["landing pages", "builder"] },
   { id: "media", title: "Media", to: "/media", keywords: ["images", "files", "uploads"] },
   { id: "analytics", title: "Analytics", to: "/analytics", keywords: ["clicks"] },
   { id: "chat", title: "Chat", to: "/chat", keywords: ["assistant"] },
@@ -42,6 +43,14 @@ export const sectionCatalog: CatalogItem[] = [
     to: "/admin/settings",
     page: "Settings",
     keywords: ["prefix"],
+    admin: true,
+  },
+  {
+    id: "settings-page-prefix",
+    title: "Landing page prefix",
+    to: "/admin/settings",
+    page: "Settings",
+    keywords: ["pages prefix", "landing pages"],
     admin: true,
   },
   {

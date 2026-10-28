@@ -28,6 +28,6 @@ Eine ausstehende Zeile kann denselben Dialog mit Einrichtung wieder öffnen. Ein
 
 ## Nach der Verifizierung
 
-Jede angemeldete Person sieht verifizierte Domains im Menü für die Weiterleitungsdomain bei Neuer Link und im Link-Editor. Ausstehende Domains bleiben aus diesem Menü.
+Jede angemeldete Person sieht verifizierte Domains im Menü für die Weiterleitungsdomain bei Neuer Link und im Link-Editor. Ausstehende Domains bleiben aus diesem Menü. Dasselbe Menü steht in den Seiteneinstellungen einer Landingpage. Eine Seite mit Weiterleitungsdomain wird auf diesem Host und auf der Deployment-Domain ausgeliefert, jede andere Weiterleitungsdomain antwortet für sie mit „nicht gefunden“. Siehe [Seiten](/docs/user/pages).
 
-Löschen entfernt die Domain. Links, die sie genutzt haben, zeigen beim nächsten Lesen die Deployment-Domain. Ein schon ausgestelltes Zertifikat funktioniert weiter, bis es abläuft. Gedruckte QR-Codes behalten den Host, mit dem sie erstellt wurden.
+Löschen entfernt die Domain. Links, die sie genutzt haben, zeigen beim nächsten Lesen die Deployment-Domain. Ein schon ausgestelltes Zertifikat funktioniert weiter, bis es abläuft. Gedruckte QR-Codes behalten den Host, mit dem sie erstellt wurden. Seiten, die sie genutzt haben, werden nur noch auf der Deployment-Domain ausgeliefert.

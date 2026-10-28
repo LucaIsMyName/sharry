@@ -11,29 +11,31 @@ The same purge runs every hour. `SIGINT` and `SIGTERM` close the HTTP server and
 - `auth.ts` for sessions, passwords, and two-factor authentication
 - `links.ts`, `tracking.ts`, `analytics.ts`, and `qr.ts` for the product
 - `media.ts` for the media library: uploads typed from file contents, thumbnails, folders, usage, and public files under `/files/<id>/<name>`. `media-backfill.ts` moves older QR center images into the library at startup
+- `pages.ts` for landing pages: drafts, publish, hide, duplicate, previews, slug suggestions, and serving public pages under the page prefix. The block definitions, validation, and HTML renderer live in `packages/shared/src/pages`
 - `admin.ts` for users, settings, audit, exports, and API keys
 - `ai/chat.ts` for the assistant: provider calls stay on the server, chats are stored per user, and link, campaign, and analytics forms are filled in the chat before anything is created
 - `redirect-domains.ts` for custom redirect domains and the certificate allow-list
 - `system.ts` for the administrator server snapshot
-- `redirect.ts` for short links that are not under `/api`
+- `redirect.ts` for short links that are not under `/api`. Landing pages are tried next, then the dashboard
 
 PostgreSQL is accessed through Drizzle in `packages/database`. Schema changes go through `npm run db:generate` and `npm run db:migrate`. Request bodies are checked with Zod schemas in `packages/shared`.
 
-In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link returns the dashboard `index.html` when the host is the deployment domain. A verified redirect domain serves short links and public media files under `/files/` only. Other paths on that host return 404, including the dashboard and `/api`. `POST` to an unknown path, and any unknown `/api` path, returns 404. In development, Vite serves the dashboard and this process serves only the API, health check, public media files, and short links. Production sends a Content-Security-Policy that allows `blob:` connections so a QR center image can be embedded.
+In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link or a landing page returns the dashboard `index.html` when the host is the deployment domain. A verified redirect domain serves short links, landing pages assigned to it, and public media files under `/files/` only. Other paths on that host return 404, including the dashboard and `/api`. `POST` to an unknown path, and any unknown `/api` path, returns 404. In development, Vite serves the dashboard and this process serves only the API, health check, public media files, short links, and landing pages. Landing pages send their own stricter Content-Security-Policy, described in [Redirects](/docs/developer/backend/redirects). Production sends a Content-Security-Policy that allows `blob:` connections so a QR center image can be embedded.
 
 ## Request path
 
 ```mermaid
 flowchart TD
   accTitle: How a request is served
-  accDescr: In production Caddy sends the request to the Node process. In development Vite proxies the API, the health check, and the default short-link prefix.
+  accDescr: In production Caddy sends the request to the Node process. In development Vite proxies the API, the health check, the default short-link and page prefixes, and media files.
   Prod[Production request] --> Caddy[Caddy]
   Caddy --> Node[Node process]
   Node --> Api["/api"]
   Node --> Short[Short link]
+  Node --> Page[Landing page]
   Node --> Html[Dashboard HTML]
   Dev[Development request] --> Vite[Vite on port 5173]
-  Vite --> Proxy["Proxy /api, /health, and /s/"]
+  Vite --> Proxy["Proxy /api, /health, /s/, /l/, and /files/"]
 ```
 
 A request under `/api` can authenticate with the session cookie (`sharry_session` when `APP_NAME` is `Sharry`) or, outside `/api/auth`, with `Authorization: Bearer`. Account routes reject a bearer token before the handler runs. API-key calls are limited to about 120 per minute per key.

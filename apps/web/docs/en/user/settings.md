@@ -26,6 +26,12 @@ Four controls decide whether a user can see or change a link owned by someone el
 
 Campaigns stay private. A user can attach a link they are allowed to view to their own campaign.
 
+## Landing pages
+
+Landing page prefix is the first segment of every page address, such as `/l` in `https://share.example.com/l/spring-sale`. The default comes from `LANDING_PAGE_PREFIX`. It follows the same rules as the public prefix, and it cannot be the public prefix or one of its legacy prefixes. The public prefix cannot take the page prefix either.
+
+Changing it asks for confirmation, because every page address changes. Turn on “Keep the previous page prefix working” in that dialog so shared links and printed codes keep working. “Keep previous page prefixes working” controls the whole list, which is shown below it. See [Pages](/docs/user/pages).
+
 ## Sessions
 
 Analytics retention, days, deletes click events older than that many days. The purge runs when the process starts and then every hour. Use `0` to keep events. The maximum is 3650. The default is 365.

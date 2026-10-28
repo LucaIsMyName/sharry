@@ -25,6 +25,8 @@ Diese sitzen unter der Shell. Der übergeordnete Loader verlangt eine `full`-Sit
 | `/` | Übersicht |
 | `/links`, `/links/new`, `/links/:id` | Linkliste, Anlegen und Editor |
 | `/campaigns`, `/campaigns/:id` | Kampagnenliste und Detail |
+| `/pages`, `/pages/:id` | Liste der Landingpages und Seiteneditor |
+| `/media` | Mediathek |
 | `/analytics` | Analysen |
 | `/chat`, `/chat/:id` | Assistenz-Chat |
 | `/docs` | Leitet nach `/docs/user/signing-in` um |
@@ -37,7 +39,7 @@ Admin-Seiten fügen einen Loader hinzu, der nur die Admin-Rolle erlaubt. Alle an
 | --- | --- |
 | `/admin/users` | Konten anlegen und verwalten |
 | `/admin/api-keys` | API-Schlüssel |
-| `/admin/settings` | Präfix, Sitzungen, Mail, KI und CSV-Export |
+| `/admin/settings` | Präfixe für Kurzlinks und Seiten, Sitzungen, Mail, KI und CSV-Export |
 | `/admin/domains` | Weiterleitungsdomains, DNS-Prüfung und der Einrichtungsdialog |
 | `/admin/server` | Arbeitsspeicher, Festplatte, Betriebssystem und installierte Laufzeit des Hosts |
 | `/admin/audit` | Audit-Protokoll |
@@ -48,4 +50,6 @@ Die Docs-Seitenleiste bleibt sichtbar, während der Artikel scrollt. Benutzer un
 
 Jedes Routen-Element sitzt in einer Error Boundary. Ein Render-Fehler ersetzt diese Seite durch eine kurze Meldung und einen Knopf zum erneuten Versuch. Die Shell, einschließlich Seitenleiste und Abmelden, bleibt stehen. Die Suche hat eine eigene Boundary, deshalb lässt ein Fehler dort die geöffnete Seite stehen. Loader leiten weiterhin um. Ein Fehler über diesen Boundaries, etwa in der Shell selbst, ersetzt den Bildschirm durch eine feste Meldung und einen Link zurück nach `/`.
 
-Übersicht, Links, Kampagnen, Analysen, Chat, Docs und die Admin-Seiten laden mit `React.lazy()`. Anmeldung und Shell bleiben im ersten Bundle. Das Konto bleibt bei der Anmeldung, weil beide ein Modul teilen. Der Markdown der Anleitungen bleibt ebenfalls im ersten Bundle, weil die Suche ihn aus `docs-pages.ts` liest. Eine Seite zeigt das Lade-Skelett, während ihr Chunk heruntergeladen wird. Der Wechsel zwischen `/links`, `/links/new` und `/links/:id` nutzt einen Download, und dasselbe gilt für Kampagnen sowie für Benutzer, Einstellungen und Audit.
+Übersicht, Links, Kampagnen, Seiten, Medien, Analysen, Chat, Docs und die Admin-Seiten laden mit `React.lazy()`. Anmeldung und Shell bleiben im ersten Bundle. Das Konto bleibt bei der Anmeldung, weil beide ein Modul teilen. Der Markdown der Anleitungen bleibt ebenfalls im ersten Bundle, weil die Suche ihn aus `docs-pages.ts` liest. Eine Seite zeigt das Lade-Skelett, während ihr Chunk heruntergeladen wird. Der Wechsel zwischen `/links`, `/links/new` und `/links/:id` nutzt einen Download, und dasselbe gilt für Kampagnen sowie für Benutzer, Einstellungen und Audit. Seitenliste und Seiteneditor sind getrennte Chunks, der TipTap-Editor lädt also erst, wenn eine Seite geöffnet wird.
+
+Der Seiteneditor nutzt `useBlocker` aus dem Data Router. Wer mit ungespeicherten Änderungen weggeht, bekommt den Dialog „Ohne Speichern verlassen?“, und beim Schließen des Tabs warnt der Browser selbst.

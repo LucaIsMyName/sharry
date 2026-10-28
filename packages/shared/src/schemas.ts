@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { qrStyleSchema } from './qr.ts'
 import { MAX_ROUTING_CONDITIONS, MAX_ROUTING_RULES, MAX_ROUTING_VALUES, ROUTING_FIELDS, ROUTING_OPERATORS } from './routing.ts'
 import { ICON_NAMES } from './icons.ts'
+import { pageContentSchema, pageSettingsSchema } from './pages/schema.ts'
 import { tagKinds } from './tags.ts'
 import { UTM_KEYS, emptyUtmPresets, type UtmPresets } from './utm.ts'
 
@@ -185,7 +186,7 @@ export const createCampaignSchema = z.object({
 export const updateCampaignSchema = createCampaignSchema.partial()
 
 export const createFolderSchema = z.object({
-  kind: z.enum(['link', 'campaign', 'media']),
+  kind: z.enum(['link', 'campaign', 'media', 'page']),
   name: z.string().trim().min(1).max(80),
   parentId: z.string().uuid().nullable().optional(),
   icon: optionalIcon,
@@ -240,10 +241,34 @@ export const updateMediaSchema = z.object({
   folderId: z.string().uuid().nullable().optional(),
 })
 
+export const PAGE_SLUG_TAKEN_MESSAGE = 'This page address is already in use. Please choose a different slug.'
+
+export const createPageSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  slug: z.string().trim().max(64).optional(),
+  folderId: z.string().uuid().nullable().optional(),
+  redirectDomainId: z.string().uuid().nullable().optional(),
+})
+
+export const updatePageSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  slug: z.string().trim().max(64).optional(),
+  folderId: z.string().uuid().nullable().optional(),
+  redirectDomainId: z.string().uuid().nullable().optional(),
+  hidden: z.boolean().optional(),
+  settings: pageSettingsSchema.optional(),
+  content: pageContentSchema.optional(),
+})
+
+export type UpdatePageInput = z.infer<typeof updatePageSchema>
+
 export const settingsUpdateSchema = z.object({
   shortUrlPrefix: z.string().min(2).optional(),
   confirmPrefixChange: z.boolean().optional(),
   legacyPrefixEnabled: z.boolean().optional(),
+  pagePrefix: z.string().min(2).optional(),
+  confirmPagePrefixChange: z.boolean().optional(),
+  legacyPagePrefixEnabled: z.boolean().optional(),
   defaultRedirectType: redirectTypeSchema.optional(),
   slugLength: z.number().int().min(4).max(16).optional(),
   analyticsRetentionDays: z.number().int().min(0).max(3650).optional(),

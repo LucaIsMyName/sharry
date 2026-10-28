@@ -79,6 +79,7 @@ export async function resetDatabase(db: Database): Promise<void> {
       link_password_attempts,
       click_events,
       qr_codes,
+      landing_pages,
       media_assets,
       tracking_variants,
       tracking_configs,

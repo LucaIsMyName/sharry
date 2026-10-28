@@ -12,6 +12,7 @@ export * from './routing.ts'
 export * from './qr.ts'
 export * from './schemas.ts'
 export * from './ai.ts'
+export * from './pages/index.ts'
 
 export function parseEnvFile(contents: string): Record<string, string> {
   const result: Record<string, string> = {}

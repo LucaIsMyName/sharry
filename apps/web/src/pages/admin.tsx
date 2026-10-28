@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   Check,
@@ -66,6 +66,9 @@ type Settings = {
   shortUrlPrefix: string;
   legacyPrefixEnabled: boolean;
   legacyPrefixes: string[];
+  pagePrefix: string;
+  legacyPagePrefixEnabled: boolean;
+  legacyPagePrefixes: string[];
   defaultRedirectType: "301" | "302" | "307" | "308";
   slugLength: number;
   analyticsRetentionDays: number;
@@ -465,6 +468,9 @@ export function AdminSettingsPage() {
   const [clearAiKey, setClearAiKey] = useState(false);
   const [testingAi, setTestingAi] = useState(false);
   const [prefixError, setPrefixError] = useState("");
+  const [pageConfirm, setPageConfirm] = useState(false);
+  const [pagePrefixError, setPagePrefixError] = useState("");
+  const confirmed = useRef<{ confirmPrefixChange?: boolean; confirmPagePrefixChange?: boolean }>({});
   const [loaded, setLoaded] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -498,14 +504,22 @@ export function AdminSettingsPage() {
     }
   }
 
-  async function save(extra: { confirmPrefixChange?: boolean } = {}) {
+  async function save(confirmation: { confirmPrefixChange?: boolean; confirmPagePrefixChange?: boolean } = {}) {
     if (!settings) return;
     setPrefixError("");
+    setPagePrefixError("");
     const invalidPrefix = validatePrefix(settings.shortUrlPrefix);
     if (invalidPrefix) {
       setPrefixError(invalidPrefix);
       return;
     }
+    const invalidPagePrefix = validatePrefix(settings.pagePrefix);
+    if (invalidPagePrefix) {
+      setPagePrefixError(invalidPagePrefix);
+      return;
+    }
+    const extra = { ...confirmed.current, ...confirmation };
+    confirmed.current = extra;
     setPending(true);
     try {
       const next = await api<Settings>("/api/admin/settings", {
@@ -513,6 +527,8 @@ export function AdminSettingsPage() {
         body: JSON.stringify({
           shortUrlPrefix: settings.shortUrlPrefix,
           legacyPrefixEnabled: settings.legacyPrefixEnabled,
+          pagePrefix: settings.pagePrefix,
+          legacyPagePrefixEnabled: settings.legacyPagePrefixEnabled,
           defaultRedirectType: settings.defaultRedirectType,
           slugLength: settings.slugLength,
           analyticsRetentionDays: settings.analyticsRetentionDays,
@@ -544,11 +560,19 @@ export function AdminSettingsPage() {
       setAiApiKey("");
       setClearAiKey(false);
       setConfirm(false);
+      setPageConfirm(false);
+      confirmed.current = {};
       toast.success(t("Settings saved."));
     } catch (caught) {
       const apiError = caught as { code?: string; message?: string };
       if (apiError.code === "confirm_prefix") setConfirm(true);
-      else toastCaught(caught, t("Could not save settings"));
+      else if (apiError.code === "confirm_page_prefix") {
+        setConfirm(false);
+        setPageConfirm(true);
+      } else {
+        confirmed.current = {};
+        toastCaught(caught, t("Could not save settings"));
+      }
     } finally {
       setPending(false);
     }
@@ -682,6 +706,33 @@ export function AdminSettingsPage() {
               }
               label="Users can change admin links"
             />
+        </Section>
+        <Section>
+            <h2 className="text-lg font-medium">{t("Landing pages")}</h2>
+            <Field label="Landing page prefix" error={pagePrefixError}>
+              <Input
+                value={settings.pagePrefix}
+                onChange={(event) => {
+                  setPagePrefixError("");
+                  setSettings({ ...settings, pagePrefix: event.target.value });
+                }}
+              />
+            </Field>
+            <p className="text-sm text-muted-foreground">
+              {t("Pages live at {example}. Short links and pages need different prefixes.", {
+                example: `${settings.pagePrefix}/spring-sale`,
+              })}
+            </p>
+            <Toggle
+              checked={settings.legacyPagePrefixEnabled}
+              onChange={(legacyPagePrefixEnabled) => setSettings({ ...settings, legacyPagePrefixEnabled })}
+              label="Keep previous page prefixes working"
+            />
+            {settings.legacyPagePrefixes.length > 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("Legacy prefixes: {prefixes}", { prefixes: settings.legacyPagePrefixes.join(", ") })}
+              </p>
+            ) : null}
         </Section>
         <Section>
             <h2 className="text-lg font-medium">{t("Sessions")}</h2>
@@ -832,7 +883,10 @@ export function AdminSettingsPage() {
         title="Change the public prefix?"
         description="Printed QR codes and saved short URLs keep the old path. Turn on legacy compatibility to redirect the previous prefix, or regenerate those codes."
         confirmLabel="Change prefix"
-        onOpenChange={setConfirm}
+        onOpenChange={(open) => {
+          setConfirm(open);
+          if (!open) confirmed.current = {};
+        }}
         onConfirm={() => void save({ confirmPrefixChange: true })}
       >
         <Toggle
@@ -841,6 +895,23 @@ export function AdminSettingsPage() {
             setSettings({ ...settings, legacyPrefixEnabled })
           }
           label="Redirect the previous prefix"
+        />
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={pageConfirm}
+        title="Change the landing page prefix?"
+        description="Every page address changes. Shared links and printed codes keep the old path unless the previous prefix keeps working."
+        confirmLabel="Change prefix"
+        onOpenChange={(open) => {
+          setPageConfirm(open);
+          if (!open) confirmed.current = {};
+        }}
+        onConfirm={() => void save({ confirmPagePrefixChange: true })}
+      >
+        <Toggle
+          checked={settings.legacyPagePrefixEnabled}
+          onChange={(legacyPagePrefixEnabled) => setSettings({ ...settings, legacyPagePrefixEnabled })}
+          label="Keep the previous page prefix working"
         />
       </ConfirmDialog>
     </section>

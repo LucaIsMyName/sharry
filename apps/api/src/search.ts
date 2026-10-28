@@ -36,6 +36,8 @@ export type SearchChat = {
 
 export type SearchMedia = { id: string; name: string; kind: string; folderId: string | null }
 
+export type SearchPage = { id: string; title: string; slug: string }
+
 export type SearchUser = { id: string; username: string; email: string }
 export type SearchDomain = { id: string; hostname: string }
 export type SearchApiKey = { id: string; name: string; tokenPrefix: string }
@@ -53,6 +55,7 @@ export type SearchResults = {
   campaigns: SearchCampaign[]
   chats: SearchChat[]
   media: SearchMedia[]
+  pages: SearchPage[]
   users?: SearchUser[]
   domains?: SearchDomain[]
   apiKeys?: SearchApiKey[]
@@ -66,7 +69,7 @@ export function registerSearchRoutes(app: FastifyInstance): void {
    * @tag Search
    * @auth api-key or session
    * @query q string Text to match. A blank value returns empty groups.
-   * @response 200 Links, campaigns, chats, and media. Administrators also receive users, domains, API keys, and audit rows. Secrets are omitted.
+   * @response 200 Links, campaigns, chats, media, and landing pages. Administrators also receive users, domains, API keys, and audit rows. Secrets are omitted.
    */
   app.get('/api/search', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -128,7 +131,7 @@ export function textMatches(query: string, field: string): boolean {
 }
 
 function emptySearch(admin: boolean): SearchResults {
-  const base = { links: [], campaigns: [], chats: [], media: [] }
+  const base = { links: [], campaigns: [], chats: [], media: [], pages: [] }
   if (!admin) return base
   return { ...base, users: [], domains: [], apiKeys: [], audit: [] }
 }
@@ -140,6 +143,7 @@ function mergeResults(results: SearchResults[], admin: boolean): SearchResults {
     merged.campaigns = mergeById(merged.campaigns, result.campaigns)
     merged.chats = mergeById(merged.chats, result.chats)
     merged.media = mergeById(merged.media, result.media)
+    merged.pages = mergeById(merged.pages, result.pages)
     if (!admin) continue
     merged.users = mergeById(merged.users ?? [], result.users ?? [])
     merged.domains = mergeById(merged.domains ?? [], result.domains ?? [])
@@ -165,17 +169,19 @@ async function searchPhrase(db: Database, actor: Actor, settings: AppSettings, p
   const visibility = visibleLinksWhere(actor, settings, 'links')
   const owner = actor.role === 'admin' ? sql`true` : sql`tracking_campaigns.user_id = ${actor.id}`
   const mediaVisibility = visibleOwnedWhere(actor, settings, sql`media_assets.user_id`)
-  const [links, campaigns, chats, media, users, domains, apiKeys, audit] = await Promise.all([
+  const pageVisibility = visibleOwnedWhere(actor, settings, sql`landing_pages.user_id`)
+  const [links, campaigns, chats, media, pages, users, domains, apiKeys, audit] = await Promise.all([
     searchLinks(db, phrase, visibility),
     searchCampaigns(db, phrase, owner),
     searchChats(db, actor.id, phrase),
     searchMedia(db, phrase, mediaVisibility),
+    searchPages(db, phrase, pageVisibility),
     admin ? searchUsers(db, phrase) : Promise.resolve([]),
     admin ? searchDomains(db, phrase) : Promise.resolve([]),
     admin ? searchApiKeys(db, phrase) : Promise.resolve([]),
     admin ? searchAudit(db, phrase) : Promise.resolve([]),
   ])
-  return { links, campaigns, chats, media, ...(admin ? { users, domains, apiKeys, audit } : {}) }
+  return { links, campaigns, chats, media, pages, ...(admin ? { users, domains, apiKeys, audit } : {}) }
 }
 
 async function searchLinks(db: Database, phrase: string, visibility: SQL | null): Promise<SearchLink[]> {
@@ -305,6 +311,23 @@ async function searchMedia(db: Database, phrase: string, visibility: SQL | null)
     `),
   )
   return rows.map((row) => ({ id: row.id, name: row.name, kind: row.kind, folderId: row.folder_id }))
+}
+
+async function searchPages(db: Database, phrase: string, visibility: SQL | null): Promise<SearchPage[]> {
+  return rowsOf<SearchPage>(
+    await db.execute(sql`
+      select id::text as id, title, slug
+      from (
+        select landing_pages.id, landing_pages.title, landing_pages.slug, landing_pages.updated_at,
+               lower(concat_ws(' ', landing_pages.title, landing_pages.slug, landing_pages.settings->>'description')) as haystack
+        from landing_pages
+        where (${visibility ?? sql`true`})
+      ) as candidate
+      where ${phraseSql(sql`candidate.haystack`, phrase)}
+      order by updated_at desc
+      limit ${groupLimit}
+    `),
+  )
 }
 
 async function searchUsers(db: Database, phrase: string): Promise<SearchUser[]> {

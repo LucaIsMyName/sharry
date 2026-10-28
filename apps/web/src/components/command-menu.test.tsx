@@ -109,6 +109,7 @@ describe("command menu", () => {
           ],
           campaigns: [],
           media: [{ id: "media-1", name: "summer-poster.png", kind: "image", folderId: "folder-1" }],
+          pages: [{ id: "page-1", title: "Landing for June", slug: "june-landing" }],
           chats: [],
         });
       }
@@ -121,6 +122,13 @@ describe("command menu", () => {
     });
     fireEvent.click(await screen.findByRole("option", { name: "summer-poster.png" }));
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/media?folder=folder-1&file=media-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
+      target: { value: "summer" },
+    });
+    fireEvent.click(await screen.findByRole("option", { name: /^Landing for June/ }));
+    await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/pages/page-1"));
 
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {

@@ -1,0 +1,171 @@
+import { useEffect, type ReactNode } from "react";
+import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Heading2,
+  Heading3,
+  Italic,
+  Link2,
+  List,
+  ListOrdered,
+  Quote,
+  RemoveFormatting,
+  Strikethrough,
+  Underline,
+} from "lucide-react";
+import { cleanRichText, isSafeHref } from "@sharry/shared";
+import { cn } from "cn";
+import { useI18n } from "../../i18n/index.tsx";
+
+/** TipTap with only the formatting the page renderer keeps. The saved HTML goes through the same cleaner as the API. */
+export function RichTextEditor({ value, onChange, label }: { value: string; onChange: (html: string) => void; label: string }) {
+  const { t } = useI18n();
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [2, 3, 4] },
+        codeBlock: false,
+        horizontalRule: false,
+        link: { openOnClick: false, autolink: true, defaultProtocol: "https" },
+      }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+    ],
+    content: value,
+    editorProps: {
+      attributes: {
+        "aria-label": t(label),
+        class: "rich-text min-h-28 px-3 py-2 text-base outline-none md:text-sm",
+      },
+    },
+    onUpdate: ({ editor: current }) => onChange(cleanRichText(current.isEmpty ? "" : current.getHTML())),
+  });
+
+  useEffect(() => {
+    if (!editor || editor.isFocused) return;
+    if (cleanRichText(editor.getHTML()) !== value) editor.commands.setContent(value, { emitUpdate: false });
+  }, [editor, value]);
+
+  return (
+    <div className="overflow-hidden rounded-md border border-input bg-white focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30">
+      {editor ? <Toolbar editor={editor} /> : <div className="min-h-9 border-b border-border" />}
+      <EditorContent editor={editor} />
+    </div>
+  );
+}
+
+function Toolbar({ editor }: { editor: Editor }) {
+  const { t } = useI18n();
+  const state = useEditorState({
+    editor,
+    selector: ({ editor: current }) => ({
+      bold: current.isActive("bold"),
+      italic: current.isActive("italic"),
+      underline: current.isActive("underline"),
+      strike: current.isActive("strike"),
+      h2: current.isActive("heading", { level: 2 }),
+      h3: current.isActive("heading", { level: 3 }),
+      bullet: current.isActive("bulletList"),
+      ordered: current.isActive("orderedList"),
+      quote: current.isActive("blockquote"),
+      link: current.isActive("link"),
+      left: current.isActive({ textAlign: "left" }),
+      center: current.isActive({ textAlign: "center" }),
+      right: current.isActive({ textAlign: "right" }),
+    }),
+  });
+  const chain = () => editor.chain().focus();
+
+  function editLink() {
+    const current = String(editor.getAttributes("link").href ?? "");
+    const next = window.prompt(t("Link address"), current);
+    if (next === null) return;
+    const href = next.trim();
+    if (!href) {
+      chain().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    if (!isSafeHref(href)) {
+      window.alert(t("Use a web address, mailto:, tel:, or a path that starts with /"));
+      return;
+    }
+    chain().extendMarkRange("link").setLink({ href }).run();
+  }
+
+  return (
+    <div role="toolbar" aria-label={t("Formatting")} className="flex min-h-9 flex-wrap items-center gap-0.5 border-b border-border px-1 py-0.5">
+      <Tool label="Bold" active={state.bold} onClick={() => chain().toggleBold().run()}>
+        <Bold />
+      </Tool>
+      <Tool label="Italic" active={state.italic} onClick={() => chain().toggleItalic().run()}>
+        <Italic />
+      </Tool>
+      <Tool label="Underline" active={state.underline} onClick={() => chain().toggleUnderline().run()}>
+        <Underline />
+      </Tool>
+      <Tool label="Strikethrough" active={state.strike} onClick={() => chain().toggleStrike().run()}>
+        <Strikethrough />
+      </Tool>
+      <Divider />
+      <Tool label="Heading" active={state.h2} onClick={() => chain().toggleHeading({ level: 2 }).run()}>
+        <Heading2 />
+      </Tool>
+      <Tool label="Subheading" active={state.h3} onClick={() => chain().toggleHeading({ level: 3 }).run()}>
+        <Heading3 />
+      </Tool>
+      <Tool label="Bulleted list" active={state.bullet} onClick={() => chain().toggleBulletList().run()}>
+        <List />
+      </Tool>
+      <Tool label="Numbered list" active={state.ordered} onClick={() => chain().toggleOrderedList().run()}>
+        <ListOrdered />
+      </Tool>
+      <Tool label="Quote" active={state.quote} onClick={() => chain().toggleBlockquote().run()}>
+        <Quote />
+      </Tool>
+      <Tool label="Link" active={state.link} onClick={editLink}>
+        <Link2 />
+      </Tool>
+      <Divider />
+      <Tool label="Align left" active={state.left} onClick={() => chain().setTextAlign("left").run()}>
+        <AlignLeft />
+      </Tool>
+      <Tool label="Align center" active={state.center} onClick={() => chain().setTextAlign("center").run()}>
+        <AlignCenter />
+      </Tool>
+      <Tool label="Align right" active={state.right} onClick={() => chain().setTextAlign("right").run()}>
+        <AlignRight />
+      </Tool>
+      <Tool label="Clear formatting" active={false} onClick={() => chain().unsetAllMarks().clearNodes().unsetTextAlign().run()}>
+        <RemoveFormatting />
+      </Tool>
+    </div>
+  );
+}
+
+function Tool({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: ReactNode }) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      aria-label={t(label)}
+      title={t(label)}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground [&>svg]:size-4",
+        active && "bg-muted text-foreground",
+      )}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Divider() {
+  return <span className="mx-1 h-5 w-px bg-border" aria-hidden />;
+}

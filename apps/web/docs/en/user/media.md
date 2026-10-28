@@ -1,6 +1,6 @@
 # Media
 
-The media library holds the files the app uses, such as QR code center images. Account photos are the only files that stay outside it. Open Media in the sidebar. Files and folders share one table with the same rows, selection, sorting, filters, and column settings as links and campaigns.
+The media library holds the files the app uses, such as QR code center images and the images and videos on landing pages. Account photos are the only files that stay outside it. Open Media in the sidebar. Files and folders share one table with the same rows, selection, sorting, filters, and column settings as links and campaigns.
 
 ## Upload by dragging
 
@@ -37,9 +37,9 @@ Search in the table filters by name. Search from the top bar finds files in ever
 
 ## File details
 
-Choose a row to open the file on the right. You can rename it, write alt text and a title, copy the public URL, and see which QR codes use it. The extension never changes on rename. Alt text describes the image for people who cannot see it. The Alt text filter lists images that still lack it.
+Choose a row to open the file on the right. You can rename it, write alt text and a title, copy the public URL, and see which QR codes and landing pages use it. The extension never changes on rename. Alt text describes the image for people who cannot see it. The Alt text filter lists images that still lack it.
 
-A file that is in use cannot be deleted. Remove it from the QR codes listed under Used by first.
+A file that is in use cannot be deleted. Remove it from the QR codes and pages listed under Used by first. A landing page counts as long as its saved draft or its published version uses the file. The Used by column counts every use.
 
 ## Public URLs and privacy
 
@@ -50,3 +50,7 @@ Who sees which files follows the link sharing settings in [Settings](/docs/user/
 ## QR codes
 
 The Center image field in the QR code editor uses the library. Choose from library opens a picker with folders and search. Dropping a file onto the field or into the picker uploads it to the library and selects it. Only PNG, JPEG, and WebP can be a center image. See [QR codes](/docs/user/qr-codes).
+
+## Landing pages
+
+Image and Video blocks, the video cover image, and the share image of a page use the library. Choose from library opens the same picker, and a file dropped onto the field is uploaded and selected. See [Pages](/docs/user/pages).

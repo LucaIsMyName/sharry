@@ -19,6 +19,44 @@ flowchart TD
 
 Die Auffangroute ist für `GET`, `HEAD` und `POST` registriert. Sie versucht zuerst einen Kurzlink. Ein behandelter Kurzlink beendet die Antwort. Ein `POST`, das kein Kurzlink ist, und jeder Pfad unter `/api`, der die Auffangroute erreicht hat, geben 404 zurück. Andere `GET`- und `HEAD`-Anfragen erhalten in Produktion das Dashboard-HTML oder in der Entwicklung einen Hinweis, wenn Vite die Oberfläche liefert.
 
+## Landingpages
+
+Die Auffangroute versucht nach einem Kurzlink `tryLandingPage` aus `apps/api/src/pages.ts`. Es behandelt `GET`- und `HEAD`-Pfade mit zwei Segmenten, deren erstes Segment das Seitenpräfix ist (`LANDING_PAGE_PREFIX`, Vorgabe `/l`, oder der Wert aus den Einstellungen) oder ein eingeschaltetes früheres Seitenpräfix. Die Suche nach dem Slug unterscheidet nicht zwischen Groß- und Kleinschreibung. Ein Pfad unter dem Seitenpräfix fällt nie zum Dashboard durch.
+
+```mermaid
+flowchart TD
+  accTitle: Auslieferung einer Landingpage
+  accDescr: Eine Weiterleitungsdomain liefert nur Seiten, die ihr zugeordnet sind. Eine öffentliche Seite rendert ihre veröffentlichte Kopie. Eine angemeldete Person mit Zugriff sieht auf der Deployment-Domain den Entwurf mit Vorschauleiste. Alles andere ist nicht gefunden.
+  Path[Seitenpräfix und Slug] --> Found{Seite vorhanden?}
+  Found -->|Nein| NotFound[404]
+  Found -->|Ja| Host{Auf einer Weiterleitungsdomain?}
+  Host -->|Ja, nicht ihre Domain| NotFound
+  Host -->|Ja, ihre Domain| Public
+  Host -->|Nein| Public{Veröffentlicht und nicht verborgen?}
+  Public -->|Ja| Published[Veröffentlichte Kopie rendern]
+  Public -->|Nein| Viewer{Angemeldet mit Lesezugriff, auf der Deployment-Domain?}
+  Viewer -->|Ja| Draft[Entwurf mit Vorschauleiste rendern]
+  Viewer -->|Nein| NotFound
+```
+
+Eine Seite ist öffentlich, wenn sie `published_at` hat und `hidden` falsch ist. Die öffentliche Antwort rendert `published_title`, `published_settings` und `published_content`, ein gespeicherter Entwurf ändert sie also nie. Eine Seite, die Entwurf, verborgen oder unveröffentlicht geändert ist, sieht eine angemeldete Person mit Lesezugriff als gespeicherten Entwurf mit der festen Leiste „Preview, not public“. Diese Vorschau funktioniert nur auf der Deployment-Domain, weil das Sitzungscookie zu ihr gehört. `GET /api/pages/:id/preview` liefert dieselbe Entwurfsansicht über die ID.
+
+Beide nutzen `renderPage` aus `packages/shared/src/pages`. Das HTML enthält kein JavaScript, und alle Stile stehen inline. Die Antworten tragen:
+
+| Header | Öffentliche Seite | Vorschau |
+| --- | --- | --- |
+| `content-security-policy` | `default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'` | Gleich |
+| `cache-control` | `public, max-age=60` | `no-store` |
+| `x-robots-tag` | `noindex, nofollow`, wenn die Seite vor Suchmaschinen verborgen ist | `noindex, nofollow` |
+| `referrer-policy` | Nicht gesetzt | `no-referrer` |
+| `x-content-type-options` | `nosniff` | `nosniff` |
+
+Eine fehlende Seite, eine verborgene Seite für Besucher und eine Seite auf der falschen Weiterleitungsdomain geben alle dasselbe schlichte `404 Not found` mit `no-store` zurück.
+
+Eine Seite mit `redirect_domain_id` wird auf diesem Host und auf der Deployment-Domain ausgeliefert. Andere verifizierte Weiterleitungsdomains geben für sie 404 zurück, und eine Seite ohne Weiterleitungsdomain wird auf keiner Weiterleitungsdomain ausgeliefert. Wird die Domain gelöscht, wird die Spalte null.
+
+Das Seitenpräfix folgt den Regeln für Kurzlink-Präfixe in `validatePrefix`. Es darf weder das Kurzlink-Präfix noch eines seiner früheren Präfixe sein, und das Kurzlink-Präfix kann weder das Seitenpräfix noch dessen frühere Präfixe übernehmen. `PATCH /api/admin/settings` mit einem neuen `pagePrefix` gibt 400 mit dem Code `confirm_page_prefix` zurück, bis der Body auch `confirmPagePrefixChange: true` sendet. Ist `legacyPagePrefixEnabled` an, kommt das bisherige Präfix in `legacy_page_prefixes`.
+
 ## Präfix und Slug
 
 Reservierte Namen in `packages/shared/src/prefix.ts` sind unter anderem `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin` und `docs`. Ein Kurzlink-Präfix kann diese URLs nicht belegen. Slugs reservieren dieselben Namen plus `favicon.ico` und `robots.txt`.
@@ -33,7 +71,7 @@ Derselbe Slug löst weiter auf jedem Host auf, der diesen Prozess erreicht. Die 
 
 Sharry prüft verifizierte Domains jede Stunde erneut. Ein Lookup-Timeout oder ein anderer vorübergehender DNS-Fehler lässt die Domain verifiziert. Zwei Prüfungen hintereinander ohne passenden TXT-Eintrag setzen sie auf ausstehend zurück. Ausstehend stoppt neue Zertifikate und nimmt den Hostnamen aus dem Weiterleitungsmenü, bis eine Administratorin oder ein Administrator ihn wieder prüft.
 
-Caddy fragt `GET /internal/caddy/ask?domain=` bevor es ein Zertifikat ausstellt. Die Route gibt nur für einen verifizierten Hostnamen 200 zurück, und nur wenn die Client-Adresse Loopback ist. Ein Besucher, der den Deployment-Host über den Reverse Proxy erreicht, ist nicht Loopback und erhält 404. Caddys eigene Abfrage verbindet sich direkt mit `127.0.0.1` und erhält weiter 200. Andere Namen geben 404 zurück. Pfade, die kein Kurzlink sind, geben auf einem verifizierten eigenen Host 404 zurück, deshalb bleibt das Dashboard auf dem Deployment-Host.
+Caddy fragt `GET /internal/caddy/ask?domain=` bevor es ein Zertifikat ausstellt. Die Route gibt nur für einen verifizierten Hostnamen 200 zurück, und nur wenn die Client-Adresse Loopback ist. Ein Besucher, der den Deployment-Host über den Reverse Proxy erreicht, ist nicht Loopback und erhält 404. Caddys eigene Abfrage verbindet sich direkt mit `127.0.0.1` und erhält weiter 200. Andere Namen geben 404 zurück. Pfade, die weder Kurzlink noch Landingpage noch Mediendatei sind, geben auf einem verifizierten eigenen Host 404 zurück, deshalb bleibt das Dashboard auf dem Deployment-Host.
 
 Die Eindeutigkeit von Slugs ignoriert die Großschreibung. Die Antwort für einen vergebenen Slug ist 409 mit "This short URL is already in use. Please choose a different slug."
 

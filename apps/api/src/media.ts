@@ -4,7 +4,7 @@ import path from 'node:path'
 import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import sharp from 'sharp'
-import { links, mediaAssets, qrCodes, users, type Database, type MediaRecord } from '@sharry/database'
+import { landingPages, links, mediaAssets, qrCodes, users, type Database, type MediaRecord } from '@sharry/database'
 import {
   MEDIA_TYPE_MESSAGE,
   MEDIA_UNSAFE_SVG_MESSAGE,
@@ -31,7 +31,10 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const thumbnailSize = 320
 const photoQuality = 82
 
-export type MediaUsage = { qrCodes: { id: string; name: string; linkId: string; linkSlug: string }[] }
+export type MediaUsage = {
+  qrCodes: { id: string; name: string; linkId: string; linkSlug: string }[]
+  pages: { id: string; title: string; slug: string }[]
+}
 
 export function registerMediaRoutes(app: FastifyInstance): void {
   /**
@@ -113,12 +116,12 @@ export function registerMediaRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * List the QR codes that use a media file.
+   * List the QR codes and landing pages that use a media file. A page counts when its draft or its published version uses the file.
    * @route GET /api/media/:id/usage
    * @tag Media
    * @auth api-key or session
    * @param id string Media id
-   * @response 200 { qrCodes }
+   * @response 200 { qrCodes, pages }
    */
   app.get('/api/media/:id/usage', async (request) => {
     const actor = await requireUser(app, request, ['full'])
@@ -165,7 +168,7 @@ export function registerMediaRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * Delete a media file. A file that a QR code still uses cannot be deleted.
+   * Delete a media file. A file that a QR code or a landing page still uses cannot be deleted.
    * @route DELETE /api/media/:id
    * @tag Media
    * @auth api-key or session
@@ -178,7 +181,7 @@ export function registerMediaRoutes(app: FastifyInstance): void {
     const settings = await getSettings(app.db, app.env)
     const media = await getMediaForActor(app.db, actor, (request.params as { id: string }).id, settings, 'edit')
     const usage = (await mediaUsage(app.db, [media.id])).get(media.id)
-    if (usage && usage.qrCodes.length > 0) {
+    if (usage && usageTotal(usage) > 0) {
       throw new AppError(409, inUseMessage(usage), 'media_in_use')
     }
     await app.db.delete(mediaAssets).where(eq(mediaAssets.id, media.id))
@@ -449,18 +452,36 @@ export async function mediaUsage(db: Database, ids: string[]): Promise<Map<strin
     entry.qrCodes.push({ id: row.id, name: row.name, linkId: row.linkId, linkSlug: row.linkSlug })
     usage.set(row.mediaId, entry)
   }
+  const used = sql<string>`${landingPages.content}::text || ${landingPages.settings}::text || coalesce(${landingPages.publishedContent}::text, '') || coalesce(${landingPages.publishedSettings}::text, '')`
+  const pages = await db
+    .select({ id: landingPages.id, title: landingPages.title, slug: landingPages.slug, used })
+    .from(landingPages)
+    .where(or(...ids.map((id) => sql`position(${id} in ${used}) > 0`)))
+    .orderBy(asc(landingPages.title))
+  for (const page of pages) {
+    for (const id of ids) {
+      if (!page.used.includes(id)) continue
+      const entry = usage.get(id) ?? emptyUsage()
+      entry.pages.push({ id: page.id, title: page.title, slug: page.slug })
+      usage.set(id, entry)
+    }
+  }
   return usage
 }
 
 function emptyUsage(): MediaUsage {
-  return { qrCodes: [] }
+  return { qrCodes: [], pages: [] }
+}
+
+function usageTotal(usage: MediaUsage): number {
+  return usage.qrCodes.length + usage.pages.length
 }
 
 function inUseMessage(usage: MediaUsage): string {
-  const count = usage.qrCodes.length
+  const count = usageTotal(usage)
   return count === 1
-    ? 'This file is used by 1 QR code. Remove it there first.'
-    : `This file is used by ${count} QR codes. Remove it there first.`
+    ? 'This file is used in 1 place. Remove it there first.'
+    : `This file is used in ${count} places. Remove it there first.`
 }
 
 async function presentMedia(db: Database, actor: Actor, settings: AppSettings, rows: MediaRecord[]) {
@@ -474,7 +495,7 @@ async function presentMedia(db: Database, actor: Actor, settings: AppSettings, r
       ...serializeMedia(row, settings.appUrl),
       owner: owner ? { username: owner.username, role: owner.role } : null,
       canEdit: canAccessOwned(actor, row, owner?.role ?? 'user', settings, 'edit'),
-      usageCount: usage.get(row.id)?.qrCodes.length ?? 0,
+      usageCount: usageTotal(usage.get(row.id) ?? emptyUsage()),
     }
   })
 }

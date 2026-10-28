@@ -2,7 +2,7 @@
 
 Sharry is a self-hosted link shortener. One Node.js process serves the dashboard, the JSON API, and public redirects. PostgreSQL stores users, links, campaigns, QR styles, click events, sessions, and settings. There is no Docker image and no separate frontend host in production.
 
-People create short links, attach UTM parameters, group tracked copies in campaigns, design QR codes, and read click analytics. Links and campaigns can sit in nested folders, carry an icon, and share tags. Move to opens that folder tree in a dialog. Administrators add accounts, API keys, redirect domains, and mail settings. Registration is closed. Two-factor authentication stays off until someone turns it on from Account, or an administrator requires it in Settings.
+People create short links, attach UTM parameters, group tracked copies in campaigns, design QR codes, build landing pages from blocks, and read click analytics. Links and campaigns can sit in nested folders, carry an icon, and share tags. Move to opens that folder tree in a dialog. Administrators add accounts, API keys, redirect domains, and mail settings. Registration is closed. Two-factor authentication stays off until someone turns it on from Account, or an administrator requires it in Settings.
 
 Signed-in users can also open `/docs` for the same product and developer guides that live in this repository as markdown. This file is the map of the whole project: what it does, how to run it locally, how a change fits into the code, and how a release reaches a server.
 
@@ -15,6 +15,7 @@ Signed-in users can also open `/docs` for the same product and developer guides 
 | Campaigns | A named group of variants. A variant belongs to one link and can override that link’s UTM fields. It is selected with `?v=<variant id>` |
 | QR codes | Encode the short URL plus a `qr` id, so a destination change does not require a new code. Styles, colors, and a center image from the media library are saved. Downloads are PNG, JPEG, and SVG |
 | Media | A library of images, videos, and PDFs in folders. Upload and move by drag and drop. Each file has a public URL under `/files/`, alt text, and a title. Every file except account photos lives here |
+| Pages | Landing pages built from blocks: container, two columns, heading, rich text, button, image, video, accordion, quote, spacer, and divider. Save keeps a private draft. Publish makes it public under `/l/<slug>`. Pages can be hidden, previewed while signed in, put in folders, and served on a redirect domain |
 | Analytics | Clicks, unique visitors, bots, a daily series, and breakdowns for referrer, country, browser, operating system, device, bots, and each UTM field |
 | Domains | The deployment host is the default. Administrators can add more hostnames after a DNS TXT check. Each link can pick a verified domain |
 | Access | Two roles, `admin` and `user`. API keys act as the user they are bound to. Account routes accept only the session cookie |
@@ -80,6 +81,7 @@ TypeScript throughout. The API and the dashboard import `@sharry/shared` and `@s
 | `qr.ts` | QR records and center images |
 | `media.ts` | Media library uploads, folders, usage, and public `/files/` serving |
 | `media-backfill.ts` | Moves older QR center images into the media library at startup |
+| `pages.ts` | Landing page drafts, publish, hide, duplicate, previews, and public serving under the page prefix |
 | `admin.ts` | Users, settings, audit, CSV export |
 | `api-keys.ts` | Bearer tokens |
 | `redirect-domains.ts` | Custom hostnames and the Caddy certificate allow-list |
@@ -91,9 +93,9 @@ TypeScript throughout. The API and the dashboard import `@sharry/shared` and `@s
 
 Request bodies are checked with the Zod schemas in `packages/shared/src/schemas.ts`. The database shape is `packages/database/src/schema.ts`.
 
-In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link returns `index.html` when the host is the deployment domain. A verified redirect domain serves short links only. Other paths on that host return 404, including the dashboard and `/api`. Unknown `/api` paths and a `POST` that is not a short link return 404.
+In production the same process serves `apps/web/dist`. Hashed files are under `/assets/`. Any other `GET` or `HEAD` that is not a short link or a landing page returns `index.html` when the host is the deployment domain. A verified redirect domain serves short links, landing pages assigned to it, and media files under `/files/` only. Other paths on that host return 404, including the dashboard and `/api`. Unknown `/api` paths and a `POST` that is not a short link return 404.
 
-In development, Vite serves the dashboard. This process serves the API, `/health`, and short links.
+In development, Vite serves the dashboard. This process serves the API, `/health`, media files, short links, and landing pages.
 
 ### Request checks
 
@@ -172,6 +174,7 @@ Edit `.env.development` before the first start:
 - `APP_URL=http://127.0.0.1:5173` — dashboard origin, used in password-reset links
 - `SHORT_URL_BASE=http://127.0.0.1:3000` — API origin, used in displayed short links and new QR codes
 - `SHORT_URL_PREFIX=/s`
+- `LANDING_PAGE_PREFIX=/l`
 
 Then:
 
@@ -196,7 +199,7 @@ It then runs two processes:
 - `tsx watch apps/api/src/index.ts` on `APP_PORT` (3000). API file changes reload this process, which applies migrations again.
 - Vite for `@sharry/web` on `http://127.0.0.1:5173`.
 
-Vite proxies `/api`, `/health`, and `/files/` to port 3000, and paths that start with `/s/`, so the default prefix can be opened from the dashboard origin. A prefix you change in Settings is served by the API. Vite does not grow a new proxy rule for it. Point `SHORT_URL_BASE` at the API origin so every prefix resolves.
+Vite proxies `/api`, `/health`, and `/files/` to port 3000, and paths that start with `/s/` and `/l/`, so the default short-link and page prefixes can be opened from the dashboard origin. A prefix you change in Settings is served by the API. Vite does not grow a new proxy rule for it. Point `SHORT_URL_BASE` at the API origin so every prefix resolves.
 
 Media library files go to `MEDIA_DATA_DIR` (default `data/media`). Account photos go to `AVATAR_DATA_DIR` (default `data/avatars`). `QR_DATA_DIR` (default `data/qr-logos`) only holds center images from older versions until startup moves them into the library. All three live under `data/`, which `npm run dev` does not delete. Keep `data/` out of Git.
 
@@ -245,6 +248,7 @@ Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password 
 | `APP_PORT` | `3000` | Bind port. Caddy proxies to `127.0.0.1:3000` |
 | `SHORT_URL_BASE` | `https://DOMAIN` when empty at deploy | Origin of short links in the dashboard, CSV export, and newly encoded QR codes |
 | `SHORT_URL_PREFIX` | required, such as `/s` | Fallback prefix until Settings saves one. A single lowercase segment, not a reserved route |
+| `LANDING_PAGE_PREFIX` | `/l` | Fallback landing page prefix until Settings saves one. Same rules, and it must differ from `SHORT_URL_PREFIX` |
 | `DATABASE_URL` | generated on first deploy | PostgreSQL URL, with a password |
 | `INITIAL_ADMIN_USERNAME` | optional | First administrator, 3–32 characters. Used only while no administrator exists |
 | `INITIAL_ADMIN_EMAIL` | optional | First administrator email |
@@ -288,6 +292,8 @@ Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password 
 | `initialized` | set after the first administrator | Provisioning |
 | `short_url_prefix` | `SHORT_URL_PREFIX` | Settings |
 | `legacy_prefix_enabled`, `legacy_prefixes` | off, empty | Settings |
+| `landing_page_prefix` | `LANDING_PAGE_PREFIX` | Settings. Changing it needs `confirmPagePrefixChange` |
+| `legacy_page_prefix_enabled`, `legacy_page_prefixes` | off, empty | Settings |
 | `default_redirect_type` | `302` | Settings |
 | `slug_length` | `5` | Settings. Random slugs use this length |
 | `analytics_retention_days` | `365` | Settings. `0` keeps events |
@@ -348,26 +354,27 @@ When Settings require two-factor authentication, a key works only after that use
 | `/` | Overview |
 | `/links`, `/links/new`, `/links/:id` | Links |
 | `/campaigns`, `/campaigns/:id` | Campaigns |
+| `/pages`, `/pages/:id` | Landing page list and block editor |
 | `/media` | Media library. `?folder=` opens a folder and `?file=` opens a file |
 | `/analytics` | Analytics |
 | `/docs`, `/docs/*` | Guides. `/docs` redirects to `/docs/user/signing-in` |
 | `/account` | Language, password, photo, two-factor authentication |
 | `/admin/users` | Accounts |
 | `/admin/api-keys` | API keys |
-| `/admin/settings` | Prefix, link sharing, sessions, mail, CSV export |
+| `/admin/settings` | Short-link and page prefixes, link sharing, sessions, mail, CSV export |
 | `/admin/domains` | Redirect domains |
 | `/admin/server` | Host memory, disk, operating system, installed runtime |
 | `/admin/audit` | Audit log |
 
 Admin routes add a loader that allows only the admin role. Anyone else is sent to `/`. Each route sets the browser title to `Page · APP_NAME`. The dashboard sends `noindex, nofollow`.
 
-Search is in the sidebar under Chat. Cmd+K on a Mac, and Ctrl+K elsewhere, opens the same palette. It lists the pages a person can open, then matches links, campaigns, chats, docs, and, for an administrator, users, domains, API keys, and audit rows.
+Search is in the sidebar under Chat. Cmd+K on a Mac, and Ctrl+K elsewhere, opens the same palette. It lists the pages a person can open, then matches links, campaigns, media, landing pages, chats, docs, and, for an administrator, users, domains, API keys, and audit rows.
 
 ## Short links and extra domains
 
 Public URLs look like `https://share.example.com/s/summer-sale`. `tryShortLink` in `apps/api/src/redirect.ts` handles `GET`, `HEAD`, and `POST` paths with two segments. The first segment must be the active prefix or an enabled legacy prefix. Anything else falls through to the dashboard on the deployment host.
 
-Reserved prefixes, in `packages/shared/src/prefix.ts`, are `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, and `docs`. Slugs reserve those names plus `favicon.ico` and `robots.txt`. A prefix is one lowercase segment: letters, digits, and hyphens.
+Reserved prefixes, in `packages/shared/src/prefix.ts`, are `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, `docs`, `media`, `files`, and `pages`. Slugs reserve those names plus `favicon.ico` and `robots.txt`. A prefix is one lowercase segment: letters, digits, and hyphens.
 
 Administrators add hostnames from Domains. Sharry stores a pending row and a TXT token. Verification looks up `_<slug>-challenge.<hostname>` (`_sharry-challenge.links.example.com` when the app name is Sharry) and accepts the domain only when that TXT value matches. The deployment hostname from `SHORT_URL_BASE` or `APP_URL` cannot be added. After verification, and once the hostname’s A record points at this server, Caddy issues a certificate the first time someone opens it. Sharry checks the TXT record again every hour. A temporary lookup failure leaves the domain verified. Two checks in a row with no matching record move it back to pending. Caddy asks `GET /internal/caddy/ask?domain=` first. That route returns 200 only for a verified hostname, and only when the client address is loopback. A request through the reverse proxy uses the visitor's address and returns 404.
 
@@ -391,6 +398,7 @@ PostgreSQL tables in `packages/database/src/schema.ts`:
 | `qr_codes` | Name, style JSON, optional variant, logo path on disk |
 | `click_events` | Time, referrer host, country, region, browser, OS, device, bot flag, anonymous visitor id, UTM snapshot |
 | `redirect_domains` | Hostname, pending or verified status, TXT token |
+| `landing_pages` | Slug, title, folder, redirect domain, draft settings and blocks as JSON, the published copy of both, `published_at`, `hidden` |
 | `app_settings` | String values keyed by name |
 | `audit_logs` | Actor, action, entity, JSON metadata |
 
@@ -428,7 +436,7 @@ Document the route with a JSDoc block directly above the `app.get` / `app.post` 
  */
 ```
 
-Tags in use are `Links`, `Campaigns`, `Analytics`, `QR codes`, `Account`, `Admin`, `Settings`, `Domains`, and `Search`. Add a new tag to `TAG_ORDER` in `scripts/generate-api-docs.ts` if the reference should group it.
+Tags in use are `Links`, `Campaigns`, `Analytics`, `QR codes`, `Media`, `Pages`, `Account`, `Admin`, `Settings`, `Domains`, and `Search`. Add a new tag to `TAG_ORDER` in `scripts/generate-api-docs.ts` if the reference should group it.
 
 The dashboard calls the route through `api()` in `apps/web/src/api.ts`. Put shared response types next to that function when more than one page needs them. A field error is a tooltip beside the field. A save, copy, or failed load is a toast. File uploads use `FormData` so the browser sets the multipart boundary.
 
@@ -442,6 +450,10 @@ External callers use a bearer token. If the route must stay cookie-only, put it 
 4. If the path is a single public segment, add that segment to `RESERVED_PREFIXES` and `RESERVED_SLUGS` so a short-link prefix cannot take it. Update the prefix tests.
 
 UI primitives live in `apps/web/src/components/ui`. The path alias `@/` points at `apps/web/src`. Tailwind 4 is wired through the Vite plugin. Production CSP allows `blob:` so a QR center image can be embedded.
+
+### A new page builder block
+
+Each landing page block is one file in `packages/shared/src/pages/blocks` built with `defineBlock`. Its fields drive the API schema, the defaults, the editor inspector, and media usage. Its `render` returns escaped HTML with `b-<type>` CSS classes. List it in `pageBlocks` in `registry.ts`, add a new lucide icon name to `blockIconNames` and `apps/web/src/components/page-builder/block-icons.tsx`, and add the German strings. The contract tests in `packages/shared/src/pages/blocks.test.ts` and `apps/web/src/components/page-builder/blocks.test.ts` run for every registered block. The full guide is `apps/web/docs/en/developer/frontend/page-blocks.md`.
 
 ### A new setting
 
@@ -576,9 +588,9 @@ A failed health check restores the previous release and restarts the service whe
 
 The in-app guides under `apps/web/docs/en` are the longer form of the product and of the API. Start with:
 
-- `user/signing-in.md`, `user/links.md`, `user/campaigns.md`, `user/qr-codes.md`, `user/media.md`, `user/analytics.md`, `user/search.md` for day-to-day use
+- `user/signing-in.md`, `user/links.md`, `user/campaigns.md`, `user/qr-codes.md`, `user/media.md`, `user/pages.md`, `user/analytics.md`, `user/search.md` for day-to-day use
 - `user/domains.md`, `user/api-keys.md`, `user/settings.md`, `user/users.md`, `user/server.md` for administration
 - `developer/backend/overview.md`, `development.md`, `auth.md`, `redirects.md`, `deploy.md` for the server
-- `developer/frontend/overview.md`, `routing.md`, `api-client.md` for the dashboard
+- `developer/frontend/overview.md`, `routing.md`, `api-client.md`, `page-blocks.md` for the dashboard
 
 German copies live in `apps/web/docs/de` with the same paths. You can read the files in the repository before the app is running. The generated API reference appears at `/docs/api` once the dashboard is serving.

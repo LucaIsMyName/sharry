@@ -59,6 +59,7 @@ Diese werden auf den Server kopiert. Leere Zeichenketten gelten als nicht gesetz
 | `APP_PORT` | `3000` | Port, an den der Prozess bindet. Caddy leitet an `127.0.0.1:3000` weiter |
 | `SHORT_URL_BASE` | `https://DOMAIN` wenn leer | Ursprung, der in Kurzlinks und neue QR-Codes kodiert wird |
 | `SHORT_URL_PREFIX` | nötig, zum Beispiel `/s` | Fallback-Präfix, bis die Einstellungen eines speichern |
+| `LANDING_PAGE_PREFIX` | `/l` | Fallback-Präfix für Landingpages, bis die Einstellungen eines speichern. Muss sich von `SHORT_URL_PREFIX` unterscheiden |
 | `DATABASE_URL` | beim ersten Deploy erzeugt | PostgreSQL-URL. Benutzer- und Datenbanknamen sind Buchstaben, Zahlen und Unterstriche, und die URL muss ein Passwort enthalten |
 | `INITIAL_ADMIN_USERNAME` | optional | Erste Administratorin oder erster Administrator, 3–32 Zeichen |
 | `INITIAL_ADMIN_EMAIL` | optional | E-Mail der ersten Administratorin oder des ersten Administrators |

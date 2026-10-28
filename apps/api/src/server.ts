@@ -19,6 +19,7 @@ import { registerAuthRoutes, requireUser } from './auth.ts'
 import { registerLinkRoutes } from './links.ts'
 import { registerMediaRoutes } from './media.ts'
 import { registerOrganizeRoutes } from './organize.ts'
+import { isPagePath, registerPageRoutes, tryLandingPage } from './pages.ts'
 import type { Mailer } from './mail.ts'
 import { registerQrRoutes } from './qr.ts'
 import { recordPendingClick, sendSpa, tryShortLink, isShortLinkPath } from './redirect.ts'
@@ -96,7 +97,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     if (!(await isVerifiedRedirectHost(app.db, requestHostname(request)))) return
     const pathname = request.url.split('?')[0] ?? ''
     const settings = await getSettings(app.db, app.env)
-    if (isShortLinkPath(pathname, settings) || pathname.startsWith('/files/')) return
+    if (isShortLinkPath(pathname, settings) || isPagePath(pathname, settings) || pathname.startsWith('/files/')) return
     return reply.code(404).type('text/plain').send('Not found')
   })
 
@@ -143,6 +144,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   registerLinkRoutes(app)
   registerOrganizeRoutes(app)
   registerMediaRoutes(app)
+  registerPageRoutes(app)
   registerTrackingRoutes(app)
   registerAnalyticsRoutes(app)
   registerQrRoutes(app)
@@ -171,6 +173,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     handler: async (request, reply) => {
       const handled = await tryShortLink(app, request, reply)
       if (handled) return
+      if (await tryLandingPage(app, request, reply)) return
       if (request.method === 'POST' || request.url.startsWith('/api')) {
         return reply.code(404).send({ error: 'Not found' })
       }

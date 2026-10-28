@@ -5,6 +5,7 @@ import {
   folders,
   linkTags,
   links,
+  landingPages,
   mediaAssets,
   tags,
   trackingCampaigns,
@@ -29,20 +30,20 @@ import { AppError, isUniqueViolation, parseBody } from './support.ts'
 export type TagRef = { id: string; name: string; color: string }
 export type FolderRef = { id: string; name: string; icon: string | null; parentId: string | null }
 
-export type FolderKind = 'link' | 'campaign' | 'media'
+export type FolderKind = 'link' | 'campaign' | 'media' | 'page'
 
 function folderKind(value: string | undefined): FolderKind {
-  if (value === 'campaign' || value === 'link' || value === 'media') return value
-  throw new AppError(400, 'Choose link, campaign, or media folders')
+  if (value === 'campaign' || value === 'link' || value === 'media' || value === 'page') return value
+  throw new AppError(400, 'Choose link, campaign, media, or page folders')
 }
 
 export function registerOrganizeRoutes(app: FastifyInstance): void {
   /**
-   * List folders for links, campaigns, or media.
+   * List folders for links, campaigns, media, or landing pages.
    * @route GET /api/folders
    * @tag Links
    * @auth api-key or session
-   * @query kind string link, campaign, or media
+   * @query kind string link, campaign, media, or page
    * @query parent string Folder id, or root. Ignored when tree=1
    * @query tree string 1 returns every folder of this kind
    * @response 200 { folders, breadcrumb }
@@ -147,7 +148,7 @@ export function registerOrganizeRoutes(app: FastifyInstance): void {
   })
 
   /**
-   * Delete a folder. Its links, campaigns, media, and subfolders move up to the parent.
+   * Delete a folder. Its links, campaigns, media, landing pages, and subfolders move up to the parent.
    * @route DELETE /api/folders/:id
    * @tag Links
    * @auth api-key or session
@@ -164,6 +165,7 @@ export function registerOrganizeRoutes(app: FastifyInstance): void {
       await database.update(links).set({ folderId: current.parentId }).where(eq(links.folderId, current.id))
       await database.update(trackingCampaigns).set({ folderId: current.parentId }).where(eq(trackingCampaigns.folderId, current.id))
       await database.update(mediaAssets).set({ folderId: current.parentId }).where(eq(mediaAssets.folderId, current.id))
+      await database.update(landingPages).set({ folderId: current.parentId }).where(eq(landingPages.folderId, current.id))
       await database.delete(folders).where(eq(folders.id, current.id))
       await writeAudit(database, {
         actorUserId: actor.id,
@@ -402,7 +404,7 @@ async function childCounts(db: Database, kind: FolderKind, ids: string[]): Promi
   for (const row of nested) {
     if (row.parentId) counts.set(row.parentId, row.count)
   }
-  const table = kind === 'link' ? links : kind === 'campaign' ? trackingCampaigns : mediaAssets
+  const table = kind === 'link' ? links : kind === 'campaign' ? trackingCampaigns : kind === 'media' ? mediaAssets : landingPages
   const owned = await db
     .select({ folderId: table.folderId, count: sql<number>`count(*)::int` })
     .from(table)

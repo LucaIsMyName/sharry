@@ -59,6 +59,7 @@ These are copied to the server. Empty strings are treated as unset where a defau
 | `APP_PORT` | `3000` | Port the process binds. Caddy proxies to `127.0.0.1:3000` |
 | `SHORT_URL_BASE` | `https://DOMAIN` when empty | Origin encoded into short links and new QR codes |
 | `SHORT_URL_PREFIX` | required, such as `/s` | Fallback prefix until Settings saves one |
+| `LANDING_PAGE_PREFIX` | `/l` | Fallback landing page prefix until Settings saves one. Must differ from `SHORT_URL_PREFIX` |
 | `DATABASE_URL` | generated on first deploy | PostgreSQL URL. User and database names are letters, numbers, and underscores, and the URL must include a password |
 | `INITIAL_ADMIN_USERNAME` | optional | First administrator, 3–32 characters |
 | `INITIAL_ADMIN_EMAIL` | optional | First administrator email |

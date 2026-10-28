@@ -7,6 +7,7 @@ import {
   Globe,
   KeyRound,
   LayoutDashboard,
+  LayoutTemplate,
   Link as LinkIcon,
   Images,
   Megaphone,
@@ -63,6 +64,8 @@ export type SearchMedia = {
   folderId: string | null;
 };
 
+export type SearchPage = { id: string; title: string; slug: string };
+
 export type SearchChat = {
   id: string;
   title: string;
@@ -85,6 +88,7 @@ export type SearchResponse = {
   links: SearchLink[];
   campaigns: SearchCampaign[];
   media?: SearchMedia[];
+  pages?: SearchPage[];
   chats: SearchChat[];
   users?: SearchUser[];
   domains?: SearchDomain[];
@@ -230,6 +234,18 @@ export function CommandMenu({
                   detail={campaign.description ?? undefined}
                   icon={<AppIcon name={campaign.icon ?? defaultCampaignIcon} />}
                   onSelect={() => go(`/campaigns/${campaign.id}`)}
+                />
+              ))}
+            </Group>
+            <Group heading={translate("Landing pages")}>
+              {(result?.pages ?? []).map((item) => (
+                <Row
+                  key={item.id}
+                  value={`page-${item.id}`}
+                  to={`/pages/${item.id}`}
+                  title={item.title}
+                  detail={item.slug}
+                  onSelect={() => go(`/pages/${item.id}`)}
                 />
               ))}
             </Group>
@@ -389,6 +405,7 @@ function routeIcon(to: string): ReactNode {
   if (path.startsWith("/links")) return <LinkIcon size={18} />;
   if (path.startsWith("/campaigns")) return <Megaphone size={18} />;
   if (path.startsWith("/media")) return <Images size={18} />;
+  if (path.startsWith("/pages")) return <LayoutTemplate size={18} />;
   if (path.startsWith("/analytics")) return <ChartColumn size={18} />;
   if (path.startsWith("/chat")) return <MessageSquare size={18} />;
   if (path.startsWith("/docs")) return <BookOpen size={18} />;

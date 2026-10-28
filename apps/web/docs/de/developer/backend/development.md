@@ -23,7 +23,7 @@ Das Skript startet ein eingebettetes PostgreSQL und lässt dann die API und das 
 
 Der eingebettete Server wird nur angelegt, wenn `DATABASE_URL` auf `127.0.0.1`, `localhost` oder `::1` zeigt und auf diesem Port noch nichts Verbindungen annimmt. Seine Daten bleiben in `data/pg-dev`. Das Schließen des Terminals stoppt ihn. Das nächste `npm run dev` startet ihn wieder und behält dieselben Daten. Wenn der Port schon offen ist, nutzt Sharry diese Datenbank und startet keine weitere. Eine `DATABASE_URL` auf einem anderen Host bleibt unangetastet.
 
-Die API ist `tsx watch apps/api/src/index.ts`. Sie lauscht auf `APP_PORT`, Vorgabe 3000, und lädt neu, wenn sich API-Dateien ändern. Das Dashboard ist Vite auf `http://127.0.0.1:5173`. Vite leitet `/api` und `/health` an Port 3000 weiter und auch Pfade, die mit `/s/` beginnen, damit das Standardpräfix für Kurzlinks in der Entwicklung vom Dashboard-Ursprung geöffnet werden kann.
+Die API ist `tsx watch apps/api/src/index.ts`. Sie lauscht auf `APP_PORT`, Vorgabe 3000, und lädt neu, wenn sich API-Dateien ändern. Das Dashboard ist Vite auf `http://127.0.0.1:5173`. Vite leitet `/api` und `/health` an Port 3000 weiter und auch Pfade, die mit `/s/`, `/l/` und `/files/` beginnen, damit das Standardpräfix für Kurzlinks, das Standardpräfix für Landingpages und Mediendateien in der Entwicklung vom Dashboard-Ursprung geöffnet werden können.
 
 Beim Start lädt die API die Umgebung, führt Migrationen aus, legt die erste Administratorin oder den ersten Administrator an, wenn keine existiert, löscht abgelaufene Klickereignisse und Passwort-Reset-Token und lauscht dann. Dieselbe Bereinigung läuft jede Stunde wieder.
 
@@ -31,9 +31,11 @@ Beim Start lädt die API die Umgebung, führt Migrationen aus, legt die erste Ad
 
 `APP_URL` ist der Ursprung der Links zum Zurücksetzen des Passworts: `{APP_URL}/login/reset?token=...`.
 
-`SHORT_URL_BASE` ist der Ursprung der Kurzlinks, die im Dashboard, im Link-CSV-Export und in neu kodierten QR-Codes gezeigt werden. In der Entwicklung sollte es der API-Ursprung sein, `http://127.0.0.1:3000`, damit jedes Präfix aufgelöst wird. Vite leitet nur das Präfix `/s/` weiter. Ein Präfix, das du in den Einstellungen änderst, liefert die API, nicht eine neue Vite-Regel.
+`SHORT_URL_BASE` ist der Ursprung der Kurzlinks, die im Dashboard, im Link-CSV-Export und in neu kodierten QR-Codes gezeigt werden. In der Entwicklung sollte es der API-Ursprung sein, `http://127.0.0.1:3000`, damit jedes Präfix aufgelöst wird. Vite leitet nur die Präfixe `/s/` und `/l/` weiter. Ein Präfix, das du in den Einstellungen änderst, liefert die API, nicht eine neue Vite-Regel.
 
 `SHORT_URL_PREFIX` ist das öffentliche Standard-Pfadsegment, zum Beispiel `/s`. Die Einstellungen können das aktive Präfix nach der Installation ändern. Der Umgebungswert ist der Fallback, wenn noch kein Präfix gespeichert wurde.
+
+`LANDING_PAGE_PREFIX` ist das Standard-Pfadsegment der Landingpages, `/l`, wenn leer. Es gelten dieselben Regeln, und es darf nicht gleich `SHORT_URL_PREFIX` sein. Die Einstellungen können es später ändern.
 
 ## Die erste Administratorin oder der erste Administrator
 

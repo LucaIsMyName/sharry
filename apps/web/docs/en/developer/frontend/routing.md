@@ -25,6 +25,8 @@ These sit under the shell. The parent loader requires a `full` session. A sessio
 | `/` | Overview |
 | `/links`, `/links/new`, `/links/:id` | Link list, create, and editor |
 | `/campaigns`, `/campaigns/:id` | Campaign list and detail |
+| `/pages`, `/pages/:id` | Landing page list and page editor |
+| `/media` | Media library |
 | `/analytics` | Analytics |
 | `/chat`, `/chat/:id` | Assistant chat |
 | `/docs` | Redirects to `/docs/user/signing-in` |
@@ -37,7 +39,7 @@ Admin pages add a loader that allows only the admin role. Anyone else is sent to
 | --- | --- |
 | `/admin/users` | Create and manage accounts |
 | `/admin/api-keys` | API keys |
-| `/admin/settings` | Prefix, sessions, mail, AI, and CSV export |
+| `/admin/settings` | Short-link and page prefixes, sessions, mail, AI, and CSV export |
 | `/admin/domains` | Redirect domains, DNS verification, and the setup dialog |
 | `/admin/server` | Host memory, disk, operating system, and installed runtime |
 | `/admin/audit` | Audit log |
@@ -48,4 +50,6 @@ The docs sidebar stays in view while the article scrolls. User and Developer ope
 
 Each route element sits in an error boundary. A render error replaces that page with a short message and a retry button. The shell, including the sidebar and sign-out, stays in place. Search has its own boundary, so a failure there leaves the open page up. Loaders still redirect. A failure above those boundaries, such as the shell itself, replaces the screen with a static message and a link back to `/`.
 
-Overview, links, campaigns, analytics, chat, docs, and the admin pages load with `React.lazy()`. Sign-in and the shell stay in the first bundle. Account stays with sign-in because they share one module. The guide markdown stays in the first bundle as well, because search reads it from `docs-pages.ts`. A page shows the loading skeleton while its chunk downloads. Moving between `/links`, `/links/new`, and `/links/:id` uses one download, and the same is true for campaigns and for users, settings, and audit.
+Overview, links, campaigns, pages, media, analytics, chat, docs, and the admin pages load with `React.lazy()`. Sign-in and the shell stay in the first bundle. Account stays with sign-in because they share one module. The guide markdown stays in the first bundle as well, because search reads it from `docs-pages.ts`. A page shows the loading skeleton while its chunk downloads. Moving between `/links`, `/links/new`, and `/links/:id` uses one download, and the same is true for campaigns and for users, settings, and audit. The page list and the page editor are separate chunks, so the TipTap editor loads only when a page is opened.
+
+The page editor uses `useBlocker` from the data router. Leaving with unsaved changes opens a “Leave without saving?” dialog, and closing the tab triggers the browser's own warning.

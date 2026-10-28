@@ -19,6 +19,44 @@ flowchart TD
 
 The catch-all route is registered for `GET`, `HEAD`, and `POST`. It tries a short link first. A handled short link ends the response. A `POST` that is not a short link, and any path under `/api` that reached the catch-all, returns 404. Other `GET` and `HEAD` requests receive the dashboard HTML in production, or a development hint when Vite is serving the UI.
 
+## Landing pages
+
+The catch-all tries `tryLandingPage` from `apps/api/src/pages.ts` after a short link. It handles `GET` and `HEAD` paths with two segments whose first segment is the page prefix (`LANDING_PAGE_PREFIX`, default `/l`, or the value saved in Settings) or an enabled legacy page prefix. The slug lookup is case-insensitive. A path under the page prefix never falls through to the dashboard.
+
+```mermaid
+flowchart TD
+  accTitle: Serving a landing page
+  accDescr: A redirect domain only serves pages assigned to it. A public page renders its published copy. A signed-in person with access sees the draft with a preview banner on the deployment domain. Everything else is not found.
+  Path[Page prefix and slug] --> Found{Page exists?}
+  Found -->|No| NotFound[404]
+  Found -->|Yes| Host{On a redirect domain?}
+  Host -->|Yes, not its domain| NotFound
+  Host -->|Yes, its domain| Public
+  Host -->|No| Public{Published and not hidden?}
+  Public -->|Yes| Published[Render the published copy]
+  Public -->|No| Viewer{Signed in with view access, on the deployment domain?}
+  Viewer -->|Yes| Draft[Render the draft with a preview banner]
+  Viewer -->|No| NotFound
+```
+
+A page is public when it has `published_at` and `hidden` is false. The public response renders `published_title`, `published_settings`, and `published_content`, so saving a draft never changes it. A page that is a draft, hidden, or has unpublished changes is shown to a signed-in person who may view it, using the saved draft and a fixed “Preview, not public” bar. That preview only works on the deployment domain, because the session cookie belongs to it. `GET /api/pages/:id/preview` returns the same draft view by id.
+
+Both use `renderPage` from `packages/shared/src/pages`. The HTML contains no JavaScript and has every style inline. Responses carry:
+
+| Header | Public page | Preview |
+| --- | --- | --- |
+| `content-security-policy` | `default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'` | Same |
+| `cache-control` | `public, max-age=60` | `no-store` |
+| `x-robots-tag` | `noindex, nofollow` when the page hides from search engines | `noindex, nofollow` |
+| `referrer-policy` | Not set | `no-referrer` |
+| `x-content-type-options` | `nosniff` | `nosniff` |
+
+A missing page, a hidden page for a visitor, and a page on the wrong redirect domain all return the same plain `404 Not found` with `no-store`.
+
+A page with `redirect_domain_id` is served on that host and on the deployment domain. Other verified redirect domains return 404 for it, and a page without a redirect domain is not served on any redirect domain. Deleting the domain sets the column to null.
+
+The page prefix follows the short-link prefix rules in `validatePrefix`. It cannot equal the short-link prefix or one of its legacy prefixes, and the short-link prefix cannot take the page prefix or its legacy prefixes. `PATCH /api/admin/settings` with a new `pagePrefix` returns 400 with code `confirm_page_prefix` until the body also sends `confirmPagePrefixChange: true`. When `legacyPagePrefixEnabled` is on, the previous prefix is added to `legacy_page_prefixes`.
+
 ## Prefix and slug
 
 Reserved names in `packages/shared/src/prefix.ts` include `api`, `health`, `assets`, `login`, `account`, `links`, `campaigns`, `analytics`, `admin`, and `docs`. A short-link prefix cannot take those URLs. Slugs reserve the same names plus `favicon.ico` and `robots.txt`.
@@ -33,7 +71,7 @@ The same slug still resolves on every host that reaches this process. The select
 
 Sharry checks verified domains again every hour. A lookup timeout or another temporary DNS failure leaves the domain verified. Two checks in a row that find no matching TXT record move it back to pending. Pending stops new certificates and takes the hostname off the redirect menu until an administrator verifies it again.
 
-Caddy asks `GET /internal/caddy/ask?domain=` before issuing a certificate. The route returns 200 only for a verified hostname, and only when the client address is loopback. A visitor who reaches the deployment host through the reverse proxy is not loopback and receives 404. Caddy's own ask connects to `127.0.0.1` directly and still receives 200. Other names return 404. Paths that are not a short link return 404 on a verified custom host, so the dashboard stays on the deployment host.
+Caddy asks `GET /internal/caddy/ask?domain=` before issuing a certificate. The route returns 200 only for a verified hostname, and only when the client address is loopback. A visitor who reaches the deployment host through the reverse proxy is not loopback and receives 404. Caddy's own ask connects to `127.0.0.1` directly and still receives 200. Other names return 404. Paths that are not a short link, a landing page, or a media file return 404 on a verified custom host, so the dashboard stays on the deployment host.
 
 Slug uniqueness is case-insensitive. The taken-slug response is 409 with "This short URL is already in use. Please choose a different slug."
 

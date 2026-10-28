@@ -9,6 +9,11 @@ describe("auditActionSentence", () => {
     );
   });
 
+  it("describes landing page actions", () => {
+    expect(auditActionSentence("page.published")).toBe("A landing page is published");
+    expect(auditActionSentence("settings.page_prefix_changed")).toBe("The landing page prefix changes");
+  });
+
   it("returns nothing for an unknown action", () => {
     expect(auditActionSentence("link.unknown")).toBeNull();
   });

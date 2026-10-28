@@ -9,9 +9,10 @@ Tippen sucht weiter:
 - Links, nach Titel, Beschreibung, Slug, Ziel, einem Routennamen, einem UTM-Wert oder einem QR-Code-Namen. Ein Treffer öffnet den Link. Derselbe Link steht unter Analysen und öffnet die Klicks dieses Links. Die Seite Analysen ist die Summe für jeden Link, den du sehen kannst.
 - Kampagnen, nach Name, Beschreibung oder einem Variantennamen.
 - Mediendateien, nach Name, Alternativtext oder Titel. Ein Treffer öffnet die Datei in ihrem Ordner.
+- Landingpages, nach Titel, Slug oder Beschreibung. Ein Treffer öffnet die Seite im Editor.
 - Deine eigenen Chats, nach Titel oder Nachrichtentext.
 - Die Docs in deiner Sprache, nach Titel oder Seitentext.
-- Abschnitte auf Konto und Einstellungen, zum Beispiel Passwort, Zwei-Faktor-Authentifizierung, das öffentliche Präfix und der Mailserver.
+- Abschnitte auf Konto und Einstellungen, zum Beispiel Passwort, Zwei-Faktor-Authentifizierung, das öffentliche Präfix, das Präfix für Landingpages und der Mailserver.
 - Für eine Administratorin oder einen Administrator: Benutzer, Domains, API-Schlüssel nach Name oder dem sichtbaren Präfix, und Audit-Zeilen. Die Wahl öffnet die Seite und hebt die Zeile hervor. Eine ältere Audit-Zeile wird geladen, auch wenn sie hinter der ersten Seite liegt.
 
 Die Suche sieht keine Passwörter, keine Zwei-Faktor-Geheimnisse, keine Wiederherstellungscodes und keine API-Schlüssel-Geheimnisse.

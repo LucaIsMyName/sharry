@@ -63,7 +63,7 @@ export function MediaDetailSheet({
   const editable = shown?.canEdit !== false;
   const changed =
     detail !== null && (name.trim() !== detail.name || alt.trim() !== (detail.alt ?? "") || title.trim() !== (detail.title ?? ""));
-  const inUse = (detail?.usage.qrCodes.length ?? 0) > 0;
+  const inUse = (detail?.usage.qrCodes.length ?? 0) + (detail?.usage.pages.length ?? 0) > 0;
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -174,6 +174,13 @@ export function MediaDetailSheet({
                     </Link>
                   </li>
                 ))}
+                {detail.usage.pages.map((page) => (
+                  <li key={page.id}>
+                    <Link className="hover:underline" to={`/pages/${page.id}`}>
+                      {t("Landing page {title}", { title: page.title })}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             ) : (
               <span className="text-muted-foreground">{t("Not used anywhere yet.")}</span>
@@ -191,7 +198,7 @@ export function MediaDetailSheet({
               variant="outline"
               className="justify-self-start text-destructive"
               disabled={inUse || !detail}
-              title={inUse ? t("Remove it from the QR codes that use it first.") : undefined}
+              title={inUse ? t("Remove it from the QR codes and pages that use it first.") : undefined}
               onClick={() => onDelete(shown)}
             >
               <Trash2 /> {t("Delete file")}

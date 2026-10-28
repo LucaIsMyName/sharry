@@ -170,7 +170,7 @@ describe('media library', () => {
 
     const blocked = await ctx.app.inject({ method: 'DELETE', url: `/api/media/${media.id}`, headers })
     expect(blocked.statusCode).toBe(409)
-    expect(blocked.json()).toMatchObject({ code: 'media_in_use', error: 'This file is used by 1 QR code. Remove it there first.' })
+    expect(blocked.json()).toMatchObject({ code: 'media_in_use', error: 'This file is used in 1 place. Remove it there first.' })
 
     const cleared = await ctx.app.inject({ method: 'PATCH', url: `/api/qr/${qr.json().id}`, headers, payload: { logoMediaId: null } })
     expect(cleared.json().hasLogo).toBe(false)
