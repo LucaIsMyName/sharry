@@ -109,13 +109,16 @@ describe("analytics page", () => {
     expect(summarize.compareDocumentPosition(slider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(summarize.closest("[data-slot=card]")).toBeNull();
 
+    const linksHeading = await screen.findByRole("heading", { name: "Links" });
+    const busyBox = screen.getByRole("checkbox", { name: "Select Busy" });
+    expect(linksHeading.compareDocumentPosition(busyBox) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Filter Clicks" })).toBeTruthy();
+    fireEvent.click(busyBox);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Quiet" }));
     fireEvent.click(add);
-    const linkButtons = screen.getAllByRole("button", { name: "Links" });
-    fireEvent.click(linkButtons[linkButtons.length - 1]!);
-    fireEvent.click(screen.getByRole("checkbox", { name: "Busy" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Quiet" }));
-    const countryButtons = screen.getAllByRole("button", { name: "Country" });
-    fireEvent.click(countryButtons[countryButtons.length - 1]!);
+    fireEvent.click(screen.getByRole("button", { name: "Country" }));
+    const countryTriggers = screen.getAllByRole("button", { name: "Country" });
+    fireEvent.click(countryTriggers[countryTriggers.length - 1]!);
     fireEvent.click(screen.getByRole("checkbox", { name: "DE" }));
     await waitFor(() => {
       const last = calls.filter((path) => path.startsWith("/api/analytics")).at(-1) ?? "";

@@ -83,9 +83,13 @@ export function AnalyticsPage() {
   }
 
   function selectLink(id: string) {
+    setLinkIds([id]);
+  }
+
+  function setLinkIds(ids: string[]) {
     const next = new URLSearchParams(params);
     next.delete("link");
-    next.set("link", id);
+    for (const id of ids) next.append("link", id);
     setParams(next);
   }
 
@@ -189,8 +193,7 @@ export function AnalyticsPage() {
           />
         </div>
       ) : null}
-      <div className="mt-4 min-w-0">
-          <h2 className="mb-3 text-lg font-medium">{t("Links")}</h2>
+      <Section className="mt-4" title={t("Links")}>
           {loading && links.length === 0 ? (
             <RowSkeleton label="Loading links…" />
           ) : links.length === 0 ? (
@@ -208,6 +211,9 @@ export function AnalyticsPage() {
               storageKey="analytics-links"
               columns={analyticsLinkColumns}
               rows={links}
+              selectable
+              selectedIds={linkIds}
+              onSelectedIds={setLinkIds}
               getRow={(link) => ({
                 id: link.id,
                 label: link.title?.trim() || link.slug,
@@ -216,7 +222,7 @@ export function AnalyticsPage() {
               })}
             />
           )}
-      </div>
+      </Section>
     </section>
   );
 }
@@ -235,6 +241,7 @@ const analyticsLinkColumns: DataColumn<LinkStat>[] = [
     id: "clicks",
     header: "Clicks",
     sortable: true,
+    filter: "text",
     align: "right",
     sortValue: (link) => link.clicks,
     filterValue: (link) => String(link.clicks),
@@ -244,6 +251,7 @@ const analyticsLinkColumns: DataColumn<LinkStat>[] = [
     id: "unique",
     header: "Unique visitors",
     sortable: true,
+    filter: "text",
     align: "right",
     sortValue: (link) => link.uniqueVisitors,
     filterValue: (link) => String(link.uniqueVisitors),

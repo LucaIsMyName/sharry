@@ -18,9 +18,7 @@ Land und Region bleiben leer, außer `GEOIP_DB_PATH` zeigt auf eine lokale MaxMi
 
 Der Datumsregler ist die Hauptsteuerung. Filter hinzufügen öffnet Links, Land, Browser, Betriebssystem, Referrer, Gerät und jeden UTM-Schlüssel. Aktive Filter sind entfernbare Chips. Zurücksetzen entfernt sie alle. Die Adresszeile behält dieselben Parameter.
 
-Der Datumsregler unter der Überschrift setzt den Zeitraum. Ein Klick auf einen Tag behält diesen Tag. Die Kurzinfo beim Darüberfahren bleibt. Ein Klick auf eine Aufschlüsselungszeile schaltet diesen Wert als Filter um, auch Referrer und Gerät. Eine gewählte Zeile bleibt hervorgehoben. Die Linktabelle unter dem Diagramm sortiert und filtert für sich und merkt sich diese Ansicht in diesem Browser. Diese Tabellenfilter sind von den Diagrammfiltern getrennt.
-
-Mehrere Links passen, wenn einer davon stimmt. Ein Link behält den Namen dieses Links in der Überschrift. Eine Zeile in der Tabelle wählt genau diesen Link.
+Der Datumsregler unter der Überschrift setzt den Zeitraum. Ein Klick auf einen Tag behält diesen Tag. Die Kurzinfo beim Darüberfahren bleibt. Ein Klick auf eine Aufschlüsselungszeile schaltet diesen Wert als Filter um, auch Referrer und Gerät. Eine gewählte Zeile bleibt hervorgehoben. Unter der Überschrift Links steht dieselbe Datentabelle. Die Kontrollkästchen wählen, welche Links die Diagramme zeigen, und eine Zeile wählt genau diesen einen Link. Sortierung, Spaltenfilter und Spaltenbreiten der Tabelle bleiben in diesem Browser und ändern die Diagrammfilter nicht.
 
 Beide Daten leer heißt etwa die letzten 30 Tage. Ein Zeitraum länger als 400 Tage zeigt einen Fehler und wird nicht gesendet. Mehrere Werte in einem Feld passen, wenn einer davon stimmt. Verschiedene Felder müssen alle passen. Ein leerer gespeicherter Wert ist „Nicht gesetzt“ und kann gewählt werden. Leere Referrer heißen Direkt und werden als Nicht gesetzt gefiltert. Die Auswahl kommt aus den Klicks der gewählten Tage und Links und ignoriert die anderen Dimensionsfilter.
 
