@@ -14,6 +14,7 @@ import {
 import {
   Link,
   useLoaderData,
+  useLocation,
   useNavigate,
   useRevalidator,
   useSearchParams,
@@ -591,13 +592,33 @@ export function EnrollPage() {
   );
 }
 
+const resetTokenKey = "sharry.reset-token";
+
+function resetTokenFromLocation(search: string, hash: string): string {
+  const query = new URLSearchParams(search).get("token");
+  if (query) return query;
+  const fragment = new URLSearchParams(hash.replace(/^#/, "")).get("token");
+  if (fragment) return fragment;
+  return sessionStorage.getItem(resetTokenKey) ?? "";
+}
+
 export function ResetPage() {
   const { t } = useI18n();
+  const location = useLocation();
   const [params] = useSearchParams();
-  const token = params.get("token") ?? "";
+  const navigate = useNavigate();
+  const [token, setToken] = useState(() => resetTokenFromLocation(location.search, location.hash));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const found = params.get("token") || new URLSearchParams(location.hash.replace(/^#/, "")).get("token");
+    if (!found) return;
+    sessionStorage.setItem(resetTokenKey, found);
+    setToken(found);
+    void navigate("/login/reset", { replace: true });
+  }, [location.hash, navigate, params]);
 
   async function requestReset(event: FormEvent) {
     event.preventDefault();

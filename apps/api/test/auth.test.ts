@@ -130,7 +130,7 @@ describe('authentication', () => {
     })
     expect(forgot.statusCode).toBe(200)
     expect(messages).toHaveLength(1)
-    const token = new URL(messages[0]?.text.match(/https?:\/\/\S+/)?.[0] ?? '').searchParams.get('token')
+    const token = resetToken(messages[0]?.text ?? '')
     expect(token).toBeTruthy()
     const reset = await mailApp.inject({
       method: 'POST',
@@ -167,7 +167,7 @@ describe('authentication', () => {
     await mailApp.ready()
     await mailApp.inject({ method: 'POST', url: '/api/auth/forgot-password', payload: { email: 'admin@example.com' } })
     await mailApp.inject({ method: 'POST', url: '/api/auth/forgot-password', payload: { email: 'admin@example.com' } })
-    const tokens = messages.map((message) => new URL(message.text.match(/https?:\/\/\S+/)?.[0] ?? '').searchParams.get('token'))
+    const tokens = messages.map((message) => resetToken(message.text))
     const first = tokens[0]
     const second = tokens[1]
     expect(first).toBeTruthy()
@@ -546,6 +546,13 @@ function multipart(file: Buffer): { payload: Buffer; headers: { 'content-type': 
     ]),
     headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
   }
+}
+
+function resetToken(text: string): string | null {
+  const found = text.match(/https?:\/\/\S+/)?.[0]
+  if (!found) return null
+  const url = new URL(found)
+  return new URLSearchParams(url.hash.replace(/^#/, '')).get('token')
 }
 
 function cookieFrom(response: { headers: { 'set-cookie'?: unknown } }): string {

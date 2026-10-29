@@ -80,11 +80,13 @@ export function svgIsUnsafe(text: string): boolean {
     /<script[\s>/]/i.test(text) ||
     /<foreignObject[\s>/]/i.test(text) ||
     /<!ENTITY/i.test(text) ||
-    /\son[a-z]+\s*=/i.test(text) ||
+    /<!DOCTYPE/i.test(text) ||
+    /(?:[\s/])on[a-z]+\s*=/i.test(text) ||
     /javascript:/i.test(text) ||
-    /(?:href|src)\s*=\s*["']\s*(?!#|data:image\/)[^"'\s]/i.test(text) ||
-    /url\(\s*["']?\s*(?!#|data:image\/)[a-z]+:/i.test(text) ||
-    /@import/i.test(text)
+    /(?:href|src)\s*=\s*(?:"(?!\s*(?:#|data:image\/))[^"]*"|'(?!\s*(?:#|data:image\/))[^']*'|(?!#|data:image\/)[^\s>"']+)/i.test(text) ||
+    /url\(\s*["']?\s*(?!#|data:image\/)(?:[a-z]+:|\/\/)/i.test(text) ||
+    /@import/i.test(text) ||
+    /<(?:set|animate|animateTransform|animateMotion)\b[^>]*attributeName\s*=\s*["']?(?:href|xlink:href|on[a-z]+)/i.test(text)
   )
 }
 

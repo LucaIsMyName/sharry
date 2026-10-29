@@ -331,6 +331,25 @@ describe("chat conversation", () => {
     expect(screen.queryByRole("button", { name: "Export to PDF" })).toBeNull();
   });
 
+  it("keeps assistant links on this site and does not load remote images", () => {
+    renderConversation(true, [
+      {
+        id: "a1",
+        role: "assistant",
+        content: "[Open](/links/1)\n[Away](//evil.example)\n[Site](https://example.com)\n![pixel](https://evil.example/x.png)",
+        proposal: null,
+      },
+    ]);
+    expect(screen.getByRole("link", { name: "Open" }).getAttribute("href")).toBe("/links/1");
+    const site = screen.getByRole("link", { name: "Site" });
+    expect(site.getAttribute("href")).toBe("https://example.com");
+    expect(site.getAttribute("rel")).toBe("noopener noreferrer");
+    expect(screen.queryByRole("link", { name: "Away" })).toBeNull();
+    expect(screen.getByText("Away")).toBeTruthy();
+    expect(screen.getByText("pixel")).toBeTruthy();
+    expect(document.querySelector("img")).toBeNull();
+  });
+
   it("keeps messages and the message box in one centered column", () => {
     renderConversation(true, [
       { id: "u1", role: "user", content: "Hello from me", proposal: null },

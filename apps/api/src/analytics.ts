@@ -113,6 +113,15 @@ const dimensionColumns = {
 } as const
 
 type DimensionKey = keyof typeof dimensionColumns
+
+const clickColumnNames = new Set<string>([...Object.values(dimensionColumns), 'occurred_at', 'link_id'])
+
+/** A click_events column the analytics queries are allowed to interpolate. */
+export function clickColumn(name: string, alias: '' | 'e' = ''): SQL {
+  if (!clickColumnNames.has(name)) throw new Error(`Unknown click column: ${name}`)
+  return sql.raw(alias ? `${alias}.${name}` : name)
+}
+
 type DimensionFilters = Partial<Record<DimensionKey, string[]>>
 
 type ClickFilter = {
@@ -304,7 +313,7 @@ async function loadFilterOptions(db: Database, filter: ClickFilter, range: { fro
 async function facetValues(db: Database, column: string, where: SQL): Promise<string[]> {
   const rows = rowsOf<{ name: string | null }>(
     await db.execute(sql`
-      select ${sql.raw(column)} as name
+      select ${clickColumn(column)} as name
       from click_events
       where ${where}
       group by 1
@@ -359,7 +368,7 @@ function filterSql(filter: ClickFilter, range: { from: Date; to: Date }) {
 }
 
 function clickPredicate(filter: ClickFilter, range: { from: Date; to: Date }, alias: '' | 'e') {
-  const column = (name: string) => sql.raw(alias ? `${alias}.${name}` : name)
+  const column = (name: string) => clickColumn(name, alias)
   const linkColumn = column('link_id')
   const parts = [sql`${column('occurred_at')} >= ${range.from}`, sql`${column('occurred_at')} < ${range.to}`]
   if (filter.linkId) parts.push(sql`${linkColumn} = ${filter.linkId}`)
@@ -381,7 +390,7 @@ function dimensionPredicate(dimensions: DimensionFilters | undefined, alias: '' 
     if (!values || values.length === 0) continue
     const named = values.filter((value) => value !== notSet)
     const blank = values.includes(notSet)
-    const column = sql.raw(alias ? `${alias}.${columnName}` : columnName)
+    const column = clickColumn(columnName, alias)
     const empty = sql`(${column} is null or btrim(${column}) = '')`
     if (named.length > 0 && blank) {
       parts.push(sql`(${column} in (${sql.join(named.map((value) => sql`${value}`), sql`, `)}) or ${empty})`)
@@ -398,7 +407,7 @@ function dimensionPredicate(dimensions: DimensionFilters | undefined, alias: '' 
 async function grouped(db: Database, column: string, where: ReturnType<typeof filterSql>, emptyLabel = 'Direct') {
   const rows = rowsOf<{ name: string | null; clicks: number }>(
     await db.execute(sql`
-      select ${sql.raw(column)} as name, count(*)::int as clicks
+      select ${clickColumn(column)} as name, count(*)::int as clicks
       from click_events
       where ${where}
       group by 1

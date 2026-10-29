@@ -291,13 +291,15 @@ export async function tryLandingPage(app: FastifyInstance, request: FastifyReque
     return true
   }
   if (page && isPublic(page)) {
+    const hosts = await loadVerifiedHosts(app.db, [page.redirectDomainId])
+    const origin = publicPageOrigin({ protocol: request.protocol, host: request.host, hostname }, page, settings, hosts)
     const html = renderPage(
       {
         title: page.publishedTitle ?? page.title,
         settings: page.publishedSettings ?? defaultPageSettings,
         content: page.publishedContent ?? { blocks: [] },
-        origin: requestOrigin(request),
-        url: `${requestOrigin(request)}${settings.pagePrefix}/${encodeURIComponent(page.slug)}`,
+        origin,
+        url: `${origin}${settings.pagePrefix}/${encodeURIComponent(page.slug)}`,
       },
       { media: mediaLookup(await loadMediaRefs(app.db, pageMediaIds(page.publishedContent ?? { blocks: [] }, page.publishedSettings ?? undefined))) },
     )
@@ -496,8 +498,25 @@ async function verifiedDomainId(db: Database, hostname: string): Promise<string 
   return found[0]?.id ?? null
 }
 
-function requestOrigin(request: FastifyRequest): string {
-  return `${request.protocol}://${request.host}`
+/** Canonical origin for a public page. A host that is not this app, the short-link host, or the page's domain is ignored. */
+export function publicPageOrigin(
+  request: { protocol: string; host: string; hostname: string },
+  page: { redirectDomainId: string | null },
+  settings: { appUrl: string; shortUrlBase: string },
+  hosts: Map<string, string>,
+): string {
+  const allowed = new Set<string>()
+  for (const value of [settings.appUrl, settings.shortUrlBase]) {
+    try {
+      allowed.add(new URL(value).hostname.toLowerCase())
+    } catch {
+      // A missing base never becomes an allowed host.
+    }
+  }
+  const pageHost = page.redirectDomainId ? hosts.get(page.redirectDomainId)?.toLowerCase() : undefined
+  if (pageHost) allowed.add(pageHost)
+  if (allowed.has(request.hostname.toLowerCase())) return `${request.protocol}://${request.host}`
+  return originForLink(page, settings, hosts)
 }
 
 async function presentPages(db: Database, actor: Actor, settings: AppSettings, rows: LandingPageRecord[]) {

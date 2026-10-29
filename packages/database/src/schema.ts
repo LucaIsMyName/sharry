@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -35,6 +36,7 @@ export const users = pgTable(
   (table) => [
     uniqueIndex('users_username_lower_idx').on(sql`lower(${table.username})`),
     uniqueIndex('users_email_lower_idx').on(sql`lower(${table.email})`),
+    check('users_role_check', sql`${table.role} IN ('admin', 'user')`),
   ],
 )
 
@@ -52,7 +54,10 @@ export const redirectDomains = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex('redirect_domains_hostname_lower_idx').on(sql`lower(${table.hostname})`)],
+  (table) => [
+    uniqueIndex('redirect_domains_hostname_lower_idx').on(sql`lower(${table.hostname})`),
+    check('redirect_domains_status_check', sql`${table.status} IN ('pending', 'verified')`),
+  ],
 )
 
 export const folders = pgTable(
@@ -98,6 +103,8 @@ export const links = pgTable(
     index('links_user_id_idx').on(table.userId),
     index('links_redirect_domain_id_idx').on(table.redirectDomainId),
     index('links_folder_id_idx').on(table.folderId),
+    check('links_redirect_type_check', sql`${table.redirectType} IN ('301', '302', '307', '308')`),
+    check('links_status_check', sql`${table.status} IN ('active', 'disabled')`),
   ],
 )
 
@@ -363,6 +370,7 @@ export const sessions = pgTable(
   (table) => [
     index('sessions_user_id_idx').on(table.userId),
     index('sessions_expires_at_idx').on(table.expiresAt),
+    check('sessions_scope_check', sql`${table.scope} IN ('full', 'password_change', 'mfa_enroll', 'mfa_challenge')`),
   ],
 )
 

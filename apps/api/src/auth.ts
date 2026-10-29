@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { and, eq, isNull, ne, sql } from 'drizzle-orm'
@@ -315,7 +316,7 @@ export function registerAuthRoutes(app: FastifyInstance, mailer: Mailer | null):
           expiresAt: new Date(Date.now() + 60 * 60 * 1000),
         })
       })
-      const url = `${settings.appUrl.replace(/\/$/, '')}/login/reset?token=${encodeURIComponent(token)}`
+      const url = `${settings.appUrl.replace(/\/$/, '')}/login/reset#token=${encodeURIComponent(token)}`
       await delivery.send({
         to: user.email,
         subject: `${app.env.APP_NAME} password reset`,
@@ -651,7 +652,7 @@ export async function purgeExpiredResetTokens(db: Database): Promise<void> {
 }
 
 async function replaceRecoveryCodes(app: FastifyInstance, userId: string): Promise<string[]> {
-  const codes = Array.from({ length: 8 }, () => formatRecoveryCode(randomToken(6)))
+  const codes = Array.from({ length: 8 }, () => formatRecoveryCode())
   await app.db.delete(recoveryCodes).where(eq(recoveryCodes.userId, userId))
   await app.db.insert(recoveryCodes).values(
     codes.map((code) => ({
@@ -674,13 +675,11 @@ async function readAvatar(directory: string, filename: string): Promise<{ buffer
   return { buffer, mime }
 }
 
-function formatRecoveryCode(token: string): string {
+export function formatRecoveryCode(): string {
   const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789'
   let raw = ''
-  for (const character of token) {
-    raw += alphabet[character.charCodeAt(0) % alphabet.length]
-    if (raw.length === 8) break
+  for (let index = 0; index < 8; index += 1) {
+    raw += alphabet[crypto.randomInt(alphabet.length)] ?? ''
   }
-  while (raw.length < 8) raw += alphabet[raw.length % alphabet.length]
   return `${raw.slice(0, 4)}-${raw.slice(4)}`
 }

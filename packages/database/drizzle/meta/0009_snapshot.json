@@ -969,7 +969,16 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "links_redirect_type_check": {
+          "name": "links_redirect_type_check",
+          "value": "\"links\".\"redirect_type\" IN ('301', '302', '307', '308')"
+        },
+        "links_status_check": {
+          "name": "links_status_check",
+          "value": "\"links\".\"status\" IN ('active', 'disabled')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.password_reset_tokens": {
@@ -1312,7 +1321,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "redirect_domains_status_check": {
+          "name": "redirect_domains_status_check",
+          "value": "\"redirect_domains\".\"status\" IN ('pending', 'verified')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.sessions": {
@@ -1416,7 +1430,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "sessions_scope_check": {
+          "name": "sessions_scope_check",
+          "value": "\"sessions\".\"scope\" IN ('full', 'password_change', 'mfa_enroll', 'mfa_challenge')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.tracking_campaigns": {
@@ -1871,7 +1890,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "users_role_check": {
+          "name": "users_role_check",
+          "value": "\"users\".\"role\" IN ('admin', 'user')"
+        }
+      },
       "isRLSEnabled": false
     }
   },

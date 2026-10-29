@@ -29,7 +29,7 @@ On startup the API loads the environment, runs migrations, creates the initial a
 
 ## Public addresses in development
 
-`APP_URL` is the origin of password-reset links: `{APP_URL}/login/reset?token=...`.
+`APP_URL` is the origin of password-reset links: `{APP_URL}/login/reset#token=...`. A link that still has `?token=` works too.
 
 `SHORT_URL_BASE` is the origin of short links shown in the dashboard, in link CSV export, and in newly encoded QR codes. In development it should be the API origin, `http://127.0.0.1:3000`, so every prefix resolves. Vite only proxies the `/s/` and `/l/` prefixes. A prefix you change in Settings is served by the API, not by a new Vite rule.
 

@@ -5,8 +5,16 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import pg from 'pg'
 import * as schema from './schema.ts'
 
+export function poolConfig(databaseUrl: string): pg.PoolConfig {
+  const config: pg.PoolConfig = { connectionString: databaseUrl, max: 10 }
+  const host = new URL(databaseUrl).hostname.replace(/^\[|\]$/g, '').toLowerCase()
+  const loopback = host === 'localhost' || host === '127.0.0.1' || host === '::1'
+  if (!loopback && !new URL(databaseUrl).searchParams.has('sslmode')) config.ssl = { rejectUnauthorized: true }
+  return config
+}
+
 export function createDb(databaseUrl: string) {
-  const pool = new pg.Pool({ connectionString: databaseUrl, max: 10 })
+  const pool = new pg.Pool(poolConfig(databaseUrl))
   const db = drizzle(pool, { schema })
   return { db, pool }
 }

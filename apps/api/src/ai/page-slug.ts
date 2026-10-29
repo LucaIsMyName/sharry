@@ -1,7 +1,9 @@
 import { lookup } from 'node:dns/promises'
+import type { LookupOptions } from 'node:dns'
 import { isIP } from 'node:net'
 import type { Database } from '@sharry/database'
 import { validateSlug } from '@sharry/shared'
+import { Agent } from 'undici'
 import { findBySlug } from '../links.ts'
 
 const maxBytes = 200_000
@@ -10,13 +12,17 @@ const timeoutMs = 5_000
 
 export type PageLookup = { address: string; family: number }
 
+type FetchInit = NonNullable<Parameters<typeof fetch>[1]>
+
+export type PageRequestInit = Omit<FetchInit, 'dispatcher'> & { dispatcher?: unknown }
+
 export type PageIo = {
-  fetch: typeof fetch
+  fetch: (input: Parameters<typeof fetch>[0], init?: PageRequestInit) => ReturnType<typeof fetch>
   lookup: (hostname: string) => Promise<PageLookup[]>
 }
 
 export const pageIo: PageIo = {
-  fetch: (input, init) => fetch(input, init),
+  fetch: (input, init) => fetch(input, init as RequestInit | undefined),
   lookup: async (hostname) => {
     const records = await lookup(hostname, { all: true, verbatim: true })
     return records.map((record) => ({ address: record.address, family: record.family }))
@@ -47,25 +53,93 @@ export function slugCandidates(pageUrl: string, title: string): string[] {
 }
 
 export function isPrivateAddress(address: string): boolean {
-  const mapped = address.toLowerCase().match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
-  const ip = mapped?.[1] ?? address
-  if (isIP(ip) === 4) {
-    const [a = -1, b = -1] = ip.split('.').map(Number)
-    if (a === 0 || a === 10 || a === 127) return true
-    if (a === 169 && b === 254) return true
-    if (a === 172 && b >= 16 && b <= 31) return true
-    if (a === 192 && b === 168) return true
-    return false
-  }
-  if (isIP(address) === 6) {
-    const lower = address.toLowerCase()
-    if (lower === '::' || lower === '::1') return true
-    const head = lower.split(':')[0] ?? ''
-    if (head.startsWith('fc') || head.startsWith('fd')) return true
-    if (/^fe[89ab]/.test(head)) return true
-    return false
-  }
+  const lower = address.toLowerCase()
+  if (lower === '::' || lower === '::1') return true
+  const mapped = ipv4FromMapped(lower)
+  const ip = mapped ?? address
+  if (isIP(ip) === 4) return isPrivateIPv4(ip)
+  if (isIP(lower) === 6) return isPrivateIPv6(lower)
   return true
+}
+
+/** Connect only to addresses already checked, and refuse them again if they are private. */
+export function pinnedLookup(addresses: PageLookup[]) {
+  const allowed = addresses.filter((record) => !isPrivateAddress(record.address))
+  return (_hostname: string, options: LookupOptions, callback: (error: NodeJS.ErrnoException | null, address: string | PageLookup[], family?: number) => void) => {
+    const family = options.family === 4 || options.family === 'IPv4' ? 4 : options.family === 6 || options.family === 'IPv6' ? 6 : undefined
+    const chosen = family ? allowed.filter((record) => record.family === family) : allowed
+    if (chosen.length === 0) {
+      callback(Object.assign(new Error('Address is not public'), { code: 'ENOTFOUND' }), [])
+      return
+    }
+    if (options.all) {
+      callback(null, chosen.map((record) => ({ address: record.address, family: record.family })))
+      return
+    }
+    const first = chosen[0]
+    if (!first) {
+      callback(Object.assign(new Error('Address is not public'), { code: 'ENOTFOUND' }), [])
+      return
+    }
+    callback(null, first.address, first.family)
+  }
+}
+
+function isPrivateIPv4(ip: string): boolean {
+  const parts = ip.split('.').map(Number)
+  const a = parts[0] ?? -1
+  const b = parts[1] ?? -1
+  const c = parts[2] ?? -1
+  if (a === 0 || a === 10 || a === 127) return true
+  if (a === 100 && b >= 64 && b <= 127) return true
+  if (a === 169 && b === 254) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 0 && c === 0) return true
+  if (a === 192 && b === 168) return true
+  if (a === 198 && (b === 18 || b === 19)) return true
+  if (a >= 224) return true
+  return false
+}
+
+function isPrivateIPv6(address: string): boolean {
+  const head = address.split(':')[0] ?? ''
+  if (head.startsWith('fc') || head.startsWith('fd') || head.startsWith('ff')) return true
+  return /^fe[89ab]/.test(head)
+}
+
+/** IPv4 embedded in ::ffff:0:0/96 or the obsolete ::/96 form, including dotted and hex spellings. */
+function ipv4FromMapped(address: string): string | null {
+  const dotted = address.match(/^(.*:)(\d+\.\d+\.\d+\.\d+)$/)
+  let normalized = address
+  if (dotted?.[1] && dotted[2] && isIP(dotted[2]) === 4) {
+    const [a = 0, b = 0, c = 0, d = 0] = dotted[2].split('.').map(Number)
+    normalized = `${dotted[1]}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`
+  }
+  const groups = expandIpv6(normalized)
+  if (!groups) return null
+  const compatible = groups.slice(0, 6).every((part) => part === 0)
+  const mapped = groups.slice(0, 5).every((part) => part === 0) && groups[5] === 0xffff
+  if (!compatible && !mapped) return null
+  const hi = groups[6] ?? 0
+  const lo = groups[7] ?? 0
+  return `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`
+}
+
+function expandIpv6(address: string): number[] | null {
+  if (address.includes('.')) return null
+  const sides = address.split('::')
+  if (sides.length > 2) return null
+  const parse = (part: string) => {
+    if (part === '') return []
+    return part.split(':').map((piece) => (/^[0-9a-f]{1,4}$/.test(piece) ? Number.parseInt(piece, 16) : Number.NaN))
+  }
+  const head = parse(sides[0] ?? '')
+  const tail = sides.length === 2 ? parse(sides[1] ?? '') : []
+  if (head.some(Number.isNaN) || tail.some(Number.isNaN)) return null
+  if (sides.length === 1) return head.length === 8 ? head : null
+  const missing = 8 - head.length - tail.length
+  if (missing < 1) return null
+  return [...head, ...Array.from({ length: missing }, () => 0), ...tail]
 }
 
 export function titleFromHtml(html: string): string {
@@ -115,43 +189,49 @@ export async function readPublicPage(
   }
   if (current.protocol !== 'http:' && current.protocol !== 'https:') return null
   for (let redirect = 0; redirect <= maxRedirects; redirect += 1) {
-    if (!(await isPublicHttpUrl(current, io))) return null
-    let response: Response
+    const addresses = await publicAddresses(current, io)
+    if (!addresses) return null
+    const dispatcher = new Agent({ connect: { lookup: pinnedLookup(addresses) } })
     try {
-      response = await io.fetch(current, {
+      const response = await io.fetch(current, {
         redirect: 'manual',
         signal: AbortSignal.timeout(timeoutMs),
         headers: { accept: 'text/html', 'user-agent': 'Sharry' },
+        dispatcher,
       })
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location')
+        if (!location || redirect === maxRedirects) return null
+        try {
+          current = new URL(location, current)
+        } catch {
+          return null
+        }
+        continue
+      }
+      if (!response.ok) return null
+      const type = response.headers.get('content-type') ?? ''
+      const html = type.includes('html') || type === '' ? await readLimited(response) : ''
+      return { title: titleFromHtml(html), finalUrl: current.toString() }
     } catch {
       return null
+    } finally {
+      await dispatcher.close()
     }
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location')
-      if (!location || redirect === maxRedirects) return null
-      try {
-        current = new URL(location, current)
-      } catch {
-        return null
-      }
-      continue
-    }
-    if (!response.ok) return null
-    const type = response.headers.get('content-type') ?? ''
-    const html = type.includes('html') || type === '' ? await readLimited(response) : ''
-    return { title: titleFromHtml(html), finalUrl: current.toString() }
   }
   return null
 }
 
-async function isPublicHttpUrl(url: URL, io: PageIo): Promise<boolean> {
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
-  if (url.username || url.password) return false
+async function publicAddresses(url: URL, io: PageIo): Promise<PageLookup[] | null> {
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
+  if (url.username || url.password) return null
   try {
-    const addresses = isIP(url.hostname) ? [url.hostname] : (await io.lookup(url.hostname)).map((record) => record.address)
-    return addresses.length > 0 && addresses.every((address) => !isPrivateAddress(address))
+    const literal = isIP(url.hostname)
+    const addresses = literal ? [{ address: url.hostname, family: literal }] : await io.lookup(url.hostname)
+    if (addresses.length === 0 || addresses.some((record) => isPrivateAddress(record.address))) return null
+    return addresses
   } catch {
-    return false
+    return null
   }
 }
 

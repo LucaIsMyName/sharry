@@ -19,6 +19,7 @@ describe('cleanRichText', () => {
   it('removes scripts, handlers, styles, and unsafe links', () => {
     expect(cleanRichText('<p onclick="x()">Hi</p><script>alert(1)</script>')).toBe('<p>Hi</p>')
     expect(cleanRichText('<a href="javascript:alert(1)">x</a>')).toBe('<a>x</a>')
+    expect(cleanRichText('<a href="/&#9;/evil.example">x</a>')).toBe('<a>x</a>')
     expect(cleanRichText('<a href="java&#115;cript:alert(1)">x</a>')).toBe('<a>x</a>')
     expect(cleanRichText('<a href=" javascript:alert(1)">x</a>')).toBe('<a>x</a>')
     expect(cleanRichText('<img src=x onerror=alert(1)>text')).toBe('text')
@@ -48,7 +49,7 @@ describe('isSafeHref', () => {
   })
 
   it('refuses scripts, data, and protocol-relative addresses', () => {
-    for (const value of ['javascript:alert(1)', 'data:text/html,x', '//evil.example', '/\\evil.example', 'vbscript:x', 'nonsense']) {
+    for (const value of ['javascript:alert(1)', 'data:text/html,x', '//evil.example', '/\\evil.example', '/\t/evil.example', '/\n/evil.example', '/\t\\evil.example', 'vbscript:x', 'nonsense']) {
       expect(isSafeHref(value)).toBe(false)
     }
   })

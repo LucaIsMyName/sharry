@@ -42,7 +42,7 @@ Wenn ein Code nötig ist, geht die Anmeldung nach dem Authenticator-Code oder ei
 
 Die E-Mail zum Zurücksetzen nutzt den Mailserver aus den Einstellungen. Solange dort kein Host und keine Absenderadresse gespeichert sind, kann Sharry auf die Serverumgebung zurückfallen. Wenn keines von beiden eingerichtet ist, bleibt die Reset-E-Mail aus.
 
-Fordere ein Zurücksetzen mit der E-Mail-Adresse des Kontos an. Der Link ist `{APP_URL}/login/reset?token=...` und läuft nach einer Stunde ab. Eine weitere Reset-E-Mail ersetzt den vorherigen ungenutzten Link. Der Token wird in derselben Datenbanktransaktion als benutzt markiert wie der Passwortwechsel, damit eine wiederholte oder überlappende Anfrage kein zweites Passwort setzen kann.
+Fordere ein Zurücksetzen mit der E-Mail-Adresse des Kontos an. Der Link ist `{APP_URL}/login/reset#token=...` und läuft nach einer Stunde ab. Ein Link, der noch `?token=` enthält, funktioniert ebenfalls. Eine weitere Reset-E-Mail ersetzt den vorherigen ungenutzten Link. Der Token wird in derselben Datenbanktransaktion als benutzt markiert wie der Passwortwechsel, damit eine wiederholte oder überlappende Anfrage kein zweites Passwort setzen kann.
 
 ## Sprache
 

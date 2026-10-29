@@ -4,7 +4,7 @@ import { Menu, MessageSquarePlus, Pencil, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, NavLink, useLocation, useNavigate, useOutletContext, useParams } from "react-router";
-import { chatStarters, type AiProposal, type ChatBlock } from "@sharry/shared";
+import { chatStarters, isSafeHref, type AiProposal, type ChatBlock } from "@sharry/shared";
 import { cn } from "cn";
 import { ApiError, api } from "../api.ts";
 import { RelativeTime } from "../components/relative-time.tsx";
@@ -765,16 +765,18 @@ function AssistantText({ text }: { text: string }) {
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
-            if (href?.startsWith("/") && !href.startsWith("//")) return <Link to={href}>{children}</Link>;
-            if (href?.startsWith("https://") || href?.startsWith("http://")) {
+            if (!href || !isSafeHref(href)) return <span>{children}</span>;
+            if (href.startsWith("/")) return <Link to={href}>{children}</Link>;
+            if (href.startsWith("https://") || href.startsWith("http://")) {
               return (
-                <a href={href} target="_blank" rel="noreferrer">
+                <a href={href} target="_blank" rel="noopener noreferrer">
                   {children as ReactNode}
                 </a>
               );
             }
             return <span>{children}</span>;
           },
+          img: ({ alt }) => (alt ? <span>{alt}</span> : null),
         }}
       >
         {text}

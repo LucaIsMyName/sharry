@@ -2,14 +2,14 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { and, eq, gt, lt } from 'drizzle-orm'
+import { and, eq, lt, sql } from 'drizzle-orm'
 import { linkPasswordAttempts, qrCodes, trackingConfigs, trackingVariants, type Database, type LinkRecord } from '@sharry/database'
 import { applyUtm, cleanUtm, matchRoute, mergeUtm, unlockCookieName, validatePrefix, UTM_KEYS, type RoutingContext, type UtmParams } from '@sharry/shared'
 import { recordClick, type ClickDraft } from './analytics.ts'
 import { lookupGeo } from './geo.ts'
 import { findBySlug } from './links.ts'
 import { verifyPassword } from './passwords.ts'
-import { getSettings } from './settings-store.ts'
+import { getSettings, rowsOf } from './settings-store.ts'
 import { anonymousVisitorId, escapeHtml, linkPasswordNetworkId, parseUserAgent, referrerHost } from './support.ts'
 import { variantUtm } from './tracking.ts'
 
@@ -314,36 +314,28 @@ export async function purgeLinkPasswordAttempts(db: Database): Promise<void> {
   await db.delete(linkPasswordAttempts).where(lt(linkPasswordAttempts.attemptedAt, cutoff))
 }
 
-async function recentPasswordAttempts(db: Database, linkId: string, visitorId: string, since: Date): Promise<number> {
-  const recent = await db
-    .select({ id: linkPasswordAttempts.id })
-    .from(linkPasswordAttempts)
-    .where(and(
-      eq(linkPasswordAttempts.linkId, linkId),
-      eq(linkPasswordAttempts.visitorId, visitorId),
-      gt(linkPasswordAttempts.attemptedAt, since),
-    ))
-    .limit(PASSWORD_MAX_ATTEMPTS)
-  return recent.length
-}
-
-async function allowLinkPasswordAttempt(
+export async function allowLinkPasswordAttempt(
   db: Database,
   linkId: string,
   visitorId: string,
   networkId: string,
 ): Promise<boolean> {
   const since = new Date(Date.now() - PASSWORD_WINDOW_MS)
-  const [visitorCount, networkCount] = await Promise.all([
-    recentPasswordAttempts(db, linkId, visitorId, since),
-    recentPasswordAttempts(db, linkId, networkId, since),
-  ])
-  if (visitorCount >= PASSWORD_MAX_ATTEMPTS || networkCount >= PASSWORD_MAX_ATTEMPTS) return false
-  await db.insert(linkPasswordAttempts).values([
-    { linkId, visitorId },
-    { linkId, visitorId: networkId },
-  ])
-  return true
+  const inserted = await db.execute(sql`
+    insert into link_password_attempts (link_id, visitor_id)
+    select ${linkId}::uuid, candidate.visitor_id
+    from (values (${visitorId}), (${networkId})) as candidate(visitor_id)
+    where (
+      select count(*)::int from link_password_attempts
+      where link_id = ${linkId} and visitor_id = ${visitorId} and attempted_at > ${since}
+    ) < ${PASSWORD_MAX_ATTEMPTS}
+    and (
+      select count(*)::int from link_password_attempts
+      where link_id = ${linkId} and visitor_id = ${networkId} and attempted_at > ${since}
+    ) < ${PASSWORD_MAX_ATTEMPTS}
+    returning id
+  `)
+  return rowsOf(inserted).length > 0
 }
 
 function redirectStatus(redirectType: string, forceGet: boolean): number {

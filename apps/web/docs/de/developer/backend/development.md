@@ -29,7 +29,7 @@ Beim Start lädt die API die Umgebung, führt Migrationen aus, legt die erste Ad
 
 ## Öffentliche Adressen in der Entwicklung
 
-`APP_URL` ist der Ursprung der Links zum Zurücksetzen des Passworts: `{APP_URL}/login/reset?token=...`.
+`APP_URL` ist der Ursprung der Links zum Zurücksetzen des Passworts: `{APP_URL}/login/reset#token=...`. Ein Link, der noch `?token=` enthält, funktioniert ebenfalls.
 
 `SHORT_URL_BASE` ist der Ursprung der Kurzlinks, die im Dashboard, im Link-CSV-Export und in neu kodierten QR-Codes gezeigt werden. In der Entwicklung sollte es der API-Ursprung sein, `http://127.0.0.1:3000`, damit jedes Präfix aufgelöst wird. Vite leitet nur die Präfixe `/s/` und `/l/` weiter. Ein Präfix, das du in den Einstellungen änderst, liefert die API, nicht eine neue Vite-Regel.
 

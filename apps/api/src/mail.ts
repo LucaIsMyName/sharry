@@ -53,11 +53,26 @@ export function smtpSource(settings: AppSettings, env: RuntimeEnv): 'app' | 'env
   return 'none'
 }
 
+export function smtpTransportOptions(host: string, port: number): {
+  secure: boolean
+  requireTLS?: boolean
+  tls?: { minVersion: 'TLSv1.2' }
+} {
+  if (port === 465) return { secure: true }
+  if (isLoopbackHost(host)) return { secure: false }
+  return { secure: false, requireTLS: true, tls: { minVersion: 'TLSv1.2' } }
+}
+
+function isLoopbackHost(host: string): boolean {
+  const normalized = host.replace(/^\[|\]$/g, '').toLowerCase()
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '::1'
+}
+
 function buildMailer(config: { host: string; port: number; user: string; password: string; from: string }): Mailer {
   const transport = nodemailer.createTransport({
     host: config.host,
     port: config.port,
-    secure: config.port === 465,
+    ...smtpTransportOptions(config.host, config.port),
     auth: config.user ? { user: config.user, pass: config.password } : undefined,
   })
   return {

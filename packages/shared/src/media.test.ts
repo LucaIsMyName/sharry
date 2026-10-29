@@ -42,6 +42,7 @@ describe('svgIsUnsafe', () => {
   it('accepts plain drawings with internal references and embedded images', () => {
     expect(svgIsUnsafe('<svg><defs><linearGradient id="g"/></defs><rect fill="url(#g)"/><use href="#g"/></svg>')).toBe(false)
     expect(svgIsUnsafe('<svg><image href="data:image/png;base64,AAAA"/></svg>')).toBe(false)
+    expect(svgIsUnsafe('<svg><animate attributeName="width" to="10"/></svg>')).toBe(false)
   })
 
   it('refuses scripts, handlers, foreign content, and external references', () => {
@@ -52,6 +53,12 @@ describe('svgIsUnsafe', () => {
     expect(svgIsUnsafe('<svg><image href="https://tracker.example/x.png"/></svg>')).toBe(true)
     expect(svgIsUnsafe('<svg><rect style="fill:url(https://x.example/a)"/></svg>')).toBe(true)
     expect(svgIsUnsafe('<!DOCTYPE svg [<!ENTITY x "y">]><svg/>')).toBe(true)
+    expect(svgIsUnsafe('<svg/onload=alert(1)></svg>')).toBe(true)
+    expect(svgIsUnsafe('<svg><image href=https://tracker.example/x.png/></svg>')).toBe(true)
+    expect(svgIsUnsafe('<svg><rect style="fill:url(//tracker.example/a)"/></svg>')).toBe(true)
+    expect(svgIsUnsafe('<!DOCTYPE svg SYSTEM "http://evil.example/a"><svg/>')).toBe(true)
+    expect(svgIsUnsafe('<svg><set attributeName="href" to="https://evil.example"/></svg>')).toBe(true)
+    expect(svgIsUnsafe('<svg><animate attributeName="onload" to="alert(1)"/></svg>')).toBe(true)
   })
 })
 

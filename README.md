@@ -243,7 +243,7 @@ Replacing `ENCRYPTION_KEY` makes saved two-factor secrets and the SMTP password 
 | --- | --- | --- |
 | `NODE_ENV` | `development` | `development`, `test`, or `production` |
 | `APP_NAME` | `Sharry` | Product name. Its slug prefixes cookies, API keys, exports, backups, and the domain TXT name |
-| `APP_URL` | `https://DOMAIN` when empty at deploy | Origin of password-reset links: `{APP_URL}/login/reset?token=...` |
+| `APP_URL` | `https://DOMAIN` when empty at deploy | Origin of password-reset links: `{APP_URL}/login/reset#token=...` |
 | `APP_HOST` | `0.0.0.0` | Bind address. Local example uses `127.0.0.1` |
 | `APP_PORT` | `3000` | Bind port. Caddy proxies to `127.0.0.1:3000` |
 | `SHORT_URL_BASE` | `https://DOMAIN` when empty at deploy | Origin of short links in the dashboard, CSV export, and newly encoded QR codes |

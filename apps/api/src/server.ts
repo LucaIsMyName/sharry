@@ -31,6 +31,9 @@ import { registerSearchRoutes } from './search.ts'
 import { registerTrackingRoutes } from './tracking.ts'
 import type { ClickDraft } from './analytics.ts'
 
+/** sha256 of the inline theme script in apps/web/index.html. Change this when that script changes. */
+export const themeScriptHash = "'sha256-ebo+yp8tJbUoOkdYSu1M5ovPfNI+zSghSgTTB6HaB9k='"
+
 declare module 'fastify' {
   interface FastifyInstance {
     db: Database
@@ -76,7 +79,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
               connectSrc: ["'self'", 'blob:'],
               imgSrc: ["'self'", 'data:', 'blob:'],
               styleSrc: ["'self'", "'unsafe-inline'"],
-              scriptSrc: ["'self'"],
+              scriptSrc: ["'self'", themeScriptHash],
             },
           }
         : false,

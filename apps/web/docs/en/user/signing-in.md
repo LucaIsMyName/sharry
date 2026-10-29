@@ -42,7 +42,7 @@ When a code is required, sign-in continues after the authenticator code or a rec
 
 Password reset email uses the mail server saved in Settings. Until a host and from address are saved there, Sharry can fall back to the server environment. If neither is configured, reset email stays off.
 
-Ask for a reset with the account email. The link is `{APP_URL}/login/reset?token=...` and expires after one hour. Asking for another reset email replaces the previous unused link. The token is marked used in the same database transaction as the password change, so a repeated or overlapping request cannot apply a second password.
+Ask for a reset with the account email. The link is `{APP_URL}/login/reset#token=...` and expires after one hour. A link that still has `?token=` works too. Asking for another reset email replaces the previous unused link. The token is marked used in the same database transaction as the password change, so a repeated or overlapping request cannot apply a second password.
 
 ## Language
 

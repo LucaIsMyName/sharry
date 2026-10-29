@@ -179,7 +179,7 @@ export function CommandMenu({
             value={query}
             onValueChange={setQuery}
             placeholder={translate("Search pages, links, and docs")}
-            className="h-12 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
+            className="h-13 text-base w-full border-b bg-transparent px-4 outline-none placeholder:text-muted-foreground"
           />
           <Command.List className="max-h-80 overflow-x-hidden overflow-y-auto p-3">
             <Command.Empty className="px-4 py-8 text-center text-sm text-muted-foreground">

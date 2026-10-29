@@ -19,11 +19,18 @@ export function decodeEntities(value: string): string {
   })
 }
 
+const sameOriginBase = 'https://placeholder.invalid'
+
 /** A link a visitor can follow: http(s), mailto, tel, a path on this host, or an anchor. */
 export function isSafeHref(value: string): boolean {
   if (value === '') return true
-  if (value.startsWith('/')) return !value.startsWith('//') && !value.startsWith('/\\')
-  if (value.startsWith('#')) return true
+  if (value.startsWith('/') || value.startsWith('#')) {
+    try {
+      return new URL(value, sameOriginBase).origin === sameOriginBase
+    } catch {
+      return false
+    }
+  }
   try {
     const url = new URL(value)
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol)
