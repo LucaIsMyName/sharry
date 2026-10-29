@@ -225,7 +225,7 @@ export function MediaDetailSheet({
             </fieldset>
             {editable ? (
               <Button type="submit" disabled={!changed || saving} className="justify-self-start">
-                <Save /> {saving ? t("Saving…") : t("Save file")}
+                <Save /> {saving ? t("Save file") : t("Save file")}
               </Button>
             ) : null}
           </form>

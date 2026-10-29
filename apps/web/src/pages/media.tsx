@@ -567,9 +567,14 @@ export function MediaPage() {
               <FolderPlus /> {t("Create folder")}
             </Button>
             {selected.length > 0 ? (
-              <Button variant="destructive" size="sm" type="button" onClick={() => void removeSelected()}>
-                <Trash2 /> {t("Delete")}
-              </Button>
+              <>
+                <Button variant="outline" size="sm" type="button" onClick={() => setMoveIds(selected)}>
+                  <FolderInput /> {t("Move to…")}
+                </Button>
+                <Button variant="destructive" size="sm" type="button" onClick={() => void removeSelected()}>
+                  <Trash2 /> {t("Delete")}
+                </Button>
+              </>
             ) : null}
             <Button size="sm" type="button" onClick={() => fileInput.current?.click()}>
               <Upload /> {t("Upload")}
@@ -623,6 +628,7 @@ export function MediaPage() {
             columns={columns}
             rows={rows}
             selectable
+            selectOnClick
             selectedIds={selected}
             onSelectedIds={setSelected}
             dragSelection

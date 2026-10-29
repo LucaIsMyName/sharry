@@ -91,6 +91,60 @@ describe("DataTable", () => {
     expect(loadTableView("sample").widths.name).toBeGreaterThanOrEqual(72);
   });
 
+  it("checks one row on click, individual rows on cmd-click, a range on shift-click, and opens on the second click", () => {
+    const items: Row[] = [
+      { id: "a", name: "Alpha", clicks: 1 },
+      { id: "b", name: "Beta", clicks: 2 },
+      { id: "c", name: "Gamma", clicks: 3 },
+    ];
+    function SelectionHarness() {
+      const [selected, setSelected] = useState<string[]>([]);
+      return (
+        <MemoryRouter initialEntries={["/links"]}>
+          <Routes>
+            <Route
+              path="/links"
+              element={
+                <DataTable
+                  storageKey="select"
+                  columns={columns}
+                  rows={items}
+                  selectable
+                  selectOnClick
+                  selectedIds={selected}
+                  onSelectedIds={setSelected}
+                  getRow={(row) => ({ id: row.id, label: row.name, to: `/links/${row.id}` })}
+                />
+              }
+            />
+            <Route path="/links/:id" element={<div>opened</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+    }
+    render(<SelectionHarness />);
+    const row = (name: string) => screen.getByRole("row", { name: new RegExp(name) });
+    fireEvent.click(row("Alpha"), { metaKey: true });
+    fireEvent.click(row("Gamma"), { metaKey: true });
+    expect(row("Alpha").getAttribute("data-state")).toBe("selected");
+    expect(row("Beta").hasAttribute("data-state")).toBe(false);
+    expect(row("Gamma").getAttribute("data-state")).toBe("selected");
+    expect(screen.queryByText("opened")).toBeNull();
+
+    fireEvent.click(row("Alpha"));
+    expect(row("Alpha").getAttribute("data-state")).toBe("selected");
+    expect(row("Gamma").hasAttribute("data-state")).toBe(false);
+    fireEvent.click(row("Gamma"), { shiftKey: true });
+    for (const name of ["Alpha", "Beta", "Gamma"]) {
+      expect(row(name).getAttribute("data-state")).toBe("selected");
+    }
+    expect(screen.queryByText("opened")).toBeNull();
+
+    fireEvent.click(row("Beta"));
+    fireEvent.click(row("Beta"));
+    expect(screen.getByText("opened")).toBeTruthy();
+  });
+
   it("selects rows and opens move and delete from the row menu", () => {
     const chosen: string[] = [];
     render(

@@ -61,7 +61,7 @@ export function LinkOverview() {
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [moveFor, setMoveFor] = useState<OverviewRow | null>(null);
+  const [moveIds, setMoveIds] = useState<string[] | null>(null);
   const [deleteLink, setDeleteLink] = useState<LinkSummary | null>(null);
   const [deleteText, setDeleteText] = useState("");
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -168,20 +168,32 @@ export function LinkOverview() {
     }
   }
 
-  async function move(row: OverviewRow, parentId: string | null) {
+  async function moveIdsTo(ids: string[], parentId: string | null) {
+    const targets = ids.filter((id) => id !== `folder:${parentId}`);
+    if (targets.length === 0) {
+      setMoveIds(null);
+      return;
+    }
     try {
-      if (row.kind === "folder") {
-        await api(`/api/folders/${row.folder.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ parentId }),
-        });
-      } else {
-        await api(`/api/links/${row.link.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ folderId: parentId }),
-        });
-      }
-      setMoveFor(null);
+      await Promise.all(
+        targets.map((id) => {
+          if (id.startsWith("folder:")) {
+            return api(`/api/folders/${id.slice("folder:".length)}`, {
+              method: "PATCH",
+              body: JSON.stringify({ parentId }),
+            });
+          }
+          const raw = id.slice("link:".length);
+          const link = links.find((item) => item.id === raw);
+          if (link?.canEdit === false) return Promise.resolve();
+          return api(`/api/links/${raw}`, {
+            method: "PATCH",
+            body: JSON.stringify({ folderId: parentId }),
+          });
+        }),
+      );
+      setMoveIds(null);
+      setSelected((current) => current.filter((id) => !targets.includes(id)));
       setReload((value) => value + 1);
     } catch (caught) {
       toastCaught(caught, t("Could not move that"));
@@ -191,14 +203,7 @@ export function LinkOverview() {
   async function onDrop(payload: string, targetId: string) {
     const target = targetId.startsWith("folder:") ? targetId.slice("folder:".length) : null;
     if (!target) return;
-    const [kind, id] = payload.split(":");
-    if (!id || id === target) return;
-    if (kind === "folder") await move({ kind: "folder", folder: { id, name: "", icon: null, parentId: null } }, target);
-    if (kind === "link") {
-      const link = links.find((item) => item.id === id);
-      if (!link || link.canEdit === false) return;
-      await move({ kind: "link", link }, target);
-    }
+    await moveIdsTo(payload.split(",").filter(Boolean), target);
   }
 
   function startRename(item: FolderItem) {
@@ -380,7 +385,7 @@ export function LinkOverview() {
             <IconAction label={t("Rename")} onClick={() => startRename(row.folder)}>
               <Pencil />
             </IconAction>
-            <IconAction label={t("Move to…")} onClick={() => setMoveFor(row)}>
+            <IconAction label={t("Move to…")} onClick={() => setMoveIds([`folder:${row.folder.id}`])}>
               <FolderInput />
             </IconAction>
             <IconAction label={t("Delete")} onClick={() => void removeFolder(row.folder)}>
@@ -390,7 +395,7 @@ export function LinkOverview() {
         ) : (
           <span data-row-action className="inline-flex justify-end gap-1">
             {row.link.canEdit === false ? null : (
-              <IconAction label={t("Move to…")} onClick={() => setMoveFor(row)}>
+              <IconAction label={t("Move to…")} onClick={() => setMoveIds([`link:${row.link.id}`])}>
                 <FolderInput />
               </IconAction>
             )}
@@ -423,9 +428,14 @@ export function LinkOverview() {
               <FolderPlus /> {t("Create folder")}
             </Button>
             {selected.length > 0 ? (
-              <Button variant="destructive" size="sm" type="button" onClick={() => void removeSelected()}>
-                <Trash2 /> {t("Delete")}
-              </Button>
+              <>
+                <Button variant="outline" size="sm" type="button" onClick={() => setMoveIds(selected)}>
+                  <FolderInput /> {t("Move to…")}
+                </Button>
+                <Button variant="destructive" size="sm" type="button" onClick={() => void removeSelected()}>
+                  <Trash2 /> {t("Delete")}
+                </Button>
+              </>
             ) : null}
             <Link className={buttonVariants({ size: "sm" })} to="/links/new">
               <Plus /> {t("New link")}
@@ -470,6 +480,8 @@ export function LinkOverview() {
           columns={columns}
           rows={filtered}
           selectable
+          selectOnClick
+          dragSelection
           selectedIds={selected}
           onSelectedIds={setSelected}
           onRowDrop={(payload, targetId) => void onDrop(payload, targetId)}
@@ -477,7 +489,7 @@ export function LinkOverview() {
             row.kind === "link" && row.link.canEdit === false
               ? []
               : [
-                  { id: "move", label: "Move to…", onSelect: () => setMoveFor(row) },
+                  { id: "move", label: "Move to…", onSelect: () => setMoveIds([row.kind === "folder" ? `folder:${row.folder.id}` : `link:${row.link.id}`]) },
                   {
                     id: "delete",
                     label: "Delete",
@@ -519,14 +531,14 @@ export function LinkOverview() {
         </Button>
       ) : null}
       <FolderMoveDialog
-        open={moveFor !== null}
+        open={moveIds !== null}
         folders={tree}
         rootLabel={t("Links")}
         onOpenChange={(open) => {
-          if (!open) setMoveFor(null);
+          if (!open) setMoveIds(null);
         }}
         onPick={(parentId) => {
-          if (moveFor) void move(moveFor, parentId);
+          if (moveIds) void moveIdsTo(moveIds, parentId);
         }}
       />
       <ConfirmDialog
@@ -557,13 +569,6 @@ export function LinkOverview() {
   );
 
   async function dropOn(payload: string, parentId: string | null) {
-    const [kind, id] = payload.split(":");
-    if (!id) return;
-    if (kind === "folder") await move({ kind: "folder", folder: { id, name: "", icon: null, parentId: null } }, parentId);
-    if (kind === "link") {
-      const link = links.find((item) => item.id === id);
-      if (!link || link.canEdit === false) return;
-      await move({ kind: "link", link }, parentId);
-    }
+    await moveIdsTo(payload.split(",").filter(Boolean), parentId);
   }
 }

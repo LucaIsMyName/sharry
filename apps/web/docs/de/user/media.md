@@ -31,7 +31,7 @@ flowchart TD
   Target -->|Woanders| Open[Den offenen Ordner]
 ```
 
-Ziehe eine Dateizeile auf eine Ordnerzeile, um sie hineinzuschieben. Ziehe sie auf einen Namen im Pfad, um sie herauszuholen. Sind mehrere Zeilen ausgewählt, verschiebt das Ziehen einer davon die ganze Auswahl. Ein Hinweis bestätigt das Verschieben und bietet einige Sekunden lang Rückgängig an. Verschieben nach öffnet den Ordnerbaum in einem Dialog. Ordner erstellen legt einen Ordner an, den du direkt benennst. Beim Löschen eines Ordners wandern seine Dateien und Unterordner eine Ebene nach oben.
+Ein Klick hakt eine Zeile an, ein zweiter Klick öffnet die Datei oder den Ordner. Umschalt-Klick hakt die Zeilen dazwischen an, und Befehl-Klick hakt einzelne Zeilen an. Gehakte Zeilen sind hellblau. Löschen und Verschieben nach gelten für die Auswahl. Ziehe eine Dateizeile auf eine Ordnerzeile, um sie hineinzuschieben. Ziehe sie auf einen Namen im Pfad, um sie herauszuholen. Sind mehrere Zeilen ausgewählt, verschiebt das Ziehen einer davon die ganze Auswahl. Ein Hinweis bestätigt das Verschieben und bietet einige Sekunden lang Rückgängig an. Verschieben nach öffnet den Ordnerbaum in einem Dialog. Ordner erstellen legt einen Ordner an, den du direkt benennst. Beim Löschen eines Ordners wandern seine Dateien und Unterordner eine Ebene nach oben.
 
 Die Suche in der Tabelle filtert nach Namen. Die Suche in der oberen Leiste findet Dateien in allen Ordnern nach Name, Alternativtext oder Titel und öffnet die Datei.
 

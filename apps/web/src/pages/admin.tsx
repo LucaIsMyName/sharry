@@ -892,7 +892,7 @@ export function AdminSettingsPage() {
         />
         <UtmPresetEditor settings={settings} onChange={setSettings} />
         <Button type="submit" disabled={pending}>
-          <Save /> {pending ? t("Saving…") : t("Save settings")}
+          <Save /> {t("Save settings")}
         </Button>
       </form>
       <div className="flex flex-wrap items-center gap-2.5">

@@ -105,7 +105,7 @@ Einstellungen in der Kopfzeile des Editors öffnet die Seiteneinstellungen. Sie 
 
 ## Finden, ordnen und teilen
 
-Die Tabelle zeigt jede Seite mit Status, Adresse, Eigentümer und letzter Änderung. Filtere nach Titel oder Status und sortiere nach Titel, Adresse oder letzter Änderung. URL kopieren kopiert die öffentliche Adresse. Live ansehen öffnet sie, sobald die Seite veröffentlicht ist. Ziehe Seiten auf Ordner oder nutze Verschieben nach. Beim Löschen eines Ordners wandern seine Seiten eine Ebene nach oben. Die Suche in der oberen Leiste findet Seiten nach Titel, Slug oder Beschreibung.
+Die Tabelle zeigt jede Seite mit Status, Adresse, Eigentümer und letzter Änderung. Filtere nach Titel oder Status und sortiere nach Titel, Adresse oder letzter Änderung. URL kopieren kopiert die öffentliche Adresse. Live ansehen öffnet sie, sobald die Seite veröffentlicht ist. Ein Klick hakt eine Zeile an, ein zweiter Klick öffnet die Seite oder den Ordner. Umschalt-Klick hakt die Zeilen dazwischen an, und Befehl-Klick hakt einzelne Zeilen an. Gehakte Zeilen sind hellblau. Löschen und Verschieben nach gelten für die Auswahl. Ziehst du eine gehakte Zeile auf einen Ordner, wandert die ganze Auswahl mit. Beim Löschen eines Ordners wandern seine Seiten eine Ebene nach oben. Die Suche in der oberen Leiste findet Seiten nach Titel, Slug oder Beschreibung.
 
 Wer welche Seiten sieht und ändert, folgt den Einstellungen zum Teilen von Links in den [Einstellungen](/docs/user/settings), genau wie bei Links und Medien. Eine Seite, die du sehen, aber nicht ändern kannst, öffnet sich schreibgeschützt. Duplizieren erstellt eine verborgene Kopie der zuletzt gespeicherten Fassung, die dir gehört.
 

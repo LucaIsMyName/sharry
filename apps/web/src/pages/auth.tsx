@@ -650,7 +650,7 @@ export function ResetPage() {
             />
           </Field>
           <Button type="submit" disabled={pending}>
-            <Save /> {pending ? t("Saving…") : t("Save password")}
+            <Save /> { t("Save password")}
           </Button>
         </form>
       ) : (

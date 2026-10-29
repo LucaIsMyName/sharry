@@ -398,9 +398,14 @@ export function LandingPagesPage() {
               <FolderPlus /> {t("Create folder")}
             </Button>
             {selected.length > 0 ? (
-              <Button variant="destructive" size="sm" type="button" onClick={() => void removeSelected()}>
-                <Trash2 /> {t("Delete")}
-              </Button>
+              <>
+                <Button variant="outline" size="sm" type="button" onClick={() => setMoveIds(selected)}>
+                  <FolderInput /> {t("Move to…")}
+                </Button>
+                <Button variant="destructive" size="sm" type="button" onClick={() => void removeSelected()}>
+                  <Trash2 /> {t("Delete")}
+                </Button>
+              </>
             ) : null}
             <Button size="sm" type="button" onClick={() => setCreating(true)}>
               <Plus /> {t("New page")}
@@ -435,6 +440,7 @@ export function LandingPagesPage() {
           columns={columns}
           rows={rows}
           selectable
+          selectOnClick
           selectedIds={selected}
           onSelectedIds={setSelected}
           dragSelection

@@ -31,7 +31,7 @@ flowchart TD
   Target -->|Anywhere else| Open[The open folder]
 ```
 
-Drag a file row onto a folder row to move it in. Drag it onto a name in the path to move it out. When several rows are selected, dragging one of them moves the whole selection. A notice confirms the move and offers Undo for a few seconds. Move to opens the folder tree in a dialog. Create folder adds a folder and lets you name it in place. Deleting a folder moves its files and subfolders up one level.
+Click a row to check it, and click it again to open the file or folder. Shift-click checks the rows in between, and Cmd-click checks single rows. Checked rows are light blue. Delete and Move to act on the selection. Drag a file row onto a folder row to move it in. Drag it onto a name in the path to move it out. When several rows are selected, dragging one of them moves the whole selection. A notice confirms the move and offers Undo for a few seconds. Move to opens the folder tree in a dialog. Create folder adds a folder and lets you name it in place. Deleting a folder moves its files and subfolders up one level.
 
 Search in the table filters by name. Search from the top bar finds files in every folder by name, alt text, or title, and opens the file.
 

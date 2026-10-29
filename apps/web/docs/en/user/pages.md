@@ -102,7 +102,7 @@ Settings in the editor header opens the page settings. They are saved and publis
 
 ## Find, organize, and share
 
-The table shows each page with its status, address, owner, and last change. Filter by title or status, and sort by title, address, or last change. Copy URL copies the public address. View live opens it once the page is published. Drag pages onto folders or use Move to. Deleting a folder moves its pages up one level. Search from the top bar finds pages by title, slug, or description.
+The table shows each page with its status, address, owner, and last change. Filter by title or status, and sort by title, address, or last change. Copy URL copies the public address. View live opens it once the page is published. Click a row to check it, and click it again to open the page or folder. Shift-click checks the rows in between, and Cmd-click checks single rows. Checked rows are light blue. Delete and Move to act on the selection. Dragging one checked row onto a folder moves the whole selection. Deleting a folder moves its pages up one level. Search from the top bar finds pages by title, slug, or description.
 
 Who sees and changes which pages follows the link sharing settings in [Settings](/docs/user/settings), the same as for links and media. A page you can see but not change opens read-only. Duplicate creates a hidden copy of the last saved version that you own.
 

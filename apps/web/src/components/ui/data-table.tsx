@@ -110,6 +110,7 @@ export function DataTable<T>({
   onFilesDrop,
   dragSelection = false,
   selectable = false,
+  selectOnClick = false,
   selectedIds = [],
   onSelectedIds,
   rowMenu,
@@ -128,6 +129,8 @@ export function DataTable<T>({
   /** Dragging a selected row carries every selected row id, joined with commas. */
   dragSelection?: boolean;
   selectable?: boolean;
+  /** A click checks the row. A second click opens it. Cmd-click and Shift-click extend the check. */
+  selectOnClick?: boolean;
   selectedIds?: string[];
   onSelectedIds?: (ids: string[]) => void;
   rowMenu?: (row: T) => RowMenuItem[];
@@ -138,6 +141,7 @@ export function DataTable<T>({
   const [openFilter, setOpenFilter] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; items: RowMenuItem[]; openedAt: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const markedId = useRef<string | null>(null);
 
   function openMenu(row: T, point: { x: number; y: number }) {
     const items = rowMenu?.(row) ?? [];
@@ -223,6 +227,32 @@ export function DataTable<T>({
 
   const visibleMetas = visible.map((row) => ({ row, meta: getRow(row) }));
   const selectableIds = visibleMetas.filter((item) => item.meta.selectable !== false).map((item) => item.meta.id);
+
+  function applyGesture(id: string, gesture: "click" | "toggle" | "range") {
+    if (!selectableIds.includes(id)) return;
+    if (gesture === "click") {
+      markedId.current = id;
+      onSelectedIds?.([id]);
+      return;
+    }
+    if (gesture === "toggle") {
+      const next = new Set(selectedIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      onSelectedIds?.([...next]);
+      return;
+    }
+    const anchor = markedId.current;
+    if (!anchor || !selectableIds.includes(anchor)) {
+      markedId.current = id;
+      onSelectedIds?.([id]);
+      return;
+    }
+    const start = selectableIds.indexOf(anchor);
+    const end = selectableIds.indexOf(id);
+    const [from, to] = start < end ? [start, end] : [end, start];
+    onSelectedIds?.(selectableIds.slice(from, to + 1));
+  }
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
   const columnCount = columns.length + (selectable ? 1 : 0);
   const groupDrag = (meta: DataRow) => dragSelection && selectedIds.length > 1 && selectedIds.includes(meta.id);
@@ -244,7 +274,15 @@ export function DataTable<T>({
                 <Checkbox
                   checked={allSelected}
                   aria-label={t("Select all")}
-                  onCheckedChange={(checked) => onSelectedIds?.(checked === true ? selectableIds : [])}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      markedId.current = selectableIds[0] ?? null;
+                      onSelectedIds?.(selectableIds);
+                      return;
+                    }
+                    markedId.current = null;
+                    onSelectedIds?.([]);
+                  }}
                 />
               </TableHead>
             ) : null}
@@ -356,6 +394,8 @@ export function DataTable<T>({
                     : undefined
                 }
                 onLongPress={rowMenu ? (point) => openMenu(row, point) : undefined}
+                onGesture={selectOnClick ? (gesture) => applyGesture(meta.id, gesture) : undefined}
+                selected={selectable && selectedIds.includes(meta.id)}
               >
                 {selectable ? (
                   <TableCell data-row-action className="w-10">
@@ -364,6 +404,7 @@ export function DataTable<T>({
                       disabled={meta.selectable === false}
                       aria-label={t("Select {label}", { label: meta.label })}
                       onCheckedChange={(checked) => {
+                        markedId.current = meta.id;
                         const next = new Set(selectedIds);
                         if (checked === true) next.add(meta.id);
                         else next.delete(meta.id);

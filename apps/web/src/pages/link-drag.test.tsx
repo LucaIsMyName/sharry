@@ -77,6 +77,20 @@ describe("link drag and drop", () => {
       );
     });
 
+    fireEvent.drop(folderRow as HTMLElement, {
+      dataTransfer: { getData: () => "link:summer,link:winter,folder:folder-1" },
+    });
+    await vi.waitFor(() => {
+      expect(api).toHaveBeenCalledWith(
+        "/api/links/winter",
+        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ folderId: "folder-1" }) }),
+      );
+    });
+    expect(api).not.toHaveBeenCalledWith(
+      "/api/folders/folder-1",
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ parentId: "folder-1" }) }),
+    );
+
     fireEvent.drop(screen.getByRole("button", { name: "Links" }), {
       dataTransfer: { getData: () => "link:summer" },
     });

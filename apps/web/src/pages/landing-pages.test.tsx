@@ -130,6 +130,27 @@ describe("landing pages overview", () => {
     });
   });
 
+  it("moves the selected pages into a chosen folder", async () => {
+    vi.mocked(api).mockImplementation(async (path: string, init?: Init) => {
+      if (path.includes("tree=1")) return { folders: [{ id: "f1", name: "Archive", icon: null, parentId: null }] };
+      if (path.startsWith("/api/folders")) return { folders: [], breadcrumb: [] };
+      if (path.startsWith("/api/pages?")) return { pages: [base, draft], total: 2 };
+      if (init?.method === "PATCH") return {};
+      return {};
+    });
+    renderOverview();
+    await screen.findByText("Spring sale");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+    const move = screen.getAllByRole("button", { name: "Move to…" }).find((button) => !button.closest("tr"));
+    fireEvent.click(move as HTMLElement);
+    const dialog = await screen.findByRole("dialog", { name: "Move to…" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive" }));
+    await waitFor(() => {
+      expect(api).toHaveBeenCalledWith("/api/pages/p1", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ folderId: "f1" }) }));
+      expect(api).toHaveBeenCalledWith("/api/pages/p2", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ folderId: "f1" }) }));
+    });
+  });
+
   it("filters by status on the server", async () => {
     localStorage.setItem("sharry.table.pages", JSON.stringify({ filters: { status: "changed" }, sort: null, widths: {} }));
     installApi([]);

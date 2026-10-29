@@ -55,7 +55,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-primary/10 data-[state=selected]:hover:bg-primary/15",
         className,
       )}
       {...props}
@@ -107,6 +107,8 @@ function ClickableTableRow({
   onFilesDrop,
   onContextMenu,
   onLongPress,
+  onGesture,
+  selected = false,
   id,
 }: {
   to?: string;
@@ -123,6 +125,9 @@ function ClickableTableRow({
   onContextMenu?: (event: React.MouseEvent<HTMLTableRowElement>) => void;
   /** Touch only: holding a finger on the row, the touch stand-in for a right-click. */
   onLongPress?: (point: { x: number; y: number }) => void;
+  /** When set, one click reports a selection gesture and a second click opens the row. */
+  onGesture?: (gesture: "click" | "toggle" | "range") => void;
+  selected?: boolean;
   id?: string;
 }) {
   const navigate = useNavigate();
@@ -132,6 +137,7 @@ function ClickableTableRow({
   const suppressClick = React.useRef(false);
   const pressTimer = React.useRef<number | undefined>(undefined);
   const longPressed = React.useRef(false);
+  const lastPlainClick = React.useRef(0);
 
   React.useEffect(() => () => window.clearTimeout(pressTimer.current), []);
 
@@ -163,9 +169,47 @@ function ClickableTableRow({
     onSelect?.();
   }
 
+  function openPlain() {
+    if (to) {
+      navigate(to);
+      return;
+    }
+    onSelect?.();
+  }
+
+  function selectClick(event: React.MouseEvent<HTMLElement>) {
+    if (event.button !== 0) return;
+    if (longPressed.current) return;
+    if (skipRowClick || suppressClick.current) {
+      skipRowClick = false;
+      suppressClick.current = false;
+      return;
+    }
+    if (moved.current) return;
+    if (rowActionTarget(event.target)) return;
+    if (!onGesture) return;
+    if (event.shiftKey) {
+      onGesture("range");
+      return;
+    }
+    if (event.metaKey || event.ctrlKey) {
+      onGesture("toggle");
+      return;
+    }
+    const now = Date.now();
+    if (event.detail >= 2 || now - lastPlainClick.current < 400) {
+      lastPlainClick.current = 0;
+      openPlain();
+      return;
+    }
+    lastPlainClick.current = now;
+    onGesture("click");
+  }
+
   return (
     <TableRow
       id={id}
+      data-state={selected ? "selected" : undefined}
       className={cn(
         "relative cursor-pointer [transform:translateZ(0)] has-[:focus-visible]:bg-muted [&_[data-row-action]]:relative [&_[data-row-action]]:z-10",
         droppable && "data-[drop=true]:bg-accent",
@@ -198,6 +242,7 @@ function ClickableTableRow({
       onPointerCancel={cancelPress}
       onPointerUp={(event) => {
         cancelPress();
+        if (onGesture) return;
         if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
         open(event);
       }}
@@ -249,7 +294,7 @@ function ClickableTableRow({
         if (payload) onRowDrop(payload);
         skipRowClick = true;
       }}
-      onClick={open}
+      onClick={onGesture ? selectClick : open}
       onAuxClick={(event) => {
         if (event.button !== 1 || !to || rowActionTarget(event.target)) return;
         window.open(to, "_blank", "noopener");
