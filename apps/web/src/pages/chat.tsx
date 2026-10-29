@@ -278,7 +278,7 @@ export function ChatPage() {
     <SubNav label={t("Chats")}>
       
       <Sheet open={listOpen} onOpenChange={setListOpen}>
-        <SheetTrigger render={<Button variant="secondary" size="sm" type="button" />}>
+        <SheetTrigger render={<Button variant="outline" className={"bg-white"} size="sm" type="button" />}>
           <Menu /> {t("Chats")}
         </SheetTrigger>
         <SheetContent
@@ -301,7 +301,7 @@ export function ChatPage() {
       </Button>
     </SubNav>
     <section className="grid h-full min-h-0 flex-1 md:grid-cols-[16rem_minmax(0,1fr)]">
-      <aside className="hidden h-full min-h-0 flex-col border-r border-border px-4 py-4 md:flex">
+      <aside className="hidden h-full min-h-0 flex-col border-r border-border p-0 md:flex">
         <ChatList
           chats={chats}
           loading={!chatsLoaded}
@@ -380,11 +380,11 @@ export function ChatList({
     <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2">
       <Button
         className={cn(
-          "w-full min-w-0 shrink-0",
+          "w-auto min-w-0 shrink-0 mx-1.5 mt-1.5",
           sidebar && "border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         )}
         type="button"
-        variant="outline"
+        variant="default"
         onClick={onNew}
       >
         <MessageSquarePlus /> {t("New chat")}
@@ -589,7 +589,7 @@ export function ChatConversation({
                   }}
                 />
               ) : (
-                <div className="flex min-w-0 items-center gap-1">
+                <div className="flex min-w-0 items-center gap-1 pb-2 border-b">
                   <h1 className="min-w-0 truncate font-heading text-2xl font-medium tracking-tight">{title ?? t("Chat")}</h1>
                   {onRename && name ? (
                     <Button

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Copy, ExternalLink, FileText, Save, Trash2 } from "lucide-react";
 import { Link } from "react-router";
 import { formatFileSize } from "@sharry/shared";
@@ -16,6 +16,34 @@ import { Textarea } from "./ui/textarea.tsx";
 import { toast, toastCaught } from "./ui/toast.tsx";
 
 type Detail = MediaItem & { usage: MediaUsage };
+
+const mediaSheetWidthKey = "sharry.media-sheet-width";
+const mediaSheetDefaultWidth = 448;
+const mediaSheetMinWidth = 320;
+export const mediaSheetMaxWidth = 960;
+
+export function clampMediaSheetWidth(value: number): number {
+  if (!Number.isFinite(value)) return mediaSheetDefaultWidth;
+  return Math.round(Math.min(mediaSheetMaxWidth, Math.max(mediaSheetMinWidth, value)));
+}
+
+export function loadMediaSheetWidth(): number {
+  try {
+    const raw = localStorage.getItem(mediaSheetWidthKey);
+    if (raw === null || raw.trim() === "") return mediaSheetDefaultWidth;
+    return clampMediaSheetWidth(Number(raw));
+  } catch {
+    return mediaSheetDefaultWidth;
+  }
+}
+
+function saveMediaSheetWidth(width: number): void {
+  try {
+    localStorage.setItem(mediaSheetWidthKey, String(clampMediaSheetWidth(width)));
+  } catch {
+    // The chosen width still applies for this visit when storage is blocked.
+  }
+}
 
 export function MediaDetailSheet({
   mediaId,
@@ -36,7 +64,18 @@ export function MediaDetailSheet({
   const [alt, setAlt] = useState("");
   const [title, setTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [width, setWidth] = useState(loadMediaSheetWidth);
+  const [dragging, setDragging] = useState(false);
+  const widthRef = useRef(width);
+  widthRef.current = width;
   const shown: MediaItem | null = detail ?? initial;
+
+  function applyWidth(next: number) {
+    const clamped = clampMediaSheetWidth(next);
+    widthRef.current = clamped;
+    setWidth(clamped);
+    saveMediaSheetWidth(clamped);
+  }
 
   useEffect(() => {
     setDetail(null);
@@ -97,7 +136,54 @@ export function MediaDetailSheet({
 
   return (
     <Sheet open={mediaId !== null} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-md">
+      <SheetContent
+        className="w-full gap-0 overflow-y-auto"
+        style={{ width, maxWidth: "100%", transition: dragging ? "none" : undefined }}
+      >
+        <span
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuemin={mediaSheetMinWidth}
+          aria-valuemax={mediaSheetMaxWidth}
+          aria-valuenow={width}
+          aria-label={t("Resize the file details")}
+          tabIndex={0}
+          className="absolute top-0 left-0 z-10 h-full w-1.5 cursor-col-resize touch-none hover:bg-border pointer-coarse:w-3 pointer-coarse:bg-border/40"
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 80 : 16;
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              applyWidth(width + step);
+            }
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              applyWidth(width - step);
+            }
+          }}
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const startX = event.clientX;
+            const startWidth = widthRef.current;
+            setDragging(true);
+            function move(next: PointerEvent) {
+              const resized = clampMediaSheetWidth(startWidth + startX - next.clientX);
+              widthRef.current = resized;
+              setWidth(resized);
+            }
+            function up() {
+              window.removeEventListener("pointermove", move);
+              window.removeEventListener("pointerup", up);
+              window.removeEventListener("pointercancel", up);
+              setDragging(false);
+              saveMediaSheetWidth(widthRef.current);
+            }
+            window.addEventListener("pointermove", move);
+            window.addEventListener("pointerup", up);
+            window.addEventListener("pointercancel", up);
+          }}
+        />
         <SheetHeader className="pr-12">
           <SheetTitle className="truncate">{shown?.name ?? t("File")}</SheetTitle>
           <SheetDescription>

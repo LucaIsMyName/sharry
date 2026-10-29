@@ -37,7 +37,7 @@ Die Suche in der Tabelle filtert nach Namen. Die Suche in der oberen Leiste find
 
 ## Dateidetails
 
-Wähle eine Zeile, um die Datei rechts zu öffnen. Du kannst sie umbenennen, Alternativtext und Titel schreiben, die öffentliche URL kopieren und sehen, welche QR-Codes und Landingpages sie nutzen. Die Dateiendung ändert sich beim Umbenennen nie. Der Alternativtext beschreibt das Bild für Menschen, die es nicht sehen können. Der Filter Alternativtext listet Bilder, denen er noch fehlt.
+Wähle eine Zeile, um die Datei rechts zu öffnen. Zieh die linke Kante, um die Breite zu ändern. Sie bleibt zwischen 320 und 960 Pixeln und wird in diesem Browser gemerkt. Du kannst die Datei umbenennen, Alternativtext und Titel schreiben, die öffentliche URL kopieren und sehen, welche QR-Codes und Landingpages sie nutzen. Die Dateiendung ändert sich beim Umbenennen nie. Der Alternativtext beschreibt das Bild für Menschen, die es nicht sehen können. Der Filter Alternativtext listet Bilder, denen er noch fehlt.
 
 Eine verwendete Datei kann nicht gelöscht werden. Entferne sie zuerst aus den QR-Codes und Seiten unter Verwendet von. Eine Landingpage zählt, solange ihr gespeicherter Entwurf oder ihre veröffentlichte Fassung die Datei nutzt. Die Spalte Verwendet von zählt jede Verwendung.
 

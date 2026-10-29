@@ -37,7 +37,7 @@ Search in the table filters by name. Search from the top bar finds files in ever
 
 ## File details
 
-Choose a row to open the file on the right. You can rename it, write alt text and a title, copy the public URL, and see which QR codes and landing pages use it. The extension never changes on rename. Alt text describes the image for people who cannot see it. The Alt text filter lists images that still lack it.
+Choose a row to open the file on the right. Drag the left edge to change the width. It stays between 320 and 960 pixels and is remembered in this browser. You can rename the file, write alt text and a title, copy the public URL, and see which QR codes and landing pages use it. The extension never changes on rename. Alt text describes the image for people who cannot see it. The Alt text filter lists images that still lack it.
 
 A file that is in use cannot be deleted. Remove it from the QR codes and pages listed under Used by first. A landing page counts as long as its saved draft or its published version uses the file. The Used by column counts every use.
 

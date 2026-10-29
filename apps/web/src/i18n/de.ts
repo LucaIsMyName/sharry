@@ -1107,6 +1107,7 @@ export const de: Record<string, string> = {
   "Repeat to match a link that has any of these tags": "Wiederholen, um Links mit einem dieser Tags zu finden",
   "Repeat to match any of these devices": "Wiederholen, um eines dieser Geräte zu finden",
   "Repeat to match any of these referrers. Not set matches a blank value": "Wiederholen, um einen dieser Referrer zu finden. Nicht gesetzt passt auf einen leeren Wert",
+  "Resize the file details": "Dateidetails in der Breite ändern",
   "Resize {label}": "Größe von {label} ändern",
   "Routing": "Routing",
   "Save file": "Datei speichern",
