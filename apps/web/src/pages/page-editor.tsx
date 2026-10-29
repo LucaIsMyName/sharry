@@ -237,6 +237,7 @@ export function PageEditorPage() {
           </span>
         }
         lede={page.url}
+        label={draft.title.trim() || t("Untitled page")}
         action={
           <div className="flex flex-wrap items-center gap-2">
             <IconAction label={t("View live")} disabled={!live} onClick={() => window.open(page.url, "_blank", "noopener")}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { api } from "../api.ts";
+import { PageHeader } from "../components/page-header.tsx";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Section } from "../components/ui/section.tsx";
@@ -53,34 +54,32 @@ export function ServerPage() {
 
   return (
     <section className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-medium tracking-tight">
-            {t("Server")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {snapshot ? (
-              <UpdatedLine at={snapshot.collectedAt} />
-            ) : (
-              t("Memory, disk, and the installed runtime on this host.")
-            )}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending}
-          onClick={() => void load()}
-        >
-          <RefreshCw />{" "}
-          {pending && !snapshot
-            ? t("Loading…")
-            : pending
-              ? t("Refreshing…")
-              : t("Refresh")}
-        </Button>
-      </div>
+      <PageHeader
+        title={t("Server")}
+        detail={
+          snapshot ? (
+            <UpdatedLine at={snapshot.collectedAt} />
+          ) : (
+            t("Memory, disk, and the installed runtime on this host.")
+          )
+        }
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => void load()}
+          >
+            <RefreshCw />{" "}
+            {pending && !snapshot
+              ? t("Loading…")
+              : pending
+                ? t("Refreshing…")
+                : t("Refresh")}
+          </Button>
+        }
+      />
       {!snapshot && pending ? <DetailSkeleton label="Loading server status…" /> : null}
       {snapshot ? <SnapshotView snapshot={snapshot} /> : null}
     </section>

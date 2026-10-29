@@ -112,6 +112,7 @@ export function AnalyticsPage() {
         lede={t(
           "Visitor addresses are not stored. Country appears only when a local GeoIP database is configured.",
         )}
+        label={t("Analytics")}
         action={
           linkIds.length > 0 ? (
             <Button variant="outline" size="sm" type="button" onClick={clearLinks}>

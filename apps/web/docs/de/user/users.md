@@ -4,7 +4,7 @@ Benutzer steht Administratorinnen und Administratoren zur Verfügung. Die Regist
 
 ## Ein Konto anlegen
 
-Benutzer anlegen, unter der Überschrift Benutzer, öffnet einen Dialog. Gib einen Benutzernamen, eine E-Mail, ein vorläufiges Passwort und eine Rolle ein. Benutzername und E-Mail müssen unabhängig von der Großschreibung eindeutig sein. Ein vergebener Wert antwortet: "That username or email is already in use."
+Benutzer anlegen steht in einer Zeile mit der Überschrift Benutzer. Auf einem kleinen Bildschirm steht der Knopf in der Leiste unter der oberen Leiste. Er öffnet einen Dialog. Gib einen Benutzernamen, eine E-Mail, ein vorläufiges Passwort und eine Rolle ein. Benutzername und E-Mail müssen unabhängig von der Großschreibung eindeutig sein. Ein vergebener Wert antwortet: "That username or email is already in use."
 
 Das vorläufige Passwort muss mindestens 12 Zeichen haben. Passwort erzeugen füllt ein 16-stelliges Passwort und zeigt es, damit du es kopieren und der Person schicken kannst. Ihre erste Anmeldung verlangt ein neues Passwort, bevor das Dashboard aufgeht. Das vorläufige Passwort wird als Argon2id-Hash gespeichert.
 

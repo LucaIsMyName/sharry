@@ -112,6 +112,7 @@ export function Shell() {
                 />
               </SheetContent>
             </Sheet>
+            
             <p className="flex items-center min-w-0 truncate text-center text-sm font-medium" aria-hidden>
               <span className="text-muted-foreground pr-3"><ChevronRight size={16} /></span> {routeTitle}
             </p>

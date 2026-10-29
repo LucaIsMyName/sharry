@@ -79,8 +79,10 @@ describe("create user", () => {
     renderUsers();
     const heading = await screen.findByRole("heading", { name: "Users" });
     const button = screen.getByRole("button", { name: "Create user" });
-    expect(heading.parentElement).toBe(button.parentElement);
-    expect(heading.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const row = heading.parentElement?.parentElement as HTMLElement;
+    expect(row.className).toContain("flex");
+    expect(row.contains(button)).toBe(true);
+    expect(button.className).toContain("h-7");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByLabelText("Username")).toBeNull();
 

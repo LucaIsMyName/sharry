@@ -4,7 +4,7 @@ Users is available to administrators. Registration is closed, so every account i
 
 ## Create an account
 
-Create user, under the Users heading, opens a dialog. Enter a username, an email, a temporary password, and a role. The username and email must be unique without regard to case. A taken value returns: "That username or email is already in use."
+Create user sits on the same row as the Users heading. On a small screen it sits in the bar under the top bar. It opens a dialog. Enter a username, an email, a temporary password, and a role. The username and email must be unique without regard to case. A taken value returns: "That username or email is already in use."
 
 The temporary password must be at least 12 characters. Generate password fills a 16-character password and shows it so you can copy it and send it to the person. Their first sign-in asks for a new password before the dashboard opens. The temporary password is stored as an Argon2id hash.
 

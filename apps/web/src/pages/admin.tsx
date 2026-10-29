@@ -26,6 +26,7 @@ import { AiSettingsCard } from "./ai-settings-card.tsx";
 import { api } from "../api.ts";
 import { auditActionSentence } from "../audit-actions.ts";
 import { EmptyState } from "../components/empty-state.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { RelativeTime } from "../components/relative-time.tsx";
@@ -194,14 +195,14 @@ export function AdminUsersPage() {
 
   return (
     <section className="grid gap-4">
-      <div className="grid justify-items-start gap-3">
-        <h1 className="font-heading text-2xl font-medium tracking-tight">
-          {t("Users")}
-        </h1>
-        <Button type="button" onClick={() => setCreating(true)}>
-          <Plus /> {t("Create user")}
-        </Button>
-      </div>
+      <PageHeader
+        title={t("Users")}
+        action={
+          <Button type="button" size="sm" onClick={() => setCreating(true)}>
+            <Plus /> {t("Create user")}
+          </Button>
+        }
+      />
       <Dialog
         open={creating}
         onOpenChange={(open) => {
