@@ -21,6 +21,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  ChevronRight,
 } from "lucide-react";
 import { NavLink, Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import { cn } from "cn";
@@ -91,7 +92,7 @@ export function Shell() {
       </aside>
       <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
         <div className="sticky top-0 z-30 shrink-0 md:hidden">
-          <div className="grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border bg-background px-3 pointer-coarse:h-14 pointer-coarse:px-1.5">
+          <div className="grid h-12 grid-cols-[auto_auto_1fr] items-center gap-2 border-b border-border bg-background px-3 pointer-coarse:h-14 pointer-coarse:px-1.5">
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger render={<Button variant="ghost" type="button" className="justify-self-start px-2" />}>
                 <Menu /> {t("Menu")}
@@ -111,8 +112,8 @@ export function Shell() {
                 />
               </SheetContent>
             </Sheet>
-            <p className="min-w-0 truncate text-center text-sm font-medium" aria-hidden>
-              {routeTitle}
+            <p className="flex items-center min-w-0 truncate text-center text-sm font-medium" aria-hidden>
+              <span className="text-muted-foreground pr-3"><ChevronRight size={16} /></span> {routeTitle}
             </p>
             <Button
               variant="ghost"

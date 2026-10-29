@@ -212,6 +212,8 @@ export const de: Record<string, string> = {
   "Create a campaign.": "Legt eine Kampagne an.",
   "Create a short link. Omit slug to assign a random one.": "Legt einen Kurzlink an. Ohne slug wird ein zufälliger vergeben.",
   "Create account": "Konto anlegen",
+  "Create user": "Benutzer anlegen",
+  "The person must change the temporary password on first sign-in.": "Die Person muss das vorläufige Passwort bei der ersten Anmeldung ändern.",
   "Create an account. The person must change the temporary password on first sign-in.": "Legt ein Konto an. Die Person muss das vorläufige Passwort bei der ersten Anmeldung ändern.",
   "Create an API key for a user. The secret is returned once.": "Legt einen API-Schlüssel für einen Benutzer an. Das Geheimnis wird einmal zurückgegeben.",
   "Create campaign": "Kampagne anlegen",

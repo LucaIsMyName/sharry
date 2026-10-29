@@ -115,6 +115,7 @@ export function AdminUsersPage() {
     role: "user" as "admin" | "user",
   });
   const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [pending, setPending] = useState(false);
   const [passwordFor, setPasswordFor] = useState<AdminUser | null>(null);
   const [nextPassword, setNextPassword] = useState("");
@@ -140,14 +141,19 @@ export function AdminUsersPage() {
         method: "POST",
         body: JSON.stringify(form),
       });
-      setForm({ username: "", email: "", password: "", role: "user" });
-      setShowCreatePassword(false);
+      closeCreate();
       await load();
     } catch (caught) {
       toastCaught(caught, t("Could not create the user"));
     } finally {
       setPending(false);
     }
+  }
+
+  function closeCreate() {
+    setCreating(false);
+    setForm({ username: "", email: "", password: "", role: "user" });
+    setShowCreatePassword(false);
   }
 
   async function update(
@@ -188,11 +194,28 @@ export function AdminUsersPage() {
 
   return (
     <section className="grid gap-4">
-      <h1 className="font-heading text-2xl font-medium tracking-tight">
-        {t("Users")}
-      </h1>
-      <Section title={t("Create account")}>
-          <form className="grid gap-3" onSubmit={(event) => void create(event)}>
+      <div className="grid justify-items-start gap-3">
+        <h1 className="font-heading text-2xl font-medium tracking-tight">
+          {t("Users")}
+        </h1>
+        <Button type="button" onClick={() => setCreating(true)}>
+          <Plus /> {t("Create user")}
+        </Button>
+      </div>
+      <Dialog
+        open={creating}
+        onOpenChange={(open) => {
+          if (!open) closeCreate();
+        }}
+      >
+        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
+          <form className="grid gap-4" onSubmit={(event) => void create(event)}>
+            <DialogHeader>
+              <DialogTitle className="font-heading text-2xl">{t("Create user")}</DialogTitle>
+              <DialogDescription>
+                {t("The person must change the temporary password on first sign-in.")}
+              </DialogDescription>
+            </DialogHeader>
             <Field label="Username">
               <Input
                 value={form.username}
@@ -200,6 +223,7 @@ export function AdminUsersPage() {
                   setForm({ ...form, username: event.target.value })
                 }
                 required
+                autoFocus
               />
             </Field>
             <Field label="Email">
@@ -259,11 +283,17 @@ export function AdminUsersPage() {
                 onValueChange={(role) => setForm({ ...form, role })}
               />
             </Field>
-            <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? t("Creating…") : t("Create account")}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeCreate}>
+                {t("Cancel")}
+              </Button>
+              <Button type="submit" disabled={pending}>
+                <Plus /> {pending ? t("Creating…") : t("Create account")}
+              </Button>
+            </DialogFooter>
           </form>
-      </Section>
+        </DialogContent>
+      </Dialog>
       {loading ? (
         <RowSkeleton label="Loading users…" />
       ) : (
