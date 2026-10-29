@@ -424,7 +424,7 @@ Put the change in the layer that already owns that behavior. Keep the change sma
 
 Add the handler next to the module that owns the resource, and register it from `buildApp` if it is a new module. Follow the existing helpers: `requireUser` or `requireAdmin` from `auth.ts`, `AppError` from `support.ts` for an expected failure, and `writeAudit` when an administrator changes shared state.
 
-Document the route with a JSDoc block directly above the `app.get` / `app.post` call. Vite’s `apps/web/api-docs-plugin.ts` turns those blocks into the in-app API reference. The extractor only sees calls shaped like `app.get('/api/...')` in files directly under `apps/api/src`.
+Document the route with a JSDoc block directly above the `app.get` / `app.post` call. Vite’s `apps/web/api-docs-plugin.ts` turns those blocks into the in-app API reference. A path under `/api` has to have that block. A documented path outside `/api`, such as a public file, is included too.
 
 ```ts
 /**
@@ -435,6 +435,8 @@ Document the route with a JSDoc block directly above the `app.get` / `app.post` 
  * @response 200 { widgets }
  */
 ```
+
+The extractor also builds a curl command and a TypeScript `fetch` call for each route from the method, path, auth, query, and body. The samples use realistic values: a pricing URL, a slug, a filter, and ids. `/docs/api` shows one of them. A switch under the heading changes every sample, and the browser stores the choice.
 
 Tags in use are `Links`, `Campaigns`, `Analytics`, `QR codes`, `Media`, `Pages`, `Account`, `Admin`, `Settings`, `Domains`, and `Search`. Add a new tag to `TAG_ORDER` in `scripts/generate-api-docs.ts` if the reference should group it.
 

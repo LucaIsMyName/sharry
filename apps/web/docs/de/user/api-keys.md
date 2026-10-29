@@ -12,7 +12,7 @@ Sharry speichert nur einen Hash des Geheimnisses, mit `SESSION_SECRET`. Es kann 
 
 ## Was ein Schlüssel aufrufen kann
 
-Aufrufe nutzen dieselben Pfade wie das Dashboard, zum Beispiel `GET /api/links` auf der Domain dieser Site. Die API-Referenz unter `/docs/api` listet jede Route, die Auth, die sie akzeptiert, und die Antworten.
+Aufrufe nutzen dieselben Pfade wie das Dashboard, zum Beispiel `GET /api/links` auf der Domain dieser Site. Die API-Referenz unter `/docs/api` listet jede Route, die Auth, die sie akzeptiert, und die Antworten. Jede Route enthält einen curl-Befehl und einen TypeScript-`fetch`-Aufruf. Ein Schalter stellt jedes Beispiel um, und der Browser merkt sich die Wahl.
 
 Der Schlüssel eines Standardbenutzers sieht nur die Links, Kampagnen, QR-Codes und Analysen dieses Benutzers. Der Schlüssel einer Administratorin oder eines Administrators kann auch Admin-Routen aufrufen: Benutzer, Einstellungen, Audit, Exporte und andere Schlüssel.
 

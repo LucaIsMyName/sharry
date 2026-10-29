@@ -12,7 +12,7 @@ Sharry stores only a hash of the secret, using `SESSION_SECRET`. It cannot be sh
 
 ## What a key can call
 
-Calls use the same paths as the dashboard, for example `GET /api/links` on this site’s domain. The API reference at `/docs/api` lists every route, the auth it accepts, and the responses.
+Calls use the same paths as the dashboard, for example `GET /api/links` on this site’s domain. The API reference at `/docs/api` lists every route, the auth it accepts, and the responses. Each route includes a curl command and a TypeScript `fetch` call. One switch changes every sample, and the browser remembers the choice.
 
 A standard user’s key sees only that user’s links, campaigns, QR codes, and analytics. An administrator’s key can also call admin routes: users, settings, audit, exports, and other keys.
 

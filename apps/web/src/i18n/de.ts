@@ -151,6 +151,8 @@ export const de: Record<string, string> = {
   "Copy password": "Passwort kopieren",
   "Copy code": "Code kopieren",
   "Could not copy the code": "Der Code konnte nicht kopiert werden",
+  "curl": "curl",
+  "TypeScript": "TypeScript",
   "Copy secret": "Geheimnis kopieren",
   "Copy the API key": "API-Schlüssel kopieren",
   "Could not add the domain": "Die Domain konnte nicht hinzugefügt werden",

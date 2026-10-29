@@ -10,6 +10,11 @@ declare module 'virtual:api-docs' {
     description: string
   }
 
+  export type ApiDocExamples = {
+    curl: string
+    ts: string
+  }
+
   export type ApiDoc = {
     method: string
     path: string
@@ -20,6 +25,7 @@ declare module 'virtual:api-docs' {
     query: ApiDocParam[]
     body: string | null
     responses: ApiDocResponse[]
+    examples: ApiDocExamples
   }
 
   const docs: ApiDoc[]

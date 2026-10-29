@@ -2,7 +2,7 @@ import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { systemPrefersDark, useTheme } from "../theme.ts";
 
 export const docsCodeBlockClass =
-  "mt-3 overflow-x-auto rounded-md border bg-[#171717] p-3 text-base text-[#f1f1f1] md:text-sm";
+  "mt-3 max-w-full min-w-0 overflow-x-auto rounded-md border bg-[#171717] p-3 text-base text-[#f1f1f1] md:text-sm";
 
 function subscribeSystemTheme(onChange: () => void) {
   const media = window.matchMedia("(prefers-color-scheme: dark)");

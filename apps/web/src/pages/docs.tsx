@@ -1,4 +1,4 @@
-import { createContext, isValidElement, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, isValidElement, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { appSlug } from "@sharry/shared";
 import { Check, Copy, Menu } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -98,9 +98,45 @@ function withValues(
   });
 }
 
+export const apiDocsExampleStorageKey = "sharry.api-docs-example";
+
+type ExampleLanguage = "curl" | "ts";
+
+function readExampleLanguage(): ExampleLanguage {
+  try {
+    if (typeof localStorage === "undefined") return "curl";
+    return localStorage.getItem(apiDocsExampleStorageKey) === "ts" ? "ts" : "curl";
+  } catch {
+    return "curl";
+  }
+}
+
+function writeExampleLanguage(language: ExampleLanguage) {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(apiDocsExampleStorageKey, language);
+  } catch {
+    // The buttons still apply for this visit when storage is blocked.
+  }
+}
+
 function ApiReference() {
   const { t } = useI18n();
   const appName = useAppName();
+  const [language, setLanguage] = useState<ExampleLanguage>(readExampleLanguage);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== apiDocsExampleStorageKey) return;
+      setLanguage(event.newValue === "ts" ? "ts" : "curl");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+  const chooseLanguage = (next: ExampleLanguage) => {
+    setLanguage(next);
+    writeExampleLanguage(next);
+  };
+  const token = `${appSlug(appName)}_...`;
   const groups: { tag: string; docs: ApiDoc[] }[] = [];
   for (const doc of apiDocs) {
     const group = groups.find((item) => item.tag === doc.tag);
@@ -108,12 +144,12 @@ function ApiReference() {
     else groups.push({ tag: doc.tag, docs: [doc] });
   }
   return (
-    <div className="grid gap-8">
+    <div className="grid min-w-0 gap-8">
       <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("API reference")}
         </h1>
-        <p className="mt-3 text-base leading-6 md:text-sm">
+        <p className="sr-only mt-3 text-base leading-6 md:text-sm">
           {withValues(
             t(
               "Call {url} with {header}. A key acts as the user it was created for. Routes marked session accept only the dashboard cookie.",
@@ -132,16 +168,36 @@ function ApiReference() {
             },
           )}
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={language === "curl" ? "secondary" : "outline"}
+            aria-pressed={language === "curl"}
+            onClick={() => chooseLanguage("curl")}
+          >
+            {t("curl")}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={language === "ts" ? "secondary" : "outline"}
+            aria-pressed={language === "ts"}
+            onClick={() => chooseLanguage("ts")}
+          >
+            {t("TypeScript")}
+          </Button>
+        </div>
       </div>
       {groups.map((group) => (
-        <section key={group.tag} className="grid gap-3">
+        <section key={group.tag} className="grid min-w-0 gap-3">
           <h2 className="font-heading text-2xl font-medium tracking-tight">
             {t(group.tag)}
           </h2>
           {group.docs.map((doc) => (
             <div
               key={`${doc.method} ${doc.path}`}
-              className="grid gap-2 rounded-md border bg-card p-4"
+              className="grid min-w-0 gap-2 rounded-md border bg-card p-4"
             >
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="font-mono text-sm font-medium text-primary md:text-xs">
@@ -177,6 +233,7 @@ function ApiReference() {
                   ))}
                 </ul>
               ) : null}
+              <DocsCodeBlock>{doc.examples[language].replaceAll("TOKEN", token)}</DocsCodeBlock>
             </div>
           ))}
         </section>
@@ -354,7 +411,7 @@ function DocsCodeBlock({ children }: { children?: ReactNode }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
-    <div className="relative mt-3">
+    <div className="relative mt-3 min-w-0 max-w-full">
       <Button
         type="button"
         variant="ghost"
