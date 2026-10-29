@@ -50,4 +50,4 @@ Each account chooses its own language on Account. English is the default. German
 
 ## Account photo
 
-Account can store a photo. Use a PNG, JPEG, or WebP image, 512 KB or smaller. Removing the photo deletes the file. The photo is stored on disk, not in PostgreSQL.
+Account is one page with four sections: Profile, Language, Password, and Two-factor authentication. Profile can store a photo. Use a PNG, JPEG, or WebP image, 512 KB or smaller. Remove photo asks first, then deletes the file. Turning two-factor authentication off also asks for a confirmation after the password. The photo is stored on disk, not in PostgreSQL.

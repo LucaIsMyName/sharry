@@ -44,6 +44,8 @@ A page can hold up to 300 blocks, nested up to 4 levels deep. A move or an addit
 
 The Link field of a button suggests your short links while you type, so a button can send visitors through a tracked short link. A link may be a web address, `mailto:`, `tel:`, a path that starts with `/`, or an anchor such as `#prices`. Other addresses are refused.
 
+The Link button in the text toolbar opens a small dialog for the address. An address that is not allowed is marked at the field and the dialog stays open. On an existing link, Remove link takes the link off and keeps the text.
+
 Text formatting is limited to what the public page can show safely. Pasted content keeps bold, italic, underline, strikethrough, inline code, links, lists, subheadings, quotes, and text alignment. Everything else, such as colors, fonts, and embedded content, is removed.
 
 Image alt text comes from the media library. Fill in Alt text on the block to use a different text on this page. Choosing or dropping a file in an Image, Video, Image gallery, or Feature grid block, or as a container background, adds it to the media library. See [Media](/docs/user/media).

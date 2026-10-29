@@ -92,6 +92,7 @@ export type RowMenuItem = {
 };
 
 const anyValue = "__any__";
+const headerIconButton = "inline-flex shrink-0 items-center justify-center pointer-coarse:size-11";
 
 export function DataTable<T>({
   storageKey,
@@ -264,11 +265,11 @@ export function DataTable<T>({
                   {current.sort?.column === column.id ? (
                     <button
                       type="button"
-                      className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                      className={cn("rounded p-0.5 text-muted-foreground hover:text-foreground", headerIconButton)}
                       aria-label={t("Clear {label} sort", { label: t(column.header) })}
                       onClick={() => commit({ ...current, sort: null })}
                     >
-                      <X size={12} />
+                      <X className="size-3 pointer-coarse:size-4" />
                     </button>
                   ) : null}
                   {column.filter ? (
@@ -420,12 +421,12 @@ function ColumnFilter({
     <span className="relative">
       <button
         type="button"
-        className={cn("rounded p-0.5 text-muted-foreground hover:text-foreground", active && "text-primary")}
+        className={cn("rounded p-0.5 text-muted-foreground hover:text-foreground", headerIconButton, active && "text-primary")}
         aria-label={t("Filter {label}", { label: t(label) })}
         aria-expanded={open}
         onClick={onOpen}
       >
-        <ListFilter size={14} />
+        <ListFilter className="size-3.5 pointer-coarse:size-4" />
       </button>
       {open ? (
         <span className="absolute left-0 z-20 mt-1 grid w-52 gap-2 rounded-md border border-border bg-popover p-2 shadow-md">
@@ -433,7 +434,7 @@ function ColumnFilter({
             <span className="flex items-center gap-1">
               <input
                 id={id}
-                className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm pointer-coarse:h-11 pointer-coarse:text-base"
                 value={value}
                 aria-label={t("{label} contains", { label: t(label) })}
                 onChange={(event) => onChange(event.target.value)}
@@ -441,7 +442,7 @@ function ColumnFilter({
               {value ? (
                 <button
                   type="button"
-                  className="rounded p-1 text-muted-foreground hover:text-foreground"
+                  className={cn("rounded p-1 text-muted-foreground hover:text-foreground", headerIconButton)}
                   aria-label={t("Clear {label} filter", { label: t(label) })}
                   onClick={() => onChange("")}
                 >

@@ -75,11 +75,11 @@ function Toaster() {
               <Toast.Title className="text-sm leading-snug font-medium" />
             </Toast.Content>
             {item.actionProps ? (
-              <Toast.Action className="shrink-0 rounded-sm px-1.5 text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50" />
+              <Toast.Action className="shrink-0 rounded-sm px-1.5 text-sm font-medium text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:-my-2 pointer-coarse:h-11 pointer-coarse:px-3" />
             ) : null}
             <Toast.Close
               aria-label={t("Dismiss")}
-              className="shrink-0 rounded-sm opacity-70 outline-none hover:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="inline-flex shrink-0 items-center justify-center rounded-sm opacity-70 outline-none hover:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:-my-2 pointer-coarse:-mr-2 pointer-coarse:size-11"
             >
               <XIcon className="size-4" />
             </Toast.Close>

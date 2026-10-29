@@ -25,6 +25,12 @@ The landing page editor is `apps/web/src/pages/page-editor.tsx`, and its parts l
 
 The editor has no code per block. Adding a component is described in [Page builder blocks](/docs/developer/frontend/page-blocks).
 
+## Dialogs and touch targets
+
+The dashboard never calls `window.confirm`, `window.alert`, or `window.prompt`. A yes-or-no question uses `ConfirmDialog`, or `useConfirm()` from `components/ui/confirm-dialog.tsx` when the question sits in the middle of an async handler: `if (!(await confirm({ title, description, confirmLabel, destructive: true }))) return;`, with `{dialog}` rendered once in the page. A question that needs input, such as the link address in the rich text editor, is its own `Dialog` with a `Field`, so a wrong value shows next to the field instead of in an alert. `src/no-native-dialogs.test.ts` fails when a browser dialog comes back.
+
+On a touch screen every control is at least 44 by 44 pixels. The sizes use Tailwind's `pointer-coarse:` variant, so a mouse keeps the compact sizes and nothing moves while a page is open. `Button` already does this for every size. A custom icon button, chip, swatch, or toolbar button adds `pointer-coarse:size-11` (or `pointer-coarse:h-11`) itself.
+
 ## Languages
 
 The dashboard calls `t("English sentence")` from `apps/web/src/i18n`. The English sentence is the key. A missing translation stays in English. German strings live in `apps/web/src/i18n/de.ts`. The signed-in account stores `users.locale`. Account saves it with `PATCH /api/auth/locale`. The allowed codes are `locales` in `@sharry/shared`.

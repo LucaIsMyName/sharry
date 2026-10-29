@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -17,10 +17,15 @@ import {
   RemoveFormatting,
   Strikethrough,
   Underline,
+  Unlink,
 } from "lucide-react";
 import { cleanRichText, isSafeHref } from "@sharry/shared";
 import { cn } from "cn";
 import { useI18n } from "../../i18n/index.tsx";
+import { Button } from "../ui/button.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog.tsx";
+import { Field } from "../ui/field.tsx";
+import { Input } from "../ui/input.tsx";
 
 /** TipTap with only the formatting the page renderer keeps. The saved HTML goes through the same cleaner as the API. */
 export function RichTextEditor({ value, onChange, label }: { value: string; onChange: (html: string) => void; label: string }) {
@@ -79,21 +84,12 @@ function Toolbar({ editor }: { editor: Editor }) {
     }),
   });
   const chain = () => editor.chain().focus();
+  const [linkHref, setLinkHref] = useState<string | null>(null);
 
-  function editLink() {
-    const current = String(editor.getAttributes("link").href ?? "");
-    const next = window.prompt(t("Link address"), current);
-    if (next === null) return;
-    const href = next.trim();
-    if (!href) {
-      chain().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    if (!isSafeHref(href)) {
-      window.alert(t("Use a web address, mailto:, tel:, or a path that starts with /"));
-      return;
-    }
-    chain().extendMarkRange("link").setLink({ href }).run();
+  function saveLink(href: string) {
+    setLinkHref(null);
+    if (!href) chain().extendMarkRange("link").unsetLink().run();
+    else chain().extendMarkRange("link").setLink({ href }).run();
   }
 
   return (
@@ -126,7 +122,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Tool label="Quote" active={state.quote} onClick={() => chain().toggleBlockquote().run()}>
         <Quote />
       </Tool>
-      <Tool label="Link" active={state.link} onClick={editLink}>
+      <Tool label="Link" active={state.link} onClick={() => setLinkHref(String(editor.getAttributes("link").href ?? ""))}>
         <Link2 />
       </Tool>
       <Divider />
@@ -142,7 +138,78 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Tool label="Clear formatting" active={false} onClick={() => chain().unsetAllMarks().clearNodes().unsetTextAlign().run()}>
         <RemoveFormatting />
       </Tool>
+      <LinkDialog
+        href={linkHref}
+        onSave={saveLink}
+        onCancel={() => {
+          setLinkHref(null);
+          chain().run();
+        }}
+      />
     </div>
+  );
+}
+
+function LinkDialog({ href, onSave, onCancel }: { href: string | null; onSave: (href: string) => void; onCancel: () => void }) {
+  const { t } = useI18n();
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (href === null) return;
+    setDraft(href);
+    setError("");
+  }, [href]);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const next = draft.trim();
+    if (next && !isSafeHref(next)) {
+      setError("Use a web address, mailto:, tel:, or a path that starts with /");
+      return;
+    }
+    onSave(next);
+  }
+
+  return (
+    <Dialog
+      open={href !== null}
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <form className="grid gap-4" onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl">{t(href ? "Edit link" : "Add link")}</DialogTitle>
+            <DialogDescription>{t("Leave the address empty to remove the link.")}</DialogDescription>
+          </DialogHeader>
+          <Field label="Link address" error={error}>
+            <Input
+              value={draft}
+              placeholder="https://"
+              autoFocus
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setError("");
+              }}
+            />
+          </Field>
+          <DialogFooter>
+            {href ? (
+              <Button type="button" variant="outline" className="sm:mr-auto" onClick={() => onSave("")}>
+                <Unlink /> {t("Remove link")}
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={onCancel}>
+              {t("Cancel")}
+            </Button>
+            <Button type="submit">{t("Save")}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -155,7 +222,7 @@ function Tool({ label, active, onClick, children }: { label: string; active: boo
       title={t(label)}
       aria-pressed={active}
       className={cn(
-        "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground [&>svg]:size-4",
+        "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 [&>svg]:size-4 pointer-coarse:[&>svg]:size-5",
         active && "bg-muted text-foreground",
       )}
       onMouseDown={(event) => event.preventDefault()}

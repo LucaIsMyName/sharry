@@ -44,6 +44,8 @@ Eine Seite kann bis zu 300 Blöcke enthalten, höchstens 4 Ebenen tief verschach
 
 Das Feld Link eines Buttons schlägt beim Tippen deine Kurzlinks vor, damit ein Button Besucher über einen getrackten Kurzlink schicken kann. Ein Link darf eine Webadresse, `mailto:`, `tel:`, ein Pfad mit `/` am Anfang oder ein Anker wie `#preise` sein. Andere Adressen werden abgelehnt.
 
+Der Knopf Link in der Textleiste öffnet einen kleinen Dialog für die Adresse. Eine Adresse, die nicht erlaubt ist, wird am Feld markiert, und der Dialog bleibt offen. Bei einem vorhandenen Link nimmt Link entfernen den Link weg und behält den Text.
+
 Die Textformatierung ist auf das beschränkt, was die öffentliche Seite sicher zeigen kann. Eingefügter Inhalt behält Fett, Kursiv, Unterstrichen, Durchgestrichen, Inline-Code, Links, Listen, Zwischenüberschriften, Zitate und Textausrichtung. Alles andere, etwa Farben, Schriften und eingebettete Inhalte, wird entfernt.
 
 Der Alternativtext eines Bildes kommt aus der Mediathek. Fülle Alternativtext im Block aus, um auf dieser Seite einen anderen Text zu nutzen. Eine Datei, die du in einem Bild-, Video-, Bildergalerie- oder Feature-Raster-Block oder als Container-Hintergrund wählst oder ablegst, landet in der Mediathek. Siehe [Medien](/docs/user/media).

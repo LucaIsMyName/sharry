@@ -30,7 +30,7 @@ import {
   TableRow,
 } from "../components/ui/table.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
-import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
+import { ConfirmDialog, useConfirm } from "../components/ui/confirm-dialog.tsx";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,7 @@ const emptyUtm: UtmParams = {};
 
 export function CampaignsPage() {
   const { t } = useI18n();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [params, setParams] = useSearchParams();
   const folder = params.get("folder") || "root";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -260,6 +261,7 @@ export function CampaignsPage() {
           if (moveFor) void moveRow(moveFor, parentId);
         }}
       />
+      {confirmDialog}
     </section>
   );
 
@@ -306,7 +308,13 @@ export function CampaignsPage() {
 
   async function removeSelected() {
     if (selected.length === 0) return;
-    if (!window.confirm(t("Delete the selected rows? Folders move their contents up one level."))) return;
+    const confirmed = await confirm({
+      title: t("Delete {count} selected rows?", { count: selected.length }),
+      description: "Folders move their contents up one level.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await Promise.all(
         selected.map((id) =>
@@ -324,7 +332,13 @@ export function CampaignsPage() {
   }
 
   async function removeCampaignRow(campaign: Campaign) {
-    if (!window.confirm(t("Delete this campaign?"))) return;
+    const confirmed = await confirm({
+      title: "Delete this campaign?",
+      description: "Variants in this campaign are removed. Short links and their click history stay.",
+      confirmLabel: "Delete campaign",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await api(`/api/campaigns/${campaign.id}`, { method: "DELETE" });
       setSelected((current) => current.filter((id) => id !== `campaign:${campaign.id}`));
@@ -335,7 +349,13 @@ export function CampaignsPage() {
   }
 
   async function removeFolder(item: FolderItem) {
-    if (!window.confirm(t("Delete this folder? Its campaigns move up one level."))) return;
+    const confirmed = await confirm({
+      title: "Delete this folder?",
+      description: "Its campaigns move up one level.",
+      confirmLabel: "Delete folder",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await api(`/api/folders/${item.id}`, { method: "DELETE" });
       await load();

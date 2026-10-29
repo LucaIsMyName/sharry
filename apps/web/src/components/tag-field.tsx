@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { cn } from "cn";
 import { isTagColor, randomTagColor, tagPalette, tagTextColor, type TagKind } from "@sharry/shared";
 import { api } from "../api.ts";
 import { useI18n } from "../i18n/index.tsx";
@@ -25,11 +26,17 @@ export function TagBadge({
   const fill = isTagColor(color) ? color : tagPalette[0];
   return (
     <span className="relative inline-flex max-w-full">
-      <Badge className="max-w-full border-transparent" style={{ backgroundColor: fill, color: tagTextColor(fill) }}>
+      <Badge
+        className={cn(
+          "max-w-full border-transparent",
+          (onColor || onRemove) && "pointer-coarse:h-11 pointer-coarse:pr-0 pointer-coarse:pl-3 pointer-coarse:text-sm",
+        )}
+        style={{ backgroundColor: fill, color: tagTextColor(fill) }}
+      >
         {onColor ? (
           <button
             type="button"
-            className="max-w-40 truncate"
+            className="max-w-40 truncate pointer-coarse:h-full"
             aria-label={t("Change {name} color", { name })}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setOpen((current) => !current)}
@@ -42,22 +49,23 @@ export function TagBadge({
         {onRemove ? (
           <button
             type="button"
+            className="inline-flex shrink-0 items-center justify-center pointer-coarse:size-11"
             aria-label={t("Remove {name}", { name })}
             onMouseDown={(event) => event.preventDefault()}
             onClick={onRemove}
           >
-            <X />
+            <X className="size-3 pointer-coarse:size-4" />
           </button>
         ) : null}
       </Badge>
       {open && onColor ? (
-        <span className="absolute top-full left-0 z-30 mt-1 flex w-44 flex-wrap gap-1 rounded-md border border-border bg-popover p-2 shadow-md">
+        <span className="absolute top-full left-0 z-30 mt-1 flex w-44 flex-wrap gap-1 rounded-md border border-border bg-popover p-2 shadow-md pointer-coarse:w-64 pointer-coarse:gap-2">
           {tagPalette.map((swatch) => (
             <button
               key={swatch}
               type="button"
               aria-label={swatch}
-              className="size-5 rounded-full border border-black/10"
+              className="size-5 rounded-full border border-black/10 pointer-coarse:size-11"
               style={{ backgroundColor: swatch }}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => {
@@ -69,7 +77,7 @@ export function TagBadge({
           <input
             aria-label={t("Custom color")}
             type="color"
-            className="size-5 cursor-pointer border-0 bg-transparent p-0"
+            className="size-5 cursor-pointer border-0 bg-transparent p-0 pointer-coarse:size-11"
             value={fill}
             onMouseDown={(event) => event.preventDefault()}
             onChange={(event) => onColor(event.target.value)}
@@ -178,7 +186,7 @@ export function TagField({
               value={draft}
               aria-label={t("Add a tag")}
               placeholder={t("Add a tag")}
-              className="h-7 min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-7 min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground pointer-coarse:h-11 pointer-coarse:text-base"
               onChange={(event) => {
                 setDraft(event.target.value);
                 setError("");

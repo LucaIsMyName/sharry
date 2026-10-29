@@ -107,6 +107,29 @@ describe("landing pages overview", () => {
     expect(await screen.findByText("Editor open")).toBeTruthy();
   });
 
+  it("asks in an in-app dialog before deleting the selected rows", async () => {
+    installApi([base, draft]);
+    renderOverview();
+    await screen.findByText("Spring sale");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all" }));
+    const deleteSelection = () =>
+      screen.getAllByRole("button", { name: "Delete" }).find((button) => button.textContent?.trim() === "Delete") as HTMLElement;
+    fireEvent.click(deleteSelection());
+    let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Delete 2 selected rows?")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(vi.mocked(api).mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+
+    fireEvent.click(deleteSelection());
+    dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await waitFor(() => {
+      expect(api).toHaveBeenCalledWith("/api/pages/p1", { method: "DELETE" });
+      expect(api).toHaveBeenCalledWith("/api/pages/p2", { method: "DELETE" });
+    });
+  });
+
   it("filters by status on the server", async () => {
     localStorage.setItem("sharry.table.pages", JSON.stringify({ filters: { status: "changed" }, sort: null, widths: {} }));
     installApi([]);

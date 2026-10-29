@@ -15,7 +15,7 @@ import { useAiAvailable } from "../components/use-ai.ts";
 import { TagBadge } from "../components/tag-field.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
-import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
+import { ConfirmDialog, useConfirm } from "../components/ui/confirm-dialog.tsx";
 import { DataTable, loadTableView, saveTableView, type DataColumn, type TableView } from "../components/ui/data-table.tsx";
 import { Field } from "../components/ui/field.tsx";
 import { Input } from "../components/ui/input.tsx";
@@ -48,6 +48,7 @@ function AccessBadge({ canEdit }: { canEdit?: boolean }) {
 
 export function LinkOverview() {
   const { t } = useI18n();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [params, setParams] = useSearchParams();
   const folder = params.get("folder") || "root";
   const [links, setLinks] = useState<LinkSummary[]>([]);
@@ -220,7 +221,13 @@ export function LinkOverview() {
 
   async function removeSelected() {
     if (selected.length === 0) return;
-    if (!window.confirm(t("Delete the selected rows? Folders move their contents up one level."))) return;
+    const confirmed = await confirm({
+      title: t("Delete {count} selected rows?", { count: selected.length }),
+      description: "Folders move their contents up one level.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await Promise.all(
         selected.map((id) =>
@@ -238,7 +245,13 @@ export function LinkOverview() {
   }
 
   async function removeFolder(item: FolderItem) {
-    if (!window.confirm(t("Delete this folder? Its links move up one level."))) return;
+    const confirmed = await confirm({
+      title: "Delete this folder?",
+      description: "Its links move up one level.",
+      confirmLabel: "Delete folder",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await api(`/api/folders/${item.id}`, { method: "DELETE" });
       setReload((value) => value + 1);
@@ -539,6 +552,7 @@ export function LinkOverview() {
           />
         </Field>
       </ConfirmDialog>
+      {confirmDialog}
     </section>
   );
 

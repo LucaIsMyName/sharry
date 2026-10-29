@@ -14,7 +14,7 @@ import { PageHeader } from "../components/page-header.tsx";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
-import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
+import { ConfirmDialog, useConfirm } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { DataTable, loadTableView, saveTableView, type DataColumn, type TableView } from "../components/ui/data-table.tsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog.tsx";
@@ -35,6 +35,7 @@ type Placement = { id: string; parentId: string | null };
 
 export function LandingPagesPage() {
   const { t } = useI18n();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const folder = params.get("folder") || "root";
@@ -223,7 +224,13 @@ export function LandingPagesPage() {
   }
 
   async function removeFolder(item: FolderItem) {
-    if (!window.confirm(t("Delete this folder? Its pages move up one level."))) return;
+    const confirmed = await confirm({
+      title: "Delete this folder?",
+      description: "Its pages move up one level.",
+      confirmLabel: "Delete folder",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await api(`/api/folders/${item.id}`, { method: "DELETE" });
       setReload((value) => value + 1);
@@ -234,7 +241,13 @@ export function LandingPagesPage() {
 
   async function removeSelected() {
     if (selected.length === 0) return;
-    if (!window.confirm(t("Delete the selected rows? Folders move their contents up one level."))) return;
+    const confirmed = await confirm({
+      title: t("Delete {count} selected rows?", { count: selected.length }),
+      description: "Folders move their contents up one level.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const results = await Promise.allSettled(
       selected.map((id) =>
         id.startsWith("folder:")
@@ -496,6 +509,7 @@ export function LandingPagesPage() {
         }}
         onConfirm={() => void removePage()}
       />
+      {confirmDialog}
     </section>
   );
 }

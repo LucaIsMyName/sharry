@@ -25,7 +25,9 @@ import { localeLabels, useAccountLocale, useI18n } from "../i18n/index.tsx";
 import { QrPreview } from "../components/qr-preview.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
+import { useConfirm } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
+import { Section } from "../components/ui/section.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { Field } from "../components/ui/field.tsx";
 import { ImageUpload } from "../components/ui/image-upload.tsx";
@@ -217,6 +219,7 @@ export function PasswordPage() {
 
 export function AccountPage() {
   const { t, locale, setLocale } = useI18n();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const revalidator = useRevalidator();
   const [me, setMe] = useState<Me | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -273,6 +276,13 @@ export function AccountPage() {
   }
 
   async function removeAvatar() {
+    const confirmed = await confirm({
+      title: "Remove your photo?",
+      description: "Your initial is shown instead.",
+      confirmLabel: "Remove photo",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await api("/api/auth/avatar", { method: "DELETE" });
       await refreshAccount();
@@ -297,56 +307,76 @@ export function AccountPage() {
     }
   }
 
+  async function turnOffMfa(event: FormEvent) {
+    event.preventDefault();
+    const confirmed = await confirm({
+      title: "Turn off two-factor authentication?",
+      description: "Signing in will only need your password.",
+      confirmLabel: "Turn off",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    setTurningOff(true);
+    try {
+      await api("/api/auth/mfa/disable", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword: disablePassword }),
+      });
+      setDisablePassword("");
+      toast.success(t("Two-factor authentication is off."));
+      setMe(await api<Me>("/api/auth/me"));
+    } catch (caught) {
+      toastCaught(caught, t("Could not turn off two-factor authentication"));
+    } finally {
+      setTurningOff(false);
+    }
+  }
+
   const initial = me?.user.username.trim().charAt(0).toUpperCase() || "?";
 
   return (
-    <section className="grid gap-4">
-      <div className="mb-1">
+    <section className="grid gap-6">
+      <div>
         <h1 className="font-heading text-2xl font-medium tracking-tight">
           {t("Account")}
         </h1>
         <p className="text-sm text-muted-foreground">{me?.user.email}</p>
       </div>
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-4">
+      <Section title={t("Profile")} lede={t("Your photo appears next to your name in the sidebar.")}>
+        <div className="flex flex-wrap items-center gap-4">
           {me?.user.hasAvatar ? (
             <img
               src={`/api/auth/avatar?v=${encodeURIComponent(me.user.updatedAt)}`}
               alt=""
-              className="size-16 rounded-full object-cover"
+              className="size-16 shrink-0 rounded-full object-cover"
             />
           ) : (
-            <span className="flex size-16 items-center justify-center rounded-full bg-muted text-xl font-medium">
+            <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-medium">
               {initial}
             </span>
           )}
-          <div className="grid gap-2">
-            <Field label="Photo">
+          <div className="grid w-full max-w-sm gap-2">
+            <Field label="Photo" srOnly>
               <ImageUpload
                 key={avatarKey}
-                previewUrl={
-                  me?.user.hasAvatar
-                    ? `/api/auth/avatar?v=${encodeURIComponent(me.user.updatedAt)}`
-                    : null
-                }
                 onFile={(file) => void uploadAvatar(file)}
               />
             </Field>
-            {me?.user.hasAvatar ? (
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => void removeAvatar()}
-              >
-                <Trash2 /> {t("Remove photo")}
-              </Button>
-            ) : null}
           </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <Field label="Language">
+          {me?.user.hasAvatar ? (
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => void removeAvatar()}
+            >
+              <Trash2 /> {t("Remove photo")}
+            </Button>
+          ) : null}
+        </div>
+      </Section>
+      <Section title={t("Language")} lede={t("The language of the dashboard for your account.")}>
+        <div className="max-w-sm">
+          <Field label="Language" srOnly>
             <Select
               value={me?.user.locale ?? locale}
               options={locales.map((code) => ({
@@ -356,51 +386,43 @@ export function AccountPage() {
               onValueChange={(next) => void changeLocale(next)}
             />
           </Field>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <form className="grid gap-3" onSubmit={(event) => void submit(event)}>
-            <h2 className="text-lg font-medium">{t("Password")}</h2>
-            <Field label="Current password">
-              <Input
-                type="password"
-                value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </Field>
-            <Field label="New password">
-              <Input
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                autoComplete="new-password"
-                minLength={12}
-                required
-              />
-            </Field>
-            <Button type="submit" disabled={pending}>
-              <KeyRound /> {pending ? t("Updating…") : t("Update password")}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="grid gap-3">
-          <h2 className="text-lg font-medium">{t("Two-factor authentication")}</h2>
-          {me?.mfaRequired ? (
-            <p className="text-sm text-muted-foreground">
-              {t("An administrator requires a code at sign-in.")}
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t(
-                "Optional. Turn it on for this account when you want a code at sign-in.",
-              )}
-            </p>
-          )}
+        </div>
+      </Section>
+      <Section title={t("Password")} lede={t("Use at least 12 characters.")}>
+        <form className="grid max-w-md gap-3" onSubmit={(event) => void submit(event)}>
+          <Field label="Current password">
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </Field>
+          <Field label="New password">
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              autoComplete="new-password"
+              minLength={12}
+              required
+            />
+          </Field>
+          <Button type="submit" className="justify-self-start" disabled={pending}>
+            <KeyRound /> {pending ? t("Updating…") : t("Update password")}
+          </Button>
+        </form>
+      </Section>
+      <Section
+        title={t("Two-factor authentication")}
+        lede={
+          me?.mfaRequired
+            ? t("An administrator requires a code at sign-in.")
+            : t("Optional. Turn it on for this account when you want a code at sign-in.")
+        }
+      >
+        <div className="grid max-w-md gap-3">
           {me && !me.mailConfigured && !me.user.totpEnabled ? (
             <p className="text-sm text-muted-foreground">
               {t(
@@ -409,39 +431,18 @@ export function AccountPage() {
             </p>
           ) : null}
           {me?.user.totpEnabled ? (
-            <form
-              className="grid gap-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setTurningOff(true);
-                void api("/api/auth/mfa/disable", {
-                  method: "POST",
-                  body: JSON.stringify({ currentPassword: disablePassword }),
-                })
-                  .then(async () => {
-                    setDisablePassword("");
-                    toast.success(t("Two-factor authentication is off."));
-                    setMe(await api<Me>("/api/auth/me"));
-                  })
-                  .catch((caught: unknown) =>
-                    toastCaught(
-                      caught,
-                      t("Could not turn off two-factor authentication"),
-                    ),
-                  )
-                  .finally(() => setTurningOff(false));
-              }}
-            >
+            <form className="grid gap-3" onSubmit={(event) => void turnOffMfa(event)}>
               <p>{t("A code is required for this account.")}</p>
               <Field label="Current password">
                 <Input
                   type="password"
                   value={disablePassword}
                   onChange={(event) => setDisablePassword(event.target.value)}
+                  autoComplete="current-password"
                   required
                 />
               </Field>
-              <Button type="submit" disabled={turningOff}>
+              <Button type="submit" variant="outline" className="justify-self-start" disabled={turningOff}>
                 <ShieldOff /> {turningOff ? t("Turning off…") : t("Turn off")}
               </Button>
             </form>
@@ -452,6 +453,7 @@ export function AccountPage() {
               {!setup && me?.mailConfigured ? (
                 <Button
                   type="button"
+                  className="justify-self-start"
                   onClick={() =>
                     void api<{ secret: string; otpauthUrl: string }>(
                       "/api/auth/mfa/setup",
@@ -493,8 +495,9 @@ export function AccountPage() {
               ) : null}
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </Section>
+      {confirmDialog}
     </section>
   );
 }

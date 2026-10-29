@@ -71,8 +71,8 @@ export function DashboardPage() {
         </div>
       ) : (
       <>
-      <div className="flex flex-wrap divide-x divide-border">
-        <div className="pr-6">
+      <div className="flex flex-wrap divide-x divide-border border-t pt-4">
+        <div className="pr-6 flex-1">
             <span className="text-sm text-muted-foreground">
               {t("Clicks, 30 days")}
             </span>
@@ -80,7 +80,7 @@ export function DashboardPage() {
               {analytics?.totalClicks ?? "—"}
             </b>
         </div>
-        <div className="px-6">
+        <div className="px-6 flex-1">
             <span className="text-sm text-muted-foreground">
               {t("Unique visitors")}
             </span>
@@ -88,7 +88,7 @@ export function DashboardPage() {
               {analytics?.uniqueVisitors ?? "—"}
             </b>
         </div>
-        <div className="pl-6">
+        <div className="pl-6 flex-1">
             <span className="text-sm text-muted-foreground">{t("Bot clicks")}</span>
             <b className="mt-1 block text-3xl tabular-nums">
               {analytics?.botClicks ?? "—"}

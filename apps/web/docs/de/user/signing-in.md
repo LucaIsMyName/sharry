@@ -50,4 +50,4 @@ Jedes Konto wählt seine Sprache unter Konto. Englisch ist die Vorgabe. Deutsch 
 
 ## Kontofoto
 
-Unter Konto kann ein Foto gespeichert werden. Nutze ein PNG-, JPEG- oder WebP-Bild, höchstens 512 KB. Das Entfernen des Fotos löscht die Datei. Das Foto liegt auf der Festplatte, nicht in PostgreSQL.
+Konto ist eine Seite mit vier Abschnitten: Profil, Sprache, Passwort und Zwei-Faktor-Authentifizierung. Unter Profil kann ein Foto gespeichert werden. Nutze ein PNG-, JPEG- oder WebP-Bild, höchstens 512 KB. Foto entfernen fragt zuerst nach und löscht dann die Datei. Auch das Ausschalten der Zwei-Faktor-Authentifizierung fragt nach dem Passwort noch einmal nach. Das Foto liegt auf der Festplatte, nicht in PostgreSQL.

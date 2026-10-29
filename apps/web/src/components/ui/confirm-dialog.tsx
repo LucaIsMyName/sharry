@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { useI18n } from "../../i18n/index.tsx";
 import { Button } from "./button.tsx";
 import {
@@ -60,4 +60,52 @@ export function ConfirmDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+export type ConfirmOptions = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+};
+
+/** Promise-based confirmation: `if (!(await confirm({...}))) return;`. Render `dialog` once in the page. */
+export function useConfirm(): {
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
+  dialog: ReactNode;
+} {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<ConfirmOptions | null>(null);
+  const resolver = useRef<((confirmed: boolean) => void) | null>(null);
+
+  const settle = useCallback((confirmed: boolean) => {
+    resolver.current?.(confirmed);
+    resolver.current = null;
+    setOpen(false);
+  }, []);
+
+  const confirm = useCallback((next: ConfirmOptions) => {
+    resolver.current?.(false);
+    setOptions(next);
+    setOpen(true);
+    return new Promise<boolean>((resolve) => {
+      resolver.current = resolve;
+    });
+  }, []);
+
+  const dialog = options ? (
+    <ConfirmDialog
+      open={open}
+      title={options.title}
+      description={options.description}
+      confirmLabel={options.confirmLabel}
+      destructive={options.destructive}
+      onConfirm={() => settle(true)}
+      onOpenChange={(next) => {
+        if (!next) settle(false);
+      }}
+    />
+  ) : null;
+
+  return { confirm, dialog };
 }

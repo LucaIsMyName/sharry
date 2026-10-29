@@ -25,6 +25,12 @@ Der Editor für Landingpages ist `apps/web/src/pages/page-editor.tsx`, seine Tei
 
 Der Editor enthält keinen Code pro Block. Wie man eine Komponente hinzufügt, steht unter [Blöcke im Seiten-Builder](/docs/developer/frontend/page-blocks).
 
+## Dialoge und Touch-Ziele
+
+Das Dashboard ruft nie `window.confirm`, `window.alert` oder `window.prompt` auf. Eine Ja-Nein-Frage nutzt `ConfirmDialog`, oder `useConfirm()` aus `components/ui/confirm-dialog.tsx`, wenn die Frage mitten in einem asynchronen Handler steht: `if (!(await confirm({ title, description, confirmLabel, destructive: true }))) return;`, wobei `{dialog}` einmal in der Seite gerendert wird. Eine Frage mit Eingabe, etwa die Linkadresse im Rich-Text-Editor, ist ein eigener `Dialog` mit einem `Field`, damit ein falscher Wert neben dem Feld steht statt in einem Hinweisfenster. `src/no-native-dialogs.test.ts` schlägt fehl, wenn ein Browserdialog zurückkommt.
+
+Auf einem Touchscreen ist jedes Steuerelement mindestens 44 mal 44 Pixel groß. Die Größen nutzen Tailwinds Variante `pointer-coarse:`, also behält eine Maus die kompakten Größen, und nichts verschiebt sich, während eine Seite offen ist. `Button` macht das schon für jede Größe. Ein eigener Symbolknopf, Chip, Farbfleck oder Werkzeugleistenknopf ergänzt `pointer-coarse:size-11` (oder `pointer-coarse:h-11`) selbst.
+
 ## Sprachen
 
 Das Dashboard ruft `t("English sentence")` aus `apps/web/src/i18n` auf. Der englische Satz ist der Schlüssel. Eine fehlende Übersetzung bleibt Englisch. Deutsche Zeichenketten liegen in `apps/web/src/i18n/de.ts`. Das angemeldete Konto speichert `users.locale`. Konto speichert sie mit `PATCH /api/auth/locale`. Die erlaubten Codes sind `locales` in `@sharry/shared`.

@@ -16,7 +16,7 @@ import { PageHeader } from "../components/page-header.tsx";
 import { RelativeTime } from "../components/relative-time.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
-import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
+import { ConfirmDialog, useConfirm } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { DataTable, loadTableView, saveTableView, type DataColumn, type TableView } from "../components/ui/data-table.tsx";
 import { RowSkeleton } from "../components/ui/skeleton.tsx";
@@ -45,6 +45,7 @@ const kindLabels = { image: "Image", video: "Video", document: "Document" } as c
 
 export function MediaPage() {
   const { t } = useI18n();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [params, setParams] = useSearchParams();
   const folder = params.get("folder") || "root";
   const folderId = folder === "root" ? null : folder;
@@ -279,7 +280,13 @@ export function MediaPage() {
   }
 
   async function removeFolder(item: FolderItem) {
-    if (!window.confirm(t("Delete this folder? Its files move up one level."))) return;
+    const confirmed = await confirm({
+      title: "Delete this folder?",
+      description: "Its files move up one level.",
+      confirmLabel: "Delete folder",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       await api(`/api/folders/${item.id}`, { method: "DELETE" });
       setReload((value) => value + 1);
@@ -290,7 +297,13 @@ export function MediaPage() {
 
   async function removeSelected() {
     if (selected.length === 0) return;
-    if (!window.confirm(t("Delete the selected rows? Folders move their contents up one level."))) return;
+    const confirmed = await confirm({
+      title: t("Delete {count} selected rows?", { count: selected.length }),
+      description: "Folders move their contents up one level.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const results = await Promise.allSettled(
       selected.map((id) =>
         id.startsWith("folder:")
@@ -717,6 +730,7 @@ export function MediaPage() {
         }}
         onConfirm={() => void removeMedia()}
       />
+      {confirmDialog}
     </section>
   );
 }

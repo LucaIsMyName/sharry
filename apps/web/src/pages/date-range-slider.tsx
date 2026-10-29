@@ -94,14 +94,14 @@ export function DateRangeSlider({
   const startPct = ((startIndex - minIndex) / span) * 100;
   const endPct = ((endIndex - minIndex) / span) * 100;
   const thumb =
-    "pointer-events-none absolute inset-x-0 top-1/2 h-4 w-full -translate-y-1/2 appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-primary [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary";
+    "pointer-events-none absolute inset-x-0 top-1/2 h-4 w-full -translate-y-1/2 appearance-none bg-transparent [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-primary [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary pointer-coarse:h-11 pointer-coarse:[&::-moz-range-thumb]:size-11 pointer-coarse:[&::-moz-range-thumb]:border-[10px] pointer-coarse:[&::-moz-range-thumb]:border-solid pointer-coarse:[&::-moz-range-thumb]:border-transparent pointer-coarse:[&::-moz-range-thumb]:bg-clip-padding pointer-coarse:[&::-webkit-slider-thumb]:size-11 pointer-coarse:[&::-webkit-slider-thumb]:border-[10px] pointer-coarse:[&::-webkit-slider-thumb]:border-solid pointer-coarse:[&::-webkit-slider-thumb]:border-transparent pointer-coarse:[&::-webkit-slider-thumb]:bg-clip-padding";
   return (
     <div className="grid gap-2">
       <div className="flex justify-between gap-3 text-sm">
         <span>{draft.start}</span>
         <span>{draft.end}</span>
       </div>
-      <div className="relative h-6">
+      <div className="relative h-6 pointer-coarse:h-11">
         <div className="absolute top-1/2 right-0 left-0 h-1 -translate-y-1/2 rounded-full bg-muted" />
         <div
           className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary"

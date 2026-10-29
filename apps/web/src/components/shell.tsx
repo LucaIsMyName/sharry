@@ -314,7 +314,7 @@ function AccountFoot({
           to="/account"
           className={({ isActive }) =>
             cn(
-              "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-7 md:text-xs",
+              "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-7 md:text-xs pointer-coarse:h-11 pointer-coarse:text-sm",
               cardBevel,
               isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
             )
