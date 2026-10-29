@@ -56,7 +56,7 @@ Pausieren setzt den Status auf deaktiviert. Ein pausierter Link leitet nicht wei
 
 Ein Link kann ein Passwort verlangen, bevor er weiterleitet. Besucher müssen dieses Passwort eingeben, bevor der Kurzlink weiterleitet. Das Passwort wird als Hash gespeichert. Lass das Feld bei einer späteren Bearbeitung leer, um das gespeicherte Passwort zu behalten. Leeren entfernt die Pflicht.
 
-Link speichern steht in der Seitenkopfzeile und noch einmal am Ende des Formulars. Beide Schaltflächen speichern Ziel, Slug, Titel, Beschreibung, Weiterleitungsdomain, Weiterleitungstyp, Ablauf, Passwort, UTM-Felder und Routen zusammen. Der QR-Code hat sein eigenes Speichern.
+Speichern, Kopieren und Löschen stehen unter dem Linktitel. Auf einem kleinen Bildschirm wandern diese drei Schaltflächen in die Leiste unter der oberen Leiste. Link speichern am Ende des Formulars speichert dasselbe Ziel, denselben Slug, Titel, dieselbe Beschreibung, Weiterleitungsdomain, denselben Weiterleitungstyp, Ablauf, dasselbe Passwort, dieselben UTM-Felder und Routen. Der QR-Code hat sein eigenes Speichern.
 
 ## Routen
 

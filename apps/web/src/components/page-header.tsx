@@ -43,11 +43,19 @@ export function PageHeader({
         <div className="min-w-0">
           <h1 className="font-heading text-2xl font-medium tracking-tight">{title}</h1>
           {lede ? <p className="sr-only mt-1.5 text-base text-muted-foreground md:text-sm">{lede}</p> : null}
-          {detail ? <div className="mt-1 text-sm text-muted-foreground">{detail}</div> : null}
+          {detail ? <div className="sr-only mt-1 text-sm text-muted-foreground">{detail}</div> : null}
         </div>
         {action && !inSubNav ? action : null}
       </div>
       {inSubNav ? <SubNav label={navLabel}>{action}</SubNav> : null}
     </>
   );
+}
+
+/** Keeps a row of buttons on the page, and moves that same row into the mobile sub-nav. */
+export function ActionBar({ label, children }: { label: string; children: ReactNode }) {
+  const slot = useContext(SubNavSlotContext);
+  const narrow = useNarrowScreen();
+  if (narrow && slot) return <SubNav label={label}>{children}</SubNav>;
+  return <div className="flex shrink-0 flex-wrap items-center gap-2.5">{children}</div>;
 }

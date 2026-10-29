@@ -50,7 +50,7 @@ import { useAiAvailable } from "../components/use-ai.ts";
 import { UtmSuggest } from "../components/utm-suggest.tsx";
 import { AppIcon } from "../components/app-icon.tsx";
 import { IconPicker } from "../components/icon-picker.tsx";
-import { PageHeader } from "../components/page-header.tsx";
+import { ActionBar, PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { choiceNote, correctionOptions, redirectOptions } from "../choices.ts";
@@ -1021,7 +1021,7 @@ export function LinkDetailPage() {
             ) : null}
           </>
         ) : null}
-        <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+        <ActionBar label={t("Link")}>
           {locked ? null : (
             <Button
               type="submit"
@@ -1059,7 +1059,7 @@ export function LinkDetailPage() {
               <Trash2 /> {t("Delete")}
             </Button>
           )}
-        </div>
+        </ActionBar>
       </div>
       {loading ? (
         <DetailSkeleton label="Loading link…" />

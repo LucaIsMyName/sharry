@@ -1,6 +1,6 @@
 # API-Schlüssel
 
-Administratorinnen und Administratoren legen benannte Schlüssel unter API-Schlüssel an. Jeder Schlüssel gehört zu einem Benutzer und kann das, was dieser Benutzer kann: dessen Links, Kampagnen, QR-Codes und Analysen. Ein Schlüssel für eine Administratorin oder einen Administrator kann auch Admin-Routen aufrufen.
+Administratorinnen und Administratoren legen benannte Schlüssel unter API-Schlüssel an. API-Schlüssel anlegen steht an der Überschrift. Auf einem kleinen Bildschirm steht die Schaltfläche in der Leiste unter der oberen Leiste. Sie öffnet einen Dialog für den Namen und den Benutzer. Jeder Schlüssel gehört zu einem Benutzer und kann das, was dieser Benutzer kann: dessen Links, Kampagnen, QR-Codes und Analysen. Ein Schlüssel für eine Administratorin oder einen Administrator kann auch Admin-Routen aufrufen.
 
 Das Geheimnis wird einmal gezeigt. Sein Präfix ist der Slug von `APP_NAME`: kleingeschrieben, Leerzeichen werden Bindestriche. Die Vorgabe `Sharry` nutzt `sharry_`. Sende es bei jeder Anfrage:
 

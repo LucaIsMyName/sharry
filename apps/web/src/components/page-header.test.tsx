@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { PageHeader } from "./page-header.tsx";
+import { ActionBar, PageHeader } from "./page-header.tsx";
 import { SubNavSlotContext } from "./sub-nav.tsx";
 
 const originalMatchMedia = window.matchMedia;
@@ -77,5 +77,41 @@ describe("page header actions", () => {
     const button = screen.getByRole("button", { name: "New link" });
     expect(heading.parentElement?.parentElement?.contains(button)).toBe(true);
     expect(screen.queryByRole("navigation")).toBeNull();
+  });
+});
+
+function Bar({ slot = true }: { slot?: boolean }) {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
+  const bar = (
+    <ActionBar label="Link">
+      <button type="button">Save</button>
+      <button type="button">Copy</button>
+    </ActionBar>
+  );
+  if (!slot) return bar;
+  return (
+    <>
+      <div data-testid="slot" ref={setElement} />
+      <SubNavSlotContext.Provider value={element}>{bar}</SubNavSlotContext.Provider>
+    </>
+  );
+}
+
+describe("action bar", () => {
+  it("keeps the buttons on the page on a wide screen", () => {
+    setNarrow(false);
+    render(<Bar />);
+    const save = screen.getByRole("button", { name: "Save" });
+    expect(save.parentElement?.className).toContain("flex-wrap");
+    expect(screen.queryByRole("navigation")).toBeNull();
+  });
+
+  it("moves the same buttons into the mobile sub-nav", () => {
+    setNarrow(true);
+    render(<Bar />);
+    const nav = screen.getByRole("navigation", { name: "Link" });
+    expect(nav.contains(screen.getByRole("button", { name: "Save" }))).toBe(true);
+    expect(nav.contains(screen.getByRole("button", { name: "Copy" }))).toBe(true);
+    expect(screen.getByTestId("slot").contains(nav)).toBe(true);
   });
 });

@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { createSessionUser, getContext, useTestApp } from './helpers.ts'
-import { memoryFromProc } from '../src/system.ts'
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { memoryFromProc, measureApp, nodeStoragePaths, storageParts } from '../src/system.ts'
 
 const installed = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')) as {
   name: string
@@ -44,6 +47,20 @@ describe('server snapshot', () => {
     expect(body.storage.availableBytes).toBeGreaterThanOrEqual(0)
     expect(body.storage.usedBytes + body.storage.availableBytes).toBeLessThanOrEqual(body.storage.totalBytes)
     expect(body.storage.databaseBytes).toBeGreaterThan(0)
+    expect(body.storage.parts.map((part: { id: string }) => part.id)).toEqual([
+      'operatingSystem',
+      'node',
+      'code',
+      'packages',
+      'media',
+      'database',
+    ])
+    const named = body.storage.parts
+      .filter((part: { id: string }) => part.id !== 'operatingSystem')
+      .reduce((sum: number, part: { bytes: number }) => sum + part.bytes, 0)
+    const operatingSystem = body.storage.parts.find((part: { id: string }) => part.id === 'operatingSystem').bytes
+    expect(operatingSystem).toBe(Math.max(0, body.storage.usedBytes - named))
+    expect(body.storage.parts.find((part: { id: string }) => part.id === 'database').bytes).toBe(body.storage.databaseBytes)
 
     expect(body.os.platform).toBeTruthy()
     expect(body.os.type).toBeTruthy()
@@ -61,5 +78,52 @@ describe('server snapshot', () => {
     })
     expect(body.runtime.postgresVersion).toMatch(/PostgreSQL/)
     expect(Number.isNaN(Date.parse(body.collectedAt))).toBe(false)
+  })
+})
+
+describe('storage parts', () => {
+  it('gives the rest of the disk to the operating system and never goes below zero', () => {
+    expect(
+      storageParts({
+        usedBytes: 100,
+        nodeBytes: 10,
+        codeBytes: 20,
+        packageBytes: 30,
+        mediaBytes: 5,
+        databaseBytes: 15,
+      }),
+    ).toEqual([
+      { id: 'operatingSystem', bytes: 20 },
+      { id: 'node', bytes: 10 },
+      { id: 'code', bytes: 20 },
+      { id: 'packages', bytes: 30 },
+      { id: 'media', bytes: 5 },
+      { id: 'database', bytes: 15 },
+    ])
+    expect(storageParts({ usedBytes: 10, nodeBytes: 0, codeBytes: 0, packageBytes: 0, mediaBytes: 0, databaseBytes: 50 })[0]).toEqual({
+      id: 'operatingSystem',
+      bytes: 0,
+    })
+  })
+
+  it('treats a versioned Node install as one directory and a system Node as the binary', () => {
+    const version = nodeStoragePaths('/Users/ada/.nvm/versions/node/v22.23.4/bin/node')
+    expect(version).toEqual([path.normalize('/Users/ada/.nvm/versions/node/v22.23.4')])
+    const system = nodeStoragePaths('/usr/bin/node')
+    expect(system[0]).toBe(path.normalize('/usr/bin/node'))
+    expect(system[1]).toBe(path.normalize('/usr/lib/node_modules/npm'))
+  })
+
+  it('counts source as code, node_modules as packages, and leaves media out of both', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'sharry-disk-'))
+    await mkdir(path.join(root, 'src'), { recursive: true })
+    await writeFile(path.join(root, 'src', 'app.txt'), 'code')
+    await mkdir(path.join(root, 'node_modules', 'pkg'), { recursive: true })
+    await writeFile(path.join(root, 'node_modules', 'pkg', 'index.js'), 'package')
+    await mkdir(path.join(root, 'data', 'media'), { recursive: true })
+    await writeFile(path.join(root, 'data', 'media', 'photo.bin'), 'media-file')
+    const measured = await measureApp(root, [path.join(root, 'data', 'media')])
+    expect(measured.codeBytes).toBe(Buffer.byteLength('code'))
+    expect(measured.packageBytes).toBeGreaterThanOrEqual(Buffer.byteLength('package'))
   })
 })

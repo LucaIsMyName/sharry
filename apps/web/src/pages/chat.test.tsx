@@ -331,6 +331,19 @@ describe("chat conversation", () => {
     expect(screen.queryByRole("button", { name: "Export to PDF" })).toBeNull();
   });
 
+  it("keeps messages and the message box in one centered column", () => {
+    renderConversation(true, [
+      { id: "u1", role: "user", content: "Hello from me", proposal: null },
+      { id: "a1", role: "assistant", content: "Hello back", proposal: null },
+    ]);
+    const column = screen.getByText("Hello from me").closest(".max-w-3xl");
+    expect(column?.className).toContain("mx-auto");
+    expect(column?.contains(screen.getByText("Hello back"))).toBe(true);
+    const box = screen.getByRole("textbox", { name: "Message" });
+    expect(box.parentElement?.className).toContain("max-w-3xl");
+    expect(box.parentElement?.className).toContain("mx-auto");
+  });
+
   it("shows a hint under each starter and a translated placeholder", () => {
     renderConversation(true);
     expect(screen.getByText("Destination, optional title, slug, UTM, and a QR code.")).toBeTruthy();

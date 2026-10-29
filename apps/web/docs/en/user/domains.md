@@ -15,7 +15,7 @@ flowchart TD
   Cert --> Menu[Host appears in the redirect menu]
 ```
 
-Enter a hostname such as `go.brand.com`. The name has no scheme, port, or path. Saving opens a dialog with the two DNS records.
+Add domain sits on the Domains heading. On a small screen it is in the bar under the top bar. It opens a dialog. Enter a hostname such as `go.brand.com`. The name has no scheme, port, or path. Saving closes that dialog and opens another with the two DNS records.
 
 1. Add a TXT record. The dialog shows the name and the token. The name is `_<slug>-challenge.go.brand.com`, where the slug comes from `APP_NAME`. The default `Sharry` uses `_sharry-challenge.go.brand.com`. Copy sits next to each value.
 2. Add an A record for that hostname pointing at the IPv4 address in the dialog. That address is this server's public IPv4 address. Copy sits next to the address.

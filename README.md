@@ -335,7 +335,7 @@ A password-reset email replaces any unused link for that account. The token expi
 
 ### API keys
 
-Administrators create a named key for a chosen user from API keys. The secret is shown once and is stored only as a hash. Send it as `Authorization: Bearer sharry_...` to `https://DOMAIN/api/...`. The prefix is the slug of `APP_NAME`.
+Administrators create a named key for a chosen user from a dialog on API keys. The secret is shown once and is stored only as a hash. Send it as `Authorization: Bearer sharry_...` to `https://DOMAIN/api/...`. The prefix is the slug of `APP_NAME`.
 
 The key can do what that user can. A standard user’s key sees only that user’s links, campaigns, QR codes, and analytics. An administrator’s key can also call admin routes. Sign-in, password changes, and two-factor routes under `/api/auth` accept only the session cookie. The dashboard client never sends a bearer token. It uses `credentials: 'include'`.
 

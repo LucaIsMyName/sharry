@@ -11,10 +11,24 @@ import { useI18n } from "../i18n/index.tsx";
 
 type Usage = { totalBytes: number; availableBytes: number; usedBytes: number };
 
+type StoragePart = {
+  id: "operatingSystem" | "node" | "code" | "packages" | "media" | "database";
+  bytes: number;
+};
+
+const storagePartLabels: Record<StoragePart["id"], string> = {
+  operatingSystem: "Operating system",
+  node: "Node",
+  code: "Code",
+  packages: "Packages",
+  media: "Media",
+  database: "Database",
+};
+
 type SystemSnapshot = {
   collectedAt: string;
   memory: Usage & { processRssBytes: number };
-  storage: Usage & { databaseBytes: number };
+  storage: Usage & { databaseBytes: number; parts: StoragePart[] };
   os: {
     platform: string;
     type: string;
@@ -105,28 +119,6 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
     .join(" · ");
   return (
     <>
-      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-        <Summary
-          label={t("RAM used")}
-          bytes={snapshot.memory.usedBytes}
-          total={snapshot.memory.totalBytes}
-        />
-        <Summary
-          label={t("RAM available")}
-          bytes={snapshot.memory.availableBytes}
-          total={snapshot.memory.totalBytes}
-        />
-        <Summary
-          label={t("Storage used")}
-          bytes={snapshot.storage.usedBytes}
-          total={snapshot.storage.totalBytes}
-        />
-        <Summary
-          label={t("Storage available")}
-          bytes={snapshot.storage.availableBytes}
-          total={snapshot.storage.totalBytes}
-        />
-      </div>
       <Section>
           <h2 className="text-lg font-medium">{t("Memory")}</h2>
           <Meter
@@ -153,9 +145,20 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
               [t("Total"), formatBytes(snapshot.storage.totalBytes)],
               [t("Used"), formatBytes(snapshot.storage.usedBytes)],
               [t("Available"), formatBytes(snapshot.storage.availableBytes)],
-              [t("Database"), formatBytes(snapshot.storage.databaseBytes)],
             ]}
           />
+          <h3 className="text-base font-medium">{t("What uses this disk")}</h3>
+          <ul className="grid gap-3">
+            {snapshot.storage.parts.filter((part) => part.id in storagePartLabels).map((part) => (
+              <li key={part.id} className="grid gap-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">{t(storagePartLabels[part.id])}</span>
+                  <span className="text-sm tabular-nums">{formatBytes(part.bytes)}</span>
+                </div>
+                <Meter used={part.bytes} total={snapshot.storage.usedBytes} />
+              </li>
+            ))}
+          </ul>
       </Section>
       <Section>
           <h2 className="text-lg font-medium">{t("Runtime")}</h2>
@@ -188,30 +191,6 @@ function SnapshotView({ snapshot }: { snapshot: SystemSnapshot }) {
   );
 }
 
-function Summary({
-  label,
-  bytes,
-  total,
-}: {
-  label: string;
-  bytes: number;
-  total: number;
-}) {
-  const { t } = useI18n();
-  return (
-    <div>
-        <span className="text-sm text-muted-foreground">{t(label)}</span>
-        <b className="mt-1 block text-3xl tabular-nums">{formatBytes(bytes)}</b>
-        <span className="text-sm text-muted-foreground">
-          {t("{percent} of {total}", {
-            percent: percent(bytes, total),
-            total: formatBytes(total),
-          })}
-        </span>
-    </div>
-  );
-}
-
 function Meter({ used, total }: { used: number; total: number }) {
   const width = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
   return (
@@ -235,11 +214,6 @@ function Facts({ rows }: { rows: [string, string][] }) {
       ))}
     </dl>
   );
-}
-
-function percent(used: number, total: number): string {
-  if (total <= 0) return "0%";
-  return `${Math.round((used / total) * 100)}%`;
 }
 
 function formatBytes(bytes: number): string {

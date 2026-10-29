@@ -15,7 +15,7 @@ flowchart TD
   Cert --> Menu[Host erscheint im Weiterleitungsmenü]
 ```
 
-Gib einen Hostnamen wie `go.brand.com` ein. Der Name hat kein Schema, keinen Port und keinen Pfad. Das Speichern öffnet einen Dialog mit den zwei DNS-Einträgen.
+Domain hinzufügen steht an der Überschrift Domains. Auf einem kleinen Bildschirm steht die Schaltfläche in der Leiste unter der oberen Leiste. Sie öffnet einen Dialog. Gib einen Hostnamen wie `go.brand.com` ein. Der Name hat kein Schema, keinen Port und keinen Pfad. Das Speichern schließt diesen Dialog und öffnet einen weiteren mit den zwei DNS-Einträgen.
 
 1. Füge einen TXT-Eintrag hinzu. Der Dialog zeigt den Namen und den Token. Der Name ist `_<slug>-challenge.go.brand.com`, und der Slug kommt aus `APP_NAME`. Die Vorgabe `Sharry` nutzt `_sharry-challenge.go.brand.com`. Kopieren steht neben jedem Wert.
 2. Füge einen A-Eintrag für diesen Hostnamen hinzu, der auf die IPv4-Adresse im Dialog zeigt. Diese Adresse ist die öffentliche IPv4-Adresse dieses Servers. Kopieren steht neben der Adresse.

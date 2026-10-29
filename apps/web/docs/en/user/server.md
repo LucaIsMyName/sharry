@@ -10,7 +10,7 @@ Total, used, and available RAM are the host figures. On Linux, available memory 
 
 ## Storage
 
-Used and available storage are the disk that contains the application directory. Database size is the PostgreSQL database Sharry is connected to. It grows with links, clicks, and saved settings, and it is already included in the disk figures.
+Used and available storage are the disk that contains the application directory. Under those totals, What uses this disk lists the operating system, Node, the application code, installed packages, media files, and this database. Media files are the library, account photos, and older QR images. The operating system line is everything else on that disk, including Ubuntu and other files that are not part of Sharry. The database line is the PostgreSQL database Sharry is connected to. It grows with links, clicks, and saved settings, and it is already included in the disk total, so it is not counted again inside the operating system line.
 
 ## Runtime
 

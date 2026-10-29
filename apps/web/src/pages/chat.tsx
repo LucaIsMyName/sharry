@@ -276,11 +276,9 @@ export function ChatPage() {
     <>
     <PageTitle title={current && current.title !== "New chat" ? current.title : heading} literal={Boolean(current && current.title !== "New chat")} />
     <SubNav label={t("Chats")}>
-      <Button variant="ghost" size="sm" type="button" onClick={openNewChat}>
-        <MessageSquarePlus /> {t("New chat")}
-      </Button>
+      
       <Sheet open={listOpen} onOpenChange={setListOpen}>
-        <SheetTrigger render={<Button variant="ghost" size="sm" type="button" />}>
+        <SheetTrigger render={<Button variant="secondary" size="sm" type="button" />}>
           <Menu /> {t("Chats")}
         </SheetTrigger>
         <SheetContent
@@ -298,6 +296,9 @@ export function ChatPage() {
           />
         </SheetContent>
       </Sheet>
+      <Button variant="default" size="sm" type="button" onClick={openNewChat}>
+        <MessageSquarePlus /> {t("New chat")}
+      </Button>
     </SubNav>
     <section className="grid h-full min-h-0 flex-1 md:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="hidden h-full min-h-0 flex-col border-r border-border px-4 py-4 md:flex">
@@ -567,7 +568,7 @@ export function ChatConversation({
           aria-relevant="additions text"
           onScroll={onScroll}
         >
-          <div className="grid content-start gap-4 pb-4">
+          <div className="mx-auto grid w-full max-w-3xl content-start gap-4 pb-4">
             <div className="min-w-0">
               {renaming ? (
                 <input
@@ -651,7 +652,7 @@ export function ChatConversation({
                   <article key={message.id} className={cn("grid", message.role === "user" && "justify-items-end")}>
                     {message.role === "user" ? (
                       <div className="grid justify-items-end gap-2">
-                        <div className="max-w-[40rem] rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">
+                        <div className="max-w-full rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">
                           <p className="whitespace-pre-wrap">{message.content}</p>
                         </div>
                         {failedId === message.id ? (
@@ -690,10 +691,8 @@ export function ChatConversation({
           </Button>
         ) : null}
       </div>
-      <form
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 border-t border-border bg-background pt-3"
-        onSubmit={onSubmit}
-      >
+      <form className="border-t border-border bg-background pt-3" onSubmit={onSubmit}>
+        <div className="mx-auto grid w-full max-w-3xl grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
         <Textarea
           ref={box}
           rows={1}
@@ -714,6 +713,7 @@ export function ChatConversation({
             {t("Send")}
           </Button>
         )}
+        </div>
       </form>
     </div>
   );
@@ -740,7 +740,7 @@ function AssistantReply({
   if (!message.content && !hasBlocks && !message.proposal) return null;
   const pending = message.proposal && pendingProposal?.id === message.proposal.id ? pendingProposal.action : null;
   return (
-    <div className="grid w-full max-w-[40rem] gap-3 text-sm">
+    <div className="grid w-full max-w-full gap-3 text-sm">
       {message.content ? <AssistantText text={message.content} /> : null}
       {hasBlocks ? (
         <ChatBlocks

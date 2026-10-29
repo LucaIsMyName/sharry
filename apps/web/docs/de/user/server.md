@@ -10,7 +10,7 @@ Gesamt, belegt und verfügbar sind die Werte des Hosts. Unter Linux enthält der
 
 ## Speicher
 
-Belegter und verfügbarer Speicher sind die Festplatte, die das Anwendungsverzeichnis enthält. Die Datenbankgröße ist die PostgreSQL-Datenbank, mit der Sharry verbunden ist. Sie wächst mit Links, Klicks und gespeicherten Einstellungen und ist in den Festplattenwerten schon enthalten.
+Belegter und verfügbarer Speicher sind die Festplatte, die das Anwendungsverzeichnis enthält. Unter diesen Summen listet Was diese Festplatte belegt das Betriebssystem, Node, den Anwendungscode, installierte Pakete, Mediendateien und diese Datenbank. Mediendateien sind die Mediathek, Kontofotos und ältere QR-Bilder. Die Zeile Betriebssystem ist alles andere auf dieser Festplatte, einschließlich Ubuntu und Dateien, die nicht zu Sharry gehören. Die Zeile Datenbank ist die PostgreSQL-Datenbank, mit der Sharry verbunden ist. Sie wächst mit Links, Klicks und gespeicherten Einstellungen und ist in der Festplattensumme schon enthalten, deshalb wird sie in der Betriebssystemzeile nicht noch einmal gezählt.
 
 ## Laufzeit
 

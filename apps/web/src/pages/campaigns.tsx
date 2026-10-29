@@ -10,7 +10,7 @@ import { FolderMoveDialog } from "../components/folder-move-dialog.tsx";
 import { IconPicker } from "../components/icon-picker.tsx";
 import { TagBadge, TagField, type EditorTag } from "../components/tag-field.tsx";
 import { EmptyState } from "../components/empty-state.tsx";
-import { PageHeader } from "../components/page-header.tsx";
+import { ActionBar, PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { useAiAvailable } from "../components/use-ai.ts";
@@ -832,7 +832,7 @@ export function CampaignDetailPage() {
             "A variant is the same short link with extra UTM values. Blank fields keep the UTM values saved on the link.",
           )}
         </p>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <ActionBar label={t("Campaign")}>
           <Button
             type="submit"
             size="sm"
@@ -849,7 +849,7 @@ export function CampaignDetailPage() {
           >
             <Trash2 /> {t("Delete")}
           </Button>
-        </div>
+        </ActionBar>
       </div>
       {loading ? (
         <DetailSkeleton label="Loading campaign…" />

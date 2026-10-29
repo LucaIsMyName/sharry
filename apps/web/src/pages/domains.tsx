@@ -14,14 +14,15 @@ import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { DataTable } from "../components/ui/data-table.tsx";
-import { Section } from "../components/ui/section.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog.tsx";
@@ -53,6 +54,7 @@ export function AdminDomainsPage() {
   const focus = params.get("focus");
   const [domains, setDomains] = useState<RedirectDomain[]>([]);
   const [serverAddresses, setServerAddresses] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
   const [hostname, setHostname] = useState("");
   const [setup, setSetup] = useState<RedirectDomain | null>(null);
   const [deleteFor, setDeleteFor] = useState<RedirectDomain | null>(null);
@@ -86,6 +88,7 @@ export function AdminDomainsPage() {
         body: JSON.stringify({ hostname }),
       });
       setHostname("");
+      setAdding(false);
       setServerAddresses(created.serverAddresses);
       setSetup(created.domain);
       await load();
@@ -94,6 +97,11 @@ export function AdminDomainsPage() {
     } finally {
       setPending(false);
     }
+  }
+
+  function closeAdd() {
+    setAdding(false);
+    setHostname("");
   }
 
   async function verify(domain: RedirectDomain) {
@@ -127,36 +135,22 @@ export function AdminDomainsPage() {
 
   return (
     <section className="grid gap-4">
-      <div>
-        <h1 className="font-heading text-2xl font-medium tracking-tight">
-          {t("Domains")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Add a hostname, publish the DNS records, then verify it. People can choose a verified domain when they create a link. The deployment domain stays the default.",
-          )}
-        </p>
-      </div>
-      <Section title={t("Add domain")}>
-          <form className="grid gap-3" onSubmit={(event) => void create(event)}>
-            <Field label="Domain">
-              <Input
-                value={hostname}
-                onChange={(event) => setHostname(event.target.value)}
-                placeholder="go.brand.com"
-                required
-              />
-            </Field>
-            <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? t("Adding…") : t("Add domain")}
-            </Button>
-          </form>
-      </Section>
+      <PageHeader
+        title={t("Domains")}
+        detail={t(
+          "Add a hostname, publish the DNS records, then verify it. People can choose a verified domain when they create a link. The deployment domain stays the default.",
+        )}
+        action={
+          <Button type="button" size="sm" onClick={() => setAdding(true)}>
+            <Plus /> {t("Add domain")}
+          </Button>
+        }
+      />
       {loading ? (
         <RowSkeleton label="Loading domains…" />
       ) : domains.length === 0 ? (
         <EmptyState>
-          {t("No redirect domains yet. Add one in the form above.")}
+          {t("No redirect domains yet.")}
         </EmptyState>
       ) : (
         <DataTable
@@ -230,6 +224,40 @@ export function AdminDomainsPage() {
           })}
         />
       )}
+      <Dialog
+        open={adding}
+        onOpenChange={(open) => {
+          if (!open) closeAdd();
+        }}
+      >
+        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
+          <form className="grid gap-4" onSubmit={(event) => void create(event)}>
+            <DialogHeader>
+              <DialogTitle className="font-heading text-2xl">{t("Add domain")}</DialogTitle>
+              <DialogDescription>
+                {t("Enter a hostname such as go.brand.com. It has no scheme, port, or path.")}
+              </DialogDescription>
+            </DialogHeader>
+            <Field label="Domain">
+              <Input
+                value={hostname}
+                onChange={(event) => setHostname(event.target.value)}
+                placeholder="go.brand.com"
+                required
+                autoFocus
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeAdd}>
+                {t("Cancel")}
+              </Button>
+              <Button type="submit" disabled={pending}>
+                <Plus /> {pending ? t("Adding…") : t("Add domain")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(setup)}
         onOpenChange={(open) => {

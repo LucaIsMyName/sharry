@@ -6,8 +6,8 @@ import { RelativeTime } from "../components/relative-time.tsx";
 import { copyText } from "../components/ui/copy.ts";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
+import { PageHeader } from "../components/page-header.tsx";
 import { DataTable } from "../components/ui/data-table.tsx";
-import { Section } from "../components/ui/section.tsx";
 import { RowSkeleton } from "../components/ui/skeleton.tsx";
 import { Select } from "../components/ui/choice-select.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
@@ -52,6 +52,7 @@ export function ApiKeysPage() {
   const focus = params.get("focus");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [keys, setKeys] = useState<ApiKeyRow[]>([]);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [userId, setUserId] = useState("");
   const [pending, setPending] = useState(false);
@@ -94,6 +95,7 @@ export function ApiKeysPage() {
         body: JSON.stringify({ name, userId }),
       });
       setName("");
+      setCreating(false);
       setCopied(false);
       setCreated(key);
       await load();
@@ -115,6 +117,11 @@ export function ApiKeysPage() {
     }
   }
 
+  function closeCreate() {
+    setCreating(false);
+    setName("");
+  }
+
   async function copySecret() {
     if (!created) return;
     try {
@@ -127,45 +134,17 @@ export function ApiKeysPage() {
 
   return (
     <section className="grid gap-4">
-      <div>
-        <h1 className="font-heading text-2xl font-medium tracking-tight">
-          {t("API keys")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "A key can do what its user can. Send it as Authorization: Bearer. Account sign-in stays on the session cookie.",
-          )}
-        </p>
-      </div>
-      <Section title={t("New key")}>
-          <form className="grid gap-3" onSubmit={(event) => void create(event)}>
-            <Field label="Name">
-              <Input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                maxLength={80}
-                required
-              />
-            </Field>
-            <Field label="User">
-              <Select
-                value={userId}
-                options={accounts.map((account) => ({
-                  value: account.id,
-                  label: t("{username} ({role})", {
-                    username: account.username,
-                    role: t(account.role === "admin" ? "admin" : "user"),
-                  }),
-                }))}
-                onValueChange={setUserId}
-                placeholder="Choose a user"
-              />
-            </Field>
-            <Button type="submit" disabled={!userId || pending}>
-              <Plus /> {pending ? t("Creating…") : t("Create key")}
-            </Button>
-          </form>
-      </Section>
+      <PageHeader
+        title={t("API keys")}
+        detail={t(
+          "A key can do what its user can. Send it as Authorization: Bearer. Account sign-in stays on the session cookie.",
+        )}
+        action={
+          <Button type="button" size="sm" onClick={() => setCreating(true)}>
+            <Plus /> {t("Create API key")}
+          </Button>
+        }
+      />
       {loading ? (
         <RowSkeleton label="Loading API keys…" />
       ) : (
@@ -234,6 +213,54 @@ export function ApiKeysPage() {
         })}
       />
       )}
+      <Dialog
+        open={creating}
+        onOpenChange={(open) => {
+          if (!open) closeCreate();
+        }}
+      >
+        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-md">
+          <form className="grid gap-4" onSubmit={(event) => void create(event)}>
+            <DialogHeader>
+              <DialogTitle className="font-heading text-2xl">{t("Create API key")}</DialogTitle>
+              <DialogDescription>
+                {t("A key can do what its user can. The secret is shown once.")}
+              </DialogDescription>
+            </DialogHeader>
+            <Field label="Name">
+              <Input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                maxLength={80}
+                required
+                autoFocus
+              />
+            </Field>
+            <Field label="User">
+              <Select
+                value={userId}
+                options={accounts.map((account) => ({
+                  value: account.id,
+                  label: t("{username} ({role})", {
+                    username: account.username,
+                    role: t(account.role === "admin" ? "admin" : "user"),
+                  }),
+                }))}
+                onValueChange={setUserId}
+                placeholder="Choose a user"
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeCreate}>
+                {t("Cancel")}
+              </Button>
+              <Button type="submit" disabled={!userId || pending}>
+                <Plus /> {pending ? t("Creating…") : t("Create key")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(created)}
         onOpenChange={(open) => {
