@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { aiMessages, aiUsageEvents, appSettings, clickEvents, links, qrCodes, trackingCampaigns, trackingConfigs } from '@sharry/database'
+import { aiChats, aiMessages, aiUsageEvents, appSettings, clickEvents, links, qrCodes, trackingCampaigns, trackingConfigs } from '@sharry/database'
 import type { AiProposal, ChatBlock } from '@sharry/shared'
 import { pageIo } from '../src/ai/page-slug.ts'
 import { SHARRY_ONLY_RULE } from '../src/ai/prompt.ts'
@@ -81,6 +81,40 @@ describe('AI settings and chat', () => {
     const saved = await saveAi(admin.cookie, { aiProvider: 'openai_compatible', aiBaseUrl: 'http://127.0.0.1:11434/v1' })
     expect(saved.statusCode).toBe(200)
     expect(saved.json().aiBaseUrl).toBe('http://127.0.0.1:11434/v1')
+  })
+
+  it('renames a chat and refuses another person', async () => {
+    const ctx = await getContext()
+    const user = await createSessionUser(ctx, { username: 'ada', email: 'ada@example.com' })
+    const created = await ctx.app.inject({ method: 'POST', url: '/api/chats', headers: { cookie: user.cookie } })
+    const chatId = created.json().id as string
+    const renamed = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/chats/${chatId}`,
+      headers: { cookie: user.cookie },
+      payload: { title: '  Spring launch  ' },
+    })
+    expect(renamed.statusCode).toBe(200)
+    expect(renamed.json().title).toBe('Spring launch')
+    const [stored] = await ctx.db.select().from(aiChats).where(eq(aiChats.id, chatId))
+    expect(stored?.title).toBe('Spring launch')
+    const blank = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/chats/${chatId}`,
+      headers: { cookie: user.cookie },
+      payload: { title: '   ' },
+    })
+    expect(blank.statusCode).toBe(400)
+    const other = await createSessionUser(ctx, { username: 'bea', email: 'bea@example.com' })
+    const hidden = await ctx.app.inject({
+      method: 'PATCH',
+      url: `/api/chats/${chatId}`,
+      headers: { cookie: other.cookie },
+      payload: { title: 'Taken' },
+    })
+    expect(hidden.statusCode).toBe(404)
+    const [still] = await ctx.db.select().from(aiChats).where(eq(aiChats.id, chatId))
+    expect(still?.title).toBe('Spring launch')
   })
 
   it('keeps old chats readable and blocks new replies when AI is off', async () => {

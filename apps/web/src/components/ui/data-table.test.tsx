@@ -56,6 +56,17 @@ function Harness() {
 }
 
 describe("DataTable", () => {
+  it("keeps columns readable on a narrow screen by giving them a minimum width", () => {
+    render(<Harness />);
+    const table = document.querySelector("[data-slot=table]") as HTMLElement;
+    expect(table.className).toContain("max-md:min-w-full");
+    expect(table.className).toContain("max-md:w-max");
+    const header = screen.getByRole("button", { name: "Name" }).closest("th") as HTMLElement;
+    expect(header.className).toContain("max-md:min-w-36");
+    const cell = screen.getByRole("cell", { name: "Alpha" });
+    expect(cell.className).toContain("max-md:min-w-36");
+  });
+
   it("sorts, filters, and restores that view from local storage", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "Name" }));

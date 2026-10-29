@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HelmetProvider } from "react-helmet-async";
 import { createMemoryRouter, RouterProvider } from "react-router";
@@ -89,7 +89,19 @@ describe("Docs markdown tables", () => {
       </HelmetProvider>,
     );
     const code = await screen.findByText("cp .env.production.example .env.production");
-    expect(code.closest("pre")).toBeTruthy();
+    const pre = code.closest("pre");
+    expect(pre).toBeTruthy();
+    const writeText = vi.fn(async () => undefined);
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const copy = pre?.parentElement?.querySelector("button");
+    expect(copy?.getAttribute("aria-label")).toBe("Copy code");
+    expect(copy?.className).toContain("absolute");
+    expect(copy?.className).toContain("right-1.5");
+    fireEvent.click(copy as HTMLButtonElement);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("cp .env.production.example .env.production"));
+    expect(copy?.getAttribute("aria-label")).toBe("Copied");
+    vi.restoreAllMocks();
   });
 });
 

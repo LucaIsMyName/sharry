@@ -10,7 +10,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-base md:text-sm", className)}
+        className={cn("w-full caption-bottom text-base max-md:w-max max-md:min-w-full md:text-sm", className)}
         {...props}
       />
     </div>
@@ -286,7 +286,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground max-md:min-w-36 [&:has([role=checkbox])]:max-md:min-w-10 [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -314,7 +314,8 @@ function TableCell({
       data-slot="table-cell"
       title={title ?? text}
       className={cn(
-        "max-w-64 truncate p-2 align-middle [&:has([role=checkbox])]:pr-0",
+        "max-w-64 truncate p-2 align-middle max-md:min-w-36 [&:has([role=checkbox])]:max-md:min-w-10 [&:has([role=checkbox])]:pr-0",
+        "data-row-action:max-md:min-w-max has-[button:not([data-row-hit])]:max-md:min-w-max has-[[data-slot=button]]:max-md:min-w-max has-[[data-slot=select-trigger]]:max-md:min-w-max",
         "not-data-row-action:not-has-[button:not([data-row-hit])]:not-has-[[data-slot=button]]:not-has-[[data-slot=button-group]]:not-has-[[data-slot=select-trigger]]:[&>*:not([data-row-hit])]:truncate",
         "has-[button:not([data-row-hit])]:max-w-none has-[button:not([data-row-hit])]:overflow-visible has-[button:not([data-row-hit])]:text-clip",
         "has-[[data-slot=button]]:max-w-none has-[[data-slot=button]]:overflow-visible has-[[data-slot=button]]:text-clip",

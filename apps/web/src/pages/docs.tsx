@@ -1,6 +1,6 @@
 import { createContext, isValidElement, useContext, useRef, useState, type ReactNode } from "react";
 import { appSlug } from "@sharry/shared";
-import { Menu } from "lucide-react";
+import { Check, Copy, Menu } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { useParams } from "react-router";
 import remarkGfm from "remark-gfm";
@@ -9,6 +9,8 @@ import apiDocs, { type ApiDoc } from "virtual:api-docs";
 import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
 import { Button } from "../components/ui/button.tsx";
+import { copyText } from "../components/ui/copy.ts";
+import { toast } from "../components/ui/toast.tsx";
 import { DataTable, type DataColumn } from "../components/ui/data-table.tsx";
 import { SubNav } from "../components/sub-nav.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
@@ -318,7 +320,7 @@ const markdownComponents: Components = {
   pre: ({ children }) => {
     const chart = mermaidSource(children);
     if (chart !== null) return <MermaidBlock source={chart} />;
-    return <pre className={docsCodeBlockClass}>{children}</pre>;
+    return <DocsCodeBlock>{children}</DocsCodeBlock>;
   },
   blockquote: ({ children }) => (
     <blockquote className="mt-3 border-l-2 border-border pl-3 text-base text-muted-foreground md:text-sm">
@@ -339,6 +341,40 @@ function mermaidSource(children: ReactNode): string | null {
   if (!isValidElement<{ className?: string; children?: ReactNode }>(node)) return null;
   if (!node.props.className?.includes("language-mermaid")) return null;
   return String(node.props.children ?? "").replace(/\n$/, "");
+}
+
+function nodeText(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return nodeText(node.props.children);
+  return "";
+}
+
+function DocsCodeBlock({ children }: { children?: ReactNode }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative mt-3">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="absolute top-1.5 right-1.5 z-10 text-[#f1f1f1] hover:bg-white/10 hover:text-white"
+        aria-label={copied ? t("Copied") : t("Copy code")}
+        onClick={() => {
+          void copyText(nodeText(children).replace(/\n$/, ""))
+            .then(() => {
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            })
+            .catch(() => toast.error(t("Could not copy the code")));
+        }}
+      >
+        {copied ? <Check /> : <Copy />}
+      </Button>
+      <pre className={cn(docsCodeBlockClass, "mt-0 pr-12")}>{children}</pre>
+    </div>
+  );
 }
 
 function CodeBlock({

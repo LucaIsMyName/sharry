@@ -6,6 +6,7 @@ import {
   aiBaseUrlError,
   aiConnectionTestSchema,
   aiIsAvailable,
+  renameChatSchema,
   sendChatMessageSchema,
   suggestLinksSchema,
   suggestRoutesSchema,
@@ -252,6 +253,29 @@ export function registerAiRoutes(app: FastifyInstance): void {
     const chat = await ownChat(app.db, actor, chatId(request.params))
     const messages = await app.db.select().from(aiMessages).where(eq(aiMessages.chatId, chat.id)).orderBy(asc(aiMessages.createdAt))
     return { chat: serializeChat(chat), messages: messages.map(serializeMessage) }
+  })
+
+  /**
+   * Rename one of the signed-in user's chats. A later message does not replace a name you chose.
+   * @route PATCH /api/chats/:id
+   * @tag AI
+   * @auth api-key or session
+   * @param id string Chat id
+   * @body JSON { title }
+   * @response 200 Chat
+   * @response 404 Chat not found
+   */
+  app.patch('/api/chats/:id', async (request) => {
+    const actor = await requireUser(app, request, ['full'])
+    const body = parseBody(renameChatSchema, request.body)
+    const chat = await ownChat(app.db, actor, chatId(request.params))
+    const [updated] = await app.db
+      .update(aiChats)
+      .set({ title: body.title, updatedAt: new Date() })
+      .where(eq(aiChats.id, chat.id))
+      .returning()
+    if (!updated) throw new AppError(500, 'Could not rename the chat')
+    return serializeChat(updated)
   })
 
   /**

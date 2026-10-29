@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FormEvent, KeyboardEvent, ReactNode } from "react";
-import { Menu, MessageSquarePlus, Trash2 } from "lucide-react";
+import { Menu, MessageSquarePlus, Pencil, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link, NavLink, useLocation, useNavigate, useOutletContext, useParams } from "react-router";
@@ -134,6 +134,19 @@ export function ChatPage() {
       cancelled = true;
     };
   }, [id, t]);
+
+  async function renameChat(chatId: string, title: string) {
+    try {
+      const updated = await api<ChatSummary>(`/api/chats/${chatId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title }),
+      });
+      setChats((items) => items.map((chat) => (chat.id === chatId ? { ...chat, title: updated.title } : chat)));
+    } catch (caught) {
+      toastCaught(caught, t("Could not rename the chat"));
+      throw caught;
+    }
+  }
 
   async function startChat(): Promise<string> {
     const created = await api<ChatSummary>("/api/chats", { method: "POST" });
@@ -316,6 +329,8 @@ export function ChatPage() {
           onStarter={(prompt) => void send(prompt)}
           onStop={stopReply}
           onRetry={(content, messageId) => void send(content, messageId)}
+          name={current?.title}
+          onRename={id && current ? (title) => renameChat(current.id, title) : undefined}
           submittingForm={submittingForm}
           onConfirm={(proposalId) => void settle(proposalId, "confirm")}
           onDismiss={(proposalId) => void settle(proposalId, "dismiss")}
@@ -434,8 +449,11 @@ export function ChatConversation({
   onConfirm,
   onDismiss,
   onSubmitForm,
+  name,
+  onRename,
 }: {
   title?: string;
+  name?: string;
   admin?: boolean;
   available: boolean | null;
   loading?: boolean;
@@ -453,6 +471,7 @@ export function ChatConversation({
   onConfirm: (proposalId: string) => void;
   onDismiss: (proposalId: string) => void;
   onSubmitForm: (formId: string, body: Record<string, unknown>) => void;
+  onRename?: (title: string) => Promise<void> | void;
 }) {
   const { t } = useI18n();
   const box = useRef<HTMLTextAreaElement>(null);
@@ -460,6 +479,10 @@ export function ChatConversation({
   const pinned = useRef(true);
   const wasSending = useRef(false);
   const [away, setAway] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const nameBox = useRef<HTMLInputElement>(null);
+  const skipName = useRef(false);
   const visible = messages.filter((message) => message.role === "user" || message.role === "assistant");
   const showStarters = !loading && available === true && visible.length === 0;
   const writing =
@@ -470,6 +493,30 @@ export function ChatConversation({
         message.id.startsWith("pending-") &&
         (message.content || message.blocks?.length || message.proposal),
     );
+  useEffect(() => {
+    if (!renaming) return;
+    const node = nameBox.current;
+    if (!node) return;
+    node.focus();
+    node.select();
+  }, [renaming]);
+  async function commitName() {
+    if (skipName.current) {
+      skipName.current = false;
+      return;
+    }
+    const next = nameDraft.trim();
+    if (!next || next === (name ?? title) || !onRename) {
+      setRenaming(false);
+      return;
+    }
+    try {
+      await onRename(next);
+      setRenaming(false);
+    } catch {
+      nameBox.current?.focus();
+    }
+  }
   useEffect(() => {
     const node = box.current;
     if (!node) return;
@@ -522,7 +569,43 @@ export function ChatConversation({
         >
           <div className="grid content-start gap-4 pb-4">
             <div className="min-w-0">
-              <h1 className="truncate font-heading text-2xl font-medium tracking-tight">{title ?? t("Chat")}</h1>
+              {renaming ? (
+                <input
+                  ref={nameBox}
+                  aria-label={t("Chat name")}
+                  className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-2 font-heading text-2xl font-medium tracking-tight"
+                  value={nameDraft}
+                  maxLength={80}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                  onBlur={() => void commitName()}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      skipName.current = true;
+                      setRenaming(false);
+                    }
+                  }}
+                />
+              ) : (
+                <div className="flex min-w-0 items-center gap-1">
+                  <h1 className="min-w-0 truncate font-heading text-2xl font-medium tracking-tight">{title ?? t("Chat")}</h1>
+                  {onRename && name ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("Rename chat")}
+                      onClick={() => {
+                        setNameDraft(name);
+                        setRenaming(true);
+                      }}
+                    >
+                      <Pencil />
+                    </Button>
+                  ) : null}
+                </div>
+              )}
               {showStarters ? (
                 <p className="mt-1.5 text-sm text-muted-foreground">
                   {t("Ask about links, campaigns, or the last 30 days")}

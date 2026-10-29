@@ -11,9 +11,11 @@ export function SubNav({ label, children }: { label: string; children: ReactNode
   return createPortal(
     <nav
       aria-label={label}
-      className="flex h-12 items-center gap-1 overflow-x-auto border-b border-border bg-background px-3 pointer-coarse:h-14 pointer-coarse:px-1.5"
+      className="flex h-12 w-full min-w-0 flex-nowrap items-center overflow-x-auto overscroll-x-contain border-b border-border bg-background pointer-coarse:h-14"
     >
-      {children}
+      <div className="flex w-max shrink-0 flex-nowrap items-center gap-1 px-3 pointer-coarse:gap-2 pointer-coarse:px-1.5 [&>*]:w-max [&>*]:shrink-0 [&>*]:!flex-nowrap">
+        {children}
+      </div>
     </nav>,
     slot,
   );

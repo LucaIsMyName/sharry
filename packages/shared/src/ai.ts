@@ -100,6 +100,14 @@ export const sendChatMessageSchema = z.object({
   content: z.string().trim().min(1, 'Enter a message.').max(4000, 'A message can be at most 4000 characters.'),
 })
 
+export const renameChatSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, { message: 'Enter a name.' })
+    .max(80, { message: 'A chat name can be at most 80 characters.' }),
+})
+
 export const aiConnectionTestSchema = z.object({
   aiProvider: aiProviderSchema.optional(),
   aiModel: z.string().trim().max(120).optional(),

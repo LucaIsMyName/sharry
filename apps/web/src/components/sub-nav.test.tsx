@@ -33,6 +33,10 @@ describe("sub-nav", () => {
     expect(screen.getByTestId("page").contains(nav)).toBe(false);
     expect(nav.className).toContain("border-b");
     expect(nav.className).toContain("overflow-x-auto");
+    expect(nav.className).toContain("flex-nowrap");
+    const row = nav.firstElementChild as HTMLElement;
+    expect(row.className).toContain("w-max");
+    expect(row.className).toContain("!flex-nowrap");
     expect(screen.getByRole("button", { name: "New chat" })).toBeTruthy();
   });
 

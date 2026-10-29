@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router";
 import type { AiProposal, ChatBlock } from "@sharry/shared";
@@ -114,6 +114,57 @@ describe("chat conversation", () => {
     expect(screen.getByRole("button", { name: "Create a campaign" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Analytics report" })).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Message" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("renames the open chat and keeps the field when saving fails", async () => {
+    const onRename = vi.fn(async (title: string) => {
+      if (title === "Nope") throw new Error("no");
+    });
+    render(
+      <MemoryRouter>
+        <ChatConversation
+          title="Spring launch"
+          name="Spring launch"
+          available
+          messages={[]}
+          draft=""
+          sending={false}
+          submittingForm={null}
+          onDraft={() => {}}
+          onSubmit={(event) => event.preventDefault()}
+          onStarter={() => {}}
+          onConfirm={() => {}}
+          onDismiss={() => {}}
+          onSubmitForm={() => {}}
+          onRename={onRename}
+        />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Rename chat" }));
+    const field = screen.getByRole("textbox", { name: "Chat name" });
+    expect(field).toHaveProperty("value", "Spring launch");
+    fireEvent.change(field, { target: { value: "Autumn plan" } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(onRename).toHaveBeenCalledWith("Autumn plan"));
+    expect(screen.queryByRole("textbox", { name: "Chat name" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename chat" }));
+    const again = screen.getByRole("textbox", { name: "Chat name" });
+    fireEvent.change(again, { target: { value: "   " } });
+    fireEvent.blur(again);
+    expect(onRename).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("textbox", { name: "Chat name" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Rename chat" }));
+    const failing = screen.getByRole("textbox", { name: "Chat name" });
+    fireEvent.change(failing, { target: { value: "Nope" } });
+    fireEvent.blur(failing);
+    await waitFor(() => expect(onRename).toHaveBeenCalledWith("Nope"));
+    expect(screen.getByRole("textbox", { name: "Chat name" })).toBeTruthy();
+
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Chat name" }), { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "Chat name" })).toBeNull();
+    expect(onRename).toHaveBeenCalledTimes(2);
   });
 
   it("lists starters as plain rows and scrolls the truncated title with the thread", () => {
