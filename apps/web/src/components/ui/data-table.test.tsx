@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { DataTable, loadTableView, type DataColumn, type TableView } from "./data-table.tsx";
 
@@ -74,9 +74,9 @@ describe("DataTable", () => {
     expect(loadTableView("sample").sort).toBeNull();
     expect(screen.queryByRole("button", { name: "Clear filters" })).toBeNull();
     const handle = screen.getByRole("separator", { name: "Resize Name" });
-    fireEvent.mouseDown(handle, { clientX: 100 });
-    fireEvent.mouseMove(window, { clientX: 180 });
-    fireEvent.mouseUp(window);
+    fireEvent.pointerDown(handle, { button: 0, clientX: 100, pointerType: "touch" });
+    fireEvent.pointerMove(window, { clientX: 180 });
+    fireEvent.pointerUp(window);
     expect(loadTableView("sample").widths.name).toBeGreaterThanOrEqual(72);
   });
 
@@ -135,5 +135,64 @@ describe("DataTable", () => {
     expect(screen.queryByText("opened")).toBeNull();
     fireEvent.mouseDown(window, { button: 2 });
     expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+  });
+
+  function renderLinkRows() {
+    render(
+      <MemoryRouter initialEntries={["/links"]}>
+        <Routes>
+          <Route
+            path="/links"
+            element={
+              <DataTable
+                storageKey="touch"
+                columns={columns}
+                rows={rows}
+                rowMenu={() => [{ id: "delete", label: "Delete", destructive: true, onSelect: () => undefined }]}
+                getRow={(row) => ({ id: row.id, label: row.name, to: `/links/${row.id}` })}
+              />
+            }
+          />
+          <Route path="/links/:id" element={<div>opened</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    return screen.getByRole("row", { name: /Beta/ });
+  }
+
+  it("opens the row menu with a long press on a touch screen without opening the row", () => {
+    vi.useFakeTimers();
+    try {
+      const row = renderLinkRows();
+      fireEvent.pointerDown(row, { button: 0, pointerType: "touch", clientX: 20, clientY: 20 });
+      act(() => vi.advanceTimersByTime(600));
+      expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+      fireEvent.pointerUp(row, { button: 0, pointerType: "touch", clientX: 20, clientY: 20 });
+      fireEvent.click(row);
+      fireEvent.mouseDown(row, { button: 0 });
+      expect(screen.queryByText("opened")).toBeNull();
+      expect(screen.getByRole("menuitem", { name: "Delete" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("still opens the row on a short tap and when the finger scrolls away", () => {
+    vi.useFakeTimers();
+    try {
+      const row = renderLinkRows();
+      fireEvent.pointerDown(row, { button: 0, buttons: 1, pointerType: "touch", clientX: 20, clientY: 20 });
+      fireEvent.pointerMove(row, { buttons: 1, pointerType: "touch", clientX: 20, clientY: 60 });
+      act(() => vi.advanceTimersByTime(600));
+      expect(screen.queryByRole("menuitem")).toBeNull();
+
+      fireEvent.pointerDown(row, { button: 0, pointerType: "touch", clientX: 20, clientY: 20 });
+      act(() => vi.advanceTimersByTime(100));
+      fireEvent.pointerUp(row, { button: 0, pointerType: "touch", clientX: 20, clientY: 20 });
+      expect(screen.queryByRole("menuitem")).toBeNull();
+      expect(screen.getByText("opened")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

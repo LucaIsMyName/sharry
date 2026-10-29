@@ -32,6 +32,7 @@ import { Button } from "./ui/button.tsx";
 import { cardBevel } from "./ui/card.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { CommandMenu } from "./command-menu.tsx";
+import { useRouteTitle } from "./page-title.tsx";
 import { RouteErrorBoundary } from "./route-error-boundary.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
@@ -40,6 +41,7 @@ export function Shell() {
   const appName = useAppName();
   useAccountLocale(me.user.locale);
   const { t } = useI18n();
+  const routeTitle = useRouteTitle();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const chat = pathname === "/chat" || pathname.startsWith("/chat/");
@@ -86,9 +88,9 @@ export function Shell() {
         />
       </aside>
       <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
-        <div className="sticky top-0 z-30 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-3 md:hidden">
+        <div className="sticky top-0 z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border bg-background px-3 md:hidden pointer-coarse:h-14 pointer-coarse:px-1.5">
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger render={<Button variant="ghost" type="button" className={"px-2"} />}>
+            <SheetTrigger render={<Button variant="ghost" type="button" className="justify-self-start px-2" />}>
               <Menu /> {t("Menu")}
             </SheetTrigger>
             <SheetContent
@@ -106,6 +108,19 @@ export function Shell() {
               />
             </SheetContent>
           </Sheet>
+          <p className="min-w-0 truncate text-center text-sm font-medium" aria-hidden>
+            {routeTitle}
+          </p>
+          <Button
+            variant="ghost"
+            size="icon"
+            type="button"
+            aria-label={t("Search")}
+            className="justify-self-end"
+            onClick={() => setSearchOpen(true)}
+          >
+            <SearchIcon />
+          </Button>
         </div>
         <div className={cn(chat ? "flex min-h-0 flex-1 flex-col overflow-hidden" : cn("page px-5 py-5 md:px-7 md:py-7", builder && "page-wide"))}>
           <Outlet context={{ admin }} />

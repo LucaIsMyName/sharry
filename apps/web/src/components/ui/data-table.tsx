@@ -92,6 +92,9 @@ export type RowMenuItem = {
 };
 
 const anyValue = "__any__";
+/** Largest menu size (the touch size), so the menu never opens past the screen edge. */
+const menuWidth = 192;
+const menuItemHeight = 44;
 const headerIconButton = "inline-flex shrink-0 items-center justify-center pointer-coarse:size-11";
 
 export function DataTable<T>({
@@ -133,8 +136,14 @@ export function DataTable<T>({
   const [stored, setStored] = useState<TableView>(() => normalizeView(view ?? loadTableView(storageKey)));
   const current = mode === "controlled" && view ? normalizeView(view) : stored;
   const [openFilter, setOpenFilter] = useState<string | null>(null);
-  const [menu, setMenu] = useState<{ x: number; y: number; items: RowMenuItem[] } | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: RowMenuItem[]; openedAt: number } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  function openMenu(row: T, point: { x: number; y: number }) {
+    const items = rowMenu?.(row) ?? [];
+    if (items.length === 0) return;
+    setMenu({ ...point, items, openedAt: Date.now() });
+  }
 
   useEffect(() => {
     if (mode === "controlled" && view) setStored(normalizeView(view));
@@ -142,9 +151,12 @@ export function DataTable<T>({
 
   useEffect(() => {
     if (!menu) return;
+    const openedAt = menu.openedAt;
     function close(event: MouseEvent) {
       if (event.button !== 0) return;
       if (menuRef.current?.contains(event.target as Node)) return;
+      // Lifting the finger after a long-press can send a compatibility mousedown.
+      if (Date.now() - openedAt < 400) return;
       setMenu(null);
     }
     function onKey(event: KeyboardEvent) {
@@ -288,22 +300,25 @@ export function DataTable<T>({
                   role="separator"
                   aria-orientation="vertical"
                   aria-label={t("Resize {label}", { label: t(column.header) })}
-                  className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none hover:bg-border"
-                  onMouseDown={(event) => {
+                  className="absolute top-0 right-0 h-full w-1.5 cursor-col-resize touch-none hover:bg-border pointer-coarse:w-3 pointer-coarse:bg-border/40"
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return;
                     event.preventDefault();
                     event.stopPropagation();
                     const startX = event.clientX;
                     const header = event.currentTarget.parentElement;
                     const start = current.widths[column.id] ?? header?.getBoundingClientRect().width ?? 120;
-                    function move(next: MouseEvent) {
+                    function move(next: PointerEvent) {
                       setWidth(column.id, Math.max(72, Math.round(start + next.clientX - startX)));
                     }
                     function up() {
-                      window.removeEventListener("mousemove", move);
-                      window.removeEventListener("mouseup", up);
+                      window.removeEventListener("pointermove", move);
+                      window.removeEventListener("pointerup", up);
+                      window.removeEventListener("pointercancel", up);
                     }
-                    window.addEventListener("mousemove", move);
-                    window.addEventListener("mouseup", up);
+                    window.addEventListener("pointermove", move);
+                    window.addEventListener("pointerup", up);
+                    window.addEventListener("pointercancel", up);
                   }}
                 />
               </TableHead>
@@ -336,12 +351,11 @@ export function DataTable<T>({
                   rowMenu
                     ? (event) => {
                         event.preventDefault();
-                        const items = rowMenu(row);
-                        if (items.length === 0) return;
-                        setMenu({ x: event.clientX, y: event.clientY, items });
+                        openMenu(row, { x: event.clientX, y: event.clientY });
                       }
                     : undefined
                 }
+                onLongPress={rowMenu ? (point) => openMenu(row, point) : undefined}
               >
                 {selectable ? (
                   <TableCell data-row-action className="w-10">
@@ -372,8 +386,11 @@ export function DataTable<T>({
         <div
           ref={menuRef}
           role="menu"
-          className="fixed z-50 min-w-40 rounded-md border border-border bg-popover p-1 shadow-md"
-          style={{ top: menu.y, left: menu.x }}
+          className="fixed z-50 max-w-[calc(100vw-1rem)] min-w-40 rounded-md border border-border bg-popover p-1 shadow-md pointer-coarse:min-w-48"
+          style={{
+            top: Math.max(8, Math.min(menu.y, window.innerHeight - menu.items.length * menuItemHeight - 16)),
+            left: Math.max(8, Math.min(menu.x, window.innerWidth - menuWidth - 8)),
+          }}
         >
           {menu.items.map((item) => (
             <button
@@ -381,7 +398,7 @@ export function DataTable<T>({
               type="button"
               role="menuitem"
               className={cn(
-                "flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted",
+                "flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted pointer-coarse:min-h-11 pointer-coarse:items-center pointer-coarse:px-3 pointer-coarse:text-base",
                 item.destructive && "text-destructive",
               )}
               onClick={() => {

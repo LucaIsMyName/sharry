@@ -106,6 +106,7 @@ function ClickableTableRow({
   onRowDrop,
   onFilesDrop,
   onContextMenu,
+  onLongPress,
   id,
 }: {
   to?: string;
@@ -120,6 +121,8 @@ function ClickableTableRow({
   onRowDrop?: (payload: string) => void;
   onFilesDrop?: (files: File[]) => void;
   onContextMenu?: (event: React.MouseEvent<HTMLTableRowElement>) => void;
+  /** Touch only: holding a finger on the row, the touch stand-in for a right-click. */
+  onLongPress?: (point: { x: number; y: number }) => void;
   id?: string;
 }) {
   const navigate = useNavigate();
@@ -127,9 +130,19 @@ function ClickableTableRow({
   const origin = React.useRef({ x: 0, y: 0 });
   const openedAt = React.useRef(0);
   const suppressClick = React.useRef(false);
+  const pressTimer = React.useRef<number | undefined>(undefined);
+  const longPressed = React.useRef(false);
+
+  React.useEffect(() => () => window.clearTimeout(pressTimer.current), []);
+
+  function cancelPress() {
+    window.clearTimeout(pressTimer.current);
+    pressTimer.current = undefined;
+  }
 
   function open(event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>) {
     if ("button" in event && event.button !== 0) return;
+    if (longPressed.current) return;
     if (Date.now() - openedAt.current < 400) return;
     if (skipRowClick || suppressClick.current) {
       skipRowClick = false;
@@ -159,23 +172,41 @@ function ClickableTableRow({
         className,
       )}
       draggable={draggable || undefined}
+      style={onLongPress ? { WebkitTouchCallout: "none" } : undefined}
       onPointerDown={(event) => {
         moved.current = false;
+        longPressed.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
         if (event.button === 2) suppressClick.current = true;
+        if (onLongPress && event.pointerType === "touch" && !rowActionTarget(event.target)) {
+          const point = { x: event.clientX, y: event.clientY };
+          cancelPress();
+          pressTimer.current = window.setTimeout(() => {
+            pressTimer.current = undefined;
+            longPressed.current = true;
+            onLongPress(point);
+          }, 500);
+        }
       }}
       onPointerMove={(event) => {
         if (event.buttons === 0) return;
         if (Math.abs(event.clientX - origin.current.x) > 4 || Math.abs(event.clientY - origin.current.y) > 4) {
           moved.current = true;
+          cancelPress();
         }
       }}
+      onPointerCancel={cancelPress}
       onPointerUp={(event) => {
+        cancelPress();
         if (event.button !== 0 || event.ctrlKey || event.metaKey) return;
         open(event);
       }}
       onContextMenu={(event) => {
         suppressClick.current = true;
+        if (longPressed.current) {
+          event.preventDefault();
+          return;
+        }
         onContextMenu?.(event);
         window.setTimeout(() => {
           suppressClick.current = false;

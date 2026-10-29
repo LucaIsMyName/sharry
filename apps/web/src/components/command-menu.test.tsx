@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RouterProvider, createMemoryRouter, useLocation } from "react-router";
 import type { Me } from "../api.ts";
@@ -43,7 +43,15 @@ function Probe() {
   return <div data-testid="here">{location.pathname + location.search}</div>;
 }
 
-function renderShell(role: Me["user"]["role"] = "user") {
+function navSearch() {
+  return within(screen.getByRole("navigation")).getByRole("button", { name: "Search" });
+}
+
+async function findNavSearch() {
+  return within(await screen.findByRole("navigation")).getByRole("button", { name: "Search" });
+}
+
+function renderShell(role: Me["user"]["role"] = "user", initialEntry = "/") {
   const router = createMemoryRouter(
     [
       {
@@ -52,12 +60,13 @@ function renderShell(role: Me["user"]["role"] = "user") {
         HydrateFallback: () => null,
         element: <Shell />,
         children: [
-          { index: true, element: <Probe /> },
+          { index: true, handle: { title: "Overview" }, element: <Probe /> },
+          { path: "links", handle: { title: "Links" }, element: <Probe /> },
           { path: "*", element: <Probe /> },
         ],
       },
     ],
-    { initialEntries: ["/"] },
+    { initialEntries: [initialEntry] },
   );
   return render(
     <TooltipProvider>
@@ -72,7 +81,7 @@ describe("command menu", () => {
   it("places search under chat and hides audit from a standard user", async () => {
     renderShell();
     const chat = await screen.findByRole("link", { name: "Chat" });
-    const search = screen.getByRole("button", { name: "Search" });
+    const search = navSearch();
     expect(chat.compareDocumentPosition(search) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const divider = chat.parentElement?.querySelector("hr");
     expect(divider).toBeTruthy();
@@ -85,6 +94,15 @@ describe("command menu", () => {
     expect(links.className).toContain("overflow-hidden");
     expect(links.className).not.toContain("shadow-[inset");
     expect(links.querySelector("svg")).toBeTruthy();
+  });
+
+  it("shows the page title in the mobile bar and opens search from there", async () => {
+    renderShell("user", "/links");
+    await screen.findByRole("navigation");
+    const bar = screen.getByRole("button", { name: "Menu" }).parentElement as HTMLElement;
+    expect(within(bar).getByText("Links")).toBeTruthy();
+    fireEvent.click(within(bar).getByRole("button", { name: "Search" }));
+    expect(screen.getByPlaceholderText("Search pages, links, and docs")).toBeTruthy();
   });
 
   it("opens with the keyboard shortcut", async () => {
@@ -116,21 +134,21 @@ describe("command menu", () => {
       return Promise.resolve({});
     });
     renderShell();
-    fireEvent.click(await screen.findByRole("button", { name: "Search" }));
+    fireEvent.click(await findNavSearch());
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
       target: { value: "summer" },
     });
     fireEvent.click(await screen.findByRole("option", { name: "summer-poster.png" }));
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/media?folder=folder-1&file=media-1"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(navSearch());
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
       target: { value: "summer" },
     });
     fireEvent.click(await screen.findByRole("option", { name: /^Landing for June/ }));
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/pages/page-1"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(navSearch());
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
       target: { value: "summer" },
     });
@@ -141,14 +159,14 @@ describe("command menu", () => {
     fireEvent.click(link);
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/links/link-1"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(navSearch());
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
       target: { value: "summer" },
     });
     fireEvent.click(await screen.findByRole("option", { name: "Analytics for Summer" }));
     await waitFor(() => expect(screen.getByTestId("here").textContent).toBe("/analytics?link=link-1"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(navSearch());
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
       target: { value: "Registration is closed" },
     });
@@ -177,7 +195,7 @@ describe("command menu", () => {
       return Promise.resolve({});
     });
     renderShell();
-    fireEvent.click(await screen.findByRole("button", { name: "Search" }));
+    fireEvent.click(await findNavSearch());
     fireEvent.change(screen.getByPlaceholderText("Search pages, links, and docs"), {
       target: { value: "summer" },
     });
@@ -191,7 +209,7 @@ describe("command menu", () => {
   it("shows audit to an administrator", async () => {
     renderShell("admin");
     expect(await screen.findByRole("link", { name: "Audit" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(navSearch());
     expect(screen.getByRole("option", { name: "Audit" })).toBeTruthy();
   });
 });
