@@ -33,6 +33,7 @@ import { cardBevel } from "./ui/card.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { CommandMenu } from "./command-menu.tsx";
 import { useRouteTitle } from "./page-title.tsx";
+import { SubNavSlotContext } from "./sub-nav.tsx";
 import { RouteErrorBoundary } from "./route-error-boundary.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
 
@@ -48,6 +49,7 @@ export function Shell() {
   const builder = pathname.startsWith("/pages/");
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [subNavSlot, setSubNavSlot] = useState<HTMLDivElement | null>(null);
   const admin = me.user.role === "admin";
 
   useEffect(() => {
@@ -77,8 +79,8 @@ export function Shell() {
   return (
     <div className="min-h-svh">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
-        <p className="font-heading text-2xl font-medium tracking-tight">
-          {appName}
+        <p className="font-heading text-xl font-bold tracking-tight">
+          <NavLink to="/">{appName}</NavLink>
         </p>
         {navigation}
         <AccountFoot
@@ -88,42 +90,47 @@ export function Shell() {
         />
       </aside>
       <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
-        <div className="sticky top-0 z-30 grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border bg-background px-3 md:hidden pointer-coarse:h-14 pointer-coarse:px-1.5">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger render={<Button variant="ghost" type="button" className="justify-self-start px-2" />}>
-              <Menu /> {t("Menu")}
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="p-4 w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs"
+        <div className="sticky top-0 z-30 shrink-0 md:hidden">
+          <div className="grid h-12 grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border bg-background px-3 pointer-coarse:h-14 pointer-coarse:px-1.5">
+            <Sheet open={open} onOpenChange={setOpen}>
+              <SheetTrigger render={<Button variant="ghost" type="button" className="justify-self-start px-2" />}>
+                <Menu /> {t("Menu")}
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="p-4 w-72 border-sidebar-border bg-sidebar text-sidebar-foreground sm:max-w-xs"
+              >
+                <p className="font-heading px-1 pt-2 text-2xl font-medium tracking-tight">
+                  {appName}
+                </p>
+                {navigation}
+                <AccountFoot
+                  user={me.user}
+                  onLogout={() => void logout()}
+                  onNavigate={() => setOpen(false)}
+                />
+              </SheetContent>
+            </Sheet>
+            <p className="min-w-0 truncate text-center text-sm font-medium" aria-hidden>
+              {routeTitle}
+            </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              aria-label={t("Search")}
+              className="justify-self-end"
+              onClick={() => setSearchOpen(true)}
             >
-              <p className="font-heading px-1 pt-2 text-2xl font-medium tracking-tight">
-                {appName}
-              </p>
-              {navigation}
-              <AccountFoot
-                user={me.user}
-                onLogout={() => void logout()}
-                onNavigate={() => setOpen(false)}
-              />
-            </SheetContent>
-          </Sheet>
-          <p className="min-w-0 truncate text-center text-sm font-medium" aria-hidden>
-            {routeTitle}
-          </p>
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            aria-label={t("Search")}
-            className="justify-self-end"
-            onClick={() => setSearchOpen(true)}
-          >
-            <SearchIcon />
-          </Button>
+              <SearchIcon />
+            </Button>
+          </div>
+          <div ref={setSubNavSlot} />
         </div>
         <div className={cn(chat ? "flex min-h-0 flex-1 flex-col overflow-hidden" : cn("page px-5 py-5 md:px-7 md:py-7", builder && "page-wide"))}>
-          <Outlet context={{ admin }} />
+          <SubNavSlotContext.Provider value={subNavSlot}>
+            <Outlet context={{ admin }} />
+          </SubNavSlotContext.Provider>
         </div>
       </main>
       <RouteErrorBoundary resetKey={pathname} message={t("Search could not be opened.")}>
@@ -145,7 +152,7 @@ function Navigation({
   const { t } = useI18n();
   return (
     <nav
-      className="grid content-start gap-1 overflow-auto"
+      className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto overscroll-contain"
       onClick={onNavigate}
     >
       <Item to="/" end icon={<LayoutDashboard size={18} />}>

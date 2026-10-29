@@ -9,7 +9,7 @@ import type { AiProposal, ChatBlock } from "@sharry/shared";
 import { api } from "../api.ts";
 import { setActiveLocale } from "../i18n/index.tsx";
 import { addDays, dayNumber, initialWindow, utcToday } from "./analytics-range.ts";
-import { ChatConversation, chatToOpen, type ChatMessage } from "./chat.tsx";
+import { ChatConversation, ChatList, chatToOpen, type ChatMessage } from "./chat.tsx";
 
 vi.mock("../api.ts", async () => {
   const actual = await vi.importActual<typeof import("../api.ts")>("../api.ts");
@@ -57,6 +57,56 @@ describe("chat to open", () => {
   });
 });
 
+describe("chat list", () => {
+  const chats = [
+    { id: "c1", title: "Spring launch", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z" },
+    { id: "c2", title: "New chat", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+  ];
+
+  function renderList(tone: "page" | "sidebar", onDelete: (id: string) => void = () => {}) {
+    return render(
+      <MemoryRouter initialEntries={["/chat/c1"]}>
+        <ChatList chats={chats} loading={false} tone={tone} onNew={() => {}} onPick={() => {}} onDelete={onDelete} />
+      </MemoryRouter>,
+    );
+  }
+
+  it("shows chats as divided rows without card styling and marks the open chat", () => {
+    renderList("page");
+    const rows = document.querySelectorAll("[data-slot=chat-row]");
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.className).toContain("border-b");
+      expect(row.className).not.toContain("rounded");
+      expect(row.className).not.toContain("shadow");
+    }
+    expect(rows[0]?.className).toContain("bg-muted");
+    expect(rows[1]?.className).not.toContain("bg-muted ");
+    expect(screen.getByRole("link", { name: /New chat/ })).toBeTruthy();
+  });
+
+  it("uses sidebar borders in the sheet and deletes the picked chat", () => {
+    const onDelete = vi.fn();
+    renderList("sidebar", onDelete);
+    const rows = document.querySelectorAll("[data-slot=chat-row]");
+    expect(rows[0]?.className).toContain("border-sidebar-border");
+    expect(rows[0]?.className).toContain("bg-sidebar-accent");
+    const deletes = screen.getAllByRole("button", { name: "Delete chat" });
+    expect(deletes).toHaveLength(2);
+    fireEvent.click(deletes[1]!);
+    expect(onDelete).toHaveBeenCalledWith("c2");
+  });
+
+  it("shows a skeleton instead of rows while loading", () => {
+    render(
+      <MemoryRouter>
+        <ChatList chats={chats} loading tone="page" onNew={() => {}} onPick={() => {}} onDelete={() => {}} />
+      </MemoryRouter>,
+    );
+    expect(document.querySelectorAll("[data-slot=chat-row]")).toHaveLength(0);
+  });
+});
+
 describe("chat conversation", () => {
   it("offers three starters on a blank chat", () => {
     renderConversation(true);
@@ -64,6 +114,39 @@ describe("chat conversation", () => {
     expect(screen.getByRole("button", { name: "Create a campaign" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Analytics report" })).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Message" }).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("lists starters as plain rows and scrolls the truncated title with the thread", () => {
+    render(
+      <MemoryRouter>
+        <ChatConversation
+          title={"A very long chat title ".repeat(10)}
+          available
+          messages={[]}
+          draft=""
+          sending={false}
+          submittingForm={null}
+          onDraft={() => {}}
+          onSubmit={(event) => event.preventDefault()}
+          onStarter={() => {}}
+          onConfirm={() => {}}
+          onDismiss={() => {}}
+          onSubmitForm={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    const title = screen.getByRole("heading", { level: 1 });
+    expect(title.className).toContain("truncate");
+    expect(title.closest("[aria-live=polite]")).not.toBeNull();
+    const starter = screen.getByRole("button", { name: "Create a short link" });
+    expect(starter.closest("li")?.className).toContain("border-b");
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+    expect(document.querySelector("[data-slot=card]")).toBeNull();
+  });
+
+  it("shows the AI notice without a card", () => {
+    renderConversation(false);
+    expect(screen.getByRole("heading", { name: "AI not available" }).closest("[data-slot=card]")).toBeNull();
   });
 
   it("hides starters and disables the composer when AI is not available", () => {
@@ -187,11 +270,9 @@ describe("chat conversation", () => {
       },
     ]);
     const heading = screen.getByRole("heading", { name: "Weekly clicks" });
-    const card = heading.closest("[data-slot=card]");
-    expect(card?.getAttribute("data-slot")).toBe("card");
-    expect(card?.querySelector("[data-slot=card]")).toBeNull();
-    expect(card?.textContent).toContain("Spring");
-    expect(document.querySelectorAll("[data-slot=card]")).toHaveLength(1);
+    expect(heading.closest("[data-slot=card]")).toBeNull();
+    expect(heading.parentElement?.parentElement?.textContent).toContain("Spring");
+    expect(document.querySelectorAll("[data-slot=card]")).toHaveLength(0);
     const open = screen.getByRole("link", { name: "Open analytics" });
     expect(open.getAttribute("href")).toBe("/analytics");
     expect(open.className.includes("underline")).toBe(false);

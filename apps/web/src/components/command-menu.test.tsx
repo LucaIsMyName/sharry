@@ -6,6 +6,7 @@ import { RouterProvider, createMemoryRouter, useLocation } from "react-router";
 import type { Me } from "../api.ts";
 import { setActiveLocale } from "../i18n/index.tsx";
 import { Shell } from "./shell.tsx";
+import { SubNav } from "./sub-nav.tsx";
 import { TooltipProvider } from "./ui/tooltip.tsx";
 import { ToastProvider } from "./ui/toast.tsx";
 
@@ -62,6 +63,14 @@ function renderShell(role: Me["user"]["role"] = "user", initialEntry = "/") {
         children: [
           { index: true, handle: { title: "Overview" }, element: <Probe /> },
           { path: "links", handle: { title: "Links" }, element: <Probe /> },
+          {
+            path: "section",
+            element: (
+              <SubNav label="Section">
+                <button type="button">Section action</button>
+              </SubNav>
+            ),
+          },
           { path: "*", element: <Probe /> },
         ],
       },
@@ -103,6 +112,26 @@ describe("command menu", () => {
     expect(within(bar).getByText("Links")).toBeTruthy();
     fireEvent.click(within(bar).getByRole("button", { name: "Search" }));
     expect(screen.getByPlaceholderText("Search pages, links, and docs")).toBeTruthy();
+  });
+
+  it("renders a page sub-nav inside the sticky mobile header, under the top bar", async () => {
+    renderShell("user", "/section");
+    const subNav = await screen.findByRole("navigation", { name: "Section" });
+    const bar = screen.getByRole("button", { name: "Menu" }).parentElement as HTMLElement;
+    const header = bar.parentElement as HTMLElement;
+    expect(header.className).toContain("sticky");
+    expect(header.contains(subNav)).toBe(true);
+    expect(bar.compareDocumentPosition(subNav) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(subNav).getByRole("button", { name: "Section action" })).toBeTruthy();
+  });
+
+  it("leaves the sub-nav slot empty on pages without one", async () => {
+    renderShell("user", "/links");
+    await screen.findByRole("navigation");
+    const bar = screen.getByRole("button", { name: "Menu" }).parentElement as HTMLElement;
+    const slot = bar.nextElementSibling as HTMLElement;
+    expect(slot.childElementCount).toBe(0);
+    expect(screen.getAllByRole("navigation")).toHaveLength(1);
   });
 
   it("opens with the keyboard shortcut", async () => {

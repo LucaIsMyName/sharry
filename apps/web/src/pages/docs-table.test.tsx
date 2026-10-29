@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { useState } from "react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HelmetProvider } from "react-helmet-async";
 import { createMemoryRouter, RouterProvider } from "react-router";
+import { SubNavSlotContext } from "../components/sub-nav.tsx";
 import { setActiveLocale } from "../i18n/index.tsx";
 import { DocsPage } from "./docs.tsx";
 
@@ -68,7 +70,6 @@ describe("Docs markdown tables", () => {
       </HelmetProvider>,
     );
     expect(await screen.findByTestId("mermaid-diagram")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Docs" })).toBeTruthy();
     unmount();
 
     const deploy = createMemoryRouter(
@@ -89,5 +90,50 @@ describe("Docs markdown tables", () => {
     );
     const code = await screen.findByText("cp .env.production.example .env.production");
     expect(code.closest("pre")).toBeTruthy();
+  });
+});
+
+function SlotHost() {
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  return (
+    <>
+      <div data-testid="sub-nav-slot" ref={setSlot} />
+      <SubNavSlotContext.Provider value={slot}>
+        <DocsPage />
+      </SubNavSlotContext.Provider>
+    </>
+  );
+}
+
+describe("Docs mobile menu", () => {
+  it("puts the Docs trigger in the sub-nav and scrolls a long page list in the sheet", async () => {
+    const router = createMemoryRouter(
+      [
+        {
+          id: "root",
+          path: "/",
+          loader: () => ({ appName: "Sharry" }),
+          children: [{ path: "docs/*", element: <SlotHost /> }],
+        },
+      ],
+      { initialEntries: ["/docs/user/links"] },
+    );
+    render(
+      <HelmetProvider>
+        <RouterProvider router={router} />
+      </HelmetProvider>,
+    );
+    const subNav = await screen.findByRole("navigation", { name: "Docs" });
+    expect(screen.getByTestId("sub-nav-slot").contains(subNav)).toBe(true);
+    const trigger = within(subNav).getByRole("button", { name: "Docs" });
+    expect(screen.getByRole("article").contains(trigger)).toBe(false);
+
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog");
+    const list = dialog.querySelector("[data-slot=docs-sheet-list]") as HTMLElement;
+    expect(list.className).toContain("min-h-0");
+    expect(list.className).toContain("flex-1");
+    expect(list.className).toContain("overflow-y-auto");
+    expect(within(list).getAllByRole("link").length).toBeGreaterThan(5);
   });
 });

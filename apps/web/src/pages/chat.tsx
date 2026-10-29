@@ -11,8 +11,8 @@ import { RelativeTime } from "../components/relative-time.tsx";
 import { useI18n } from "../i18n/index.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
-import { Card, CardContent, cardBevel } from "../components/ui/card.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
+import { SubNav } from "../components/sub-nav.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { ChatListSkeleton, ChatThreadSkeleton, WritingSkeleton } from "../components/ui/skeleton.tsx";
 import { Textarea } from "../components/ui/textarea.tsx";
@@ -262,6 +262,30 @@ export function ChatPage() {
   return (
     <>
     <PageTitle title={current && current.title !== "New chat" ? current.title : heading} literal={Boolean(current && current.title !== "New chat")} />
+    <SubNav label={t("Chats")}>
+      <Button variant="ghost" size="sm" type="button" onClick={openNewChat}>
+        <MessageSquarePlus /> {t("New chat")}
+      </Button>
+      <Sheet open={listOpen} onOpenChange={setListOpen}>
+        <SheetTrigger render={<Button variant="ghost" size="sm" type="button" />}>
+          <Menu /> {t("Chats")}
+        </SheetTrigger>
+        <SheetContent
+          side="left"
+          className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
+        >
+          <SheetTitle className="pr-8 text-sidebar-foreground">{t("Chats")}</SheetTitle>
+          <ChatList
+            chats={chats}
+            loading={!chatsLoaded}
+            tone="sidebar"
+            onNew={openNewChat}
+            onPick={() => setListOpen(false)}
+            onDelete={setDeleteId}
+          />
+        </SheetContent>
+      </Sheet>
+    </SubNav>
     <section className="grid h-full min-h-0 flex-1 md:grid-cols-[16rem_minmax(0,1fr)]">
       <aside className="hidden h-full min-h-0 flex-col border-r border-border px-4 py-4 md:flex">
         <ChatList
@@ -284,32 +308,6 @@ export function ChatPage() {
           sending={sending}
           failedId={failedSend?.id ?? null}
           pendingProposal={pendingProposal}
-          menu={
-            <div className="flex items-center gap-2 md:hidden">
-              <Button variant="outline" size="sm" type="button" onClick={openNewChat}>
-                <MessageSquarePlus /> {t("New chat")}
-              </Button>
-              <Sheet open={listOpen} onOpenChange={setListOpen}>
-                <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
-                  <Menu /> {t("Chats")}
-                </SheetTrigger>
-                <SheetContent
-                  side="left"
-                  className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
-                >
-                  <SheetTitle className="pr-8 text-sidebar-foreground">{t("Chats")}</SheetTitle>
-                  <ChatList
-                    chats={chats}
-                    loading={!chatsLoaded}
-                    tone="sidebar"
-                    onNew={openNewChat}
-                    onPick={() => setListOpen(false)}
-                    onDelete={setDeleteId}
-                  />
-                </SheetContent>
-              </Sheet>
-            </div>
-          }
           onDraft={setDraft}
           onSubmit={(event) => {
             event.preventDefault();
@@ -344,7 +342,7 @@ export function ChatPage() {
   );
 }
 
-function ChatList({
+export function ChatList({
   chats,
   loading,
   tone,
@@ -375,7 +373,7 @@ function ChatList({
       >
         <MessageSquarePlus /> {t("New chat")}
       </Button>
-      <div className="grid min-h-0 w-full min-w-0 flex-1 content-start gap-1 overflow-x-hidden overflow-y-auto">
+      <div className="grid min-h-0 w-full min-w-0 flex-1 content-start overflow-x-hidden overflow-y-auto overscroll-contain">
         {loading ? <ChatListSkeleton /> : null}
         {loading
           ? null
@@ -384,11 +382,12 @@ function ChatList({
               return (
                 <div
                   key={chat.id}
+                  data-slot="chat-row"
                   className={cn(
-                    "flex min-w-0 items-center justify-between gap-1 rounded-md border px-2 py-1.5 text-sm",
+                    "flex min-w-0 items-center justify-between gap-1 border-b px-2 py-2.5 text-sm",
                     sidebar
-                      ? cn("border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground", cardBevel)
-                      : cn("hover:bg-muted", cardBevel),
+                      ? "border-sidebar-border text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      : "border-border hover:bg-muted",
                     active && (sidebar ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground" : "bg-muted font-medium"),
                   )}
                 >
@@ -398,14 +397,16 @@ function ChatList({
                       <RelativeTime value={chat.updatedAt} />
                     </span>
                   </NavLink>
-                  <button
+                  <Button
                     type="button"
-                    className="shrink-0 rounded-md p-1"
+                    variant="ghost"
+                    size="icon-sm"
+                    className={cn("shrink-0", sidebar && "hover:bg-sidebar hover:text-sidebar-foreground")}
                     aria-label={t("Delete chat")}
                     onClick={() => onDelete(chat.id)}
                   >
-                    <Trash2 size={14} />
-                  </button>
+                    <Trash2 />
+                  </Button>
                 </div>
               );
             })}
@@ -425,7 +426,6 @@ export function ChatConversation({
   failedId = null,
   pendingProposal = null,
   submittingForm,
-  menu,
   onDraft,
   onSubmit,
   onStarter,
@@ -445,7 +445,6 @@ export function ChatConversation({
   failedId?: string | null;
   pendingProposal?: PendingProposal | null;
   submittingForm: string | null;
-  menu?: ReactNode;
   onDraft: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStarter: (prompt: string) => void;
@@ -513,17 +512,6 @@ export function ChatConversation({
   }
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-medium tracking-tight">{title ?? t("Chat")}</h1>
-          {showStarters ? (
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              {t("Ask about links, campaigns, or the last 30 days")}
-            </p>
-          ) : null}
-        </div>
-        {menu}
-      </div>
       <div className="relative min-h-0 flex-1">
         <div
           ref={scroller}
@@ -532,40 +520,47 @@ export function ChatConversation({
           aria-relevant="additions text"
           onScroll={onScroll}
         >
-          <div className="grid content-start gap-4 py-4">
+          <div className="grid content-start gap-4 pb-4">
+            <div className="min-w-0">
+              <h1 className="truncate font-heading text-2xl font-medium tracking-tight">{title ?? t("Chat")}</h1>
+              {showStarters ? (
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {t("Ask about links, campaigns, or the last 30 days")}
+                </p>
+              ) : null}
+            </div>
             {loading ? <ChatThreadSkeleton /> : null}
             {!loading && available === false ? (
-              <Card>
-                <CardContent className="grid gap-3">
-                  <div className="grid gap-1">
-                    <h2 className="text-lg font-medium">{t("AI not available")}</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {t("An administrator has not saved a provider, model, and API key.")}
-                    </p>
-                  </div>
-                  {admin ? (
-                    <Link className={buttonVariants({ variant: "outline", size: "sm" })} to="/admin/settings">
-                      {t("Open settings")}
-                    </Link>
-                  ) : null}
-                </CardContent>
-              </Card>
+              <div className="grid justify-items-start gap-3">
+                <div className="grid gap-1">
+                  <h2 className="text-lg font-medium">{t("AI not available")}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {t("An administrator has not saved a provider, model, and API key.")}
+                  </p>
+                </div>
+                {admin ? (
+                  <Link className={buttonVariants({ variant: "outline", size: "sm" })} to="/admin/settings">
+                    {t("Open settings")}
+                  </Link>
+                ) : null}
+              </div>
             ) : null}
             {showStarters ? (
-              <div className="grid gap-2 sm:grid-cols-3">
+              <ul className="grid border-t border-border">
                 {chatStarters.map((starter) => (
-                  <button
-                    key={starter.id}
-                    type="button"
-                    aria-label={t(starter.label)}
-                    className={cn(cardBevel, "rounded-xl bg-card px-3 py-3 text-left text-sm font-medium ring-1 ring-foreground/10 hover:bg-muted")}
-                    onClick={() => onStarter(t(starter.prompt))}
-                  >
-                    <span className="block">{t(starter.label)}</span>
-                    <span className="mt-1 block text-xs font-normal text-muted-foreground">{t(starterHints[starter.id])}</span>
-                  </button>
+                  <li key={starter.id} className="border-b border-border">
+                    <button
+                      type="button"
+                      aria-label={t(starter.label)}
+                      className="block w-full px-2 py-3 text-left text-sm font-medium hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                      onClick={() => onStarter(t(starter.prompt))}
+                    >
+                      <span className="block">{t(starter.label)}</span>
+                      <span className="mt-1 block text-xs font-normal text-muted-foreground">{t(starterHints[starter.id])}</span>
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             ) : null}
             {!loading ? (
               <div className="grid gap-3">
@@ -662,23 +657,21 @@ function AssistantReply({
   if (!message.content && !hasBlocks && !message.proposal) return null;
   const pending = message.proposal && pendingProposal?.id === message.proposal.id ? pendingProposal.action : null;
   return (
-    <Card className="w-full max-w-[40rem]">
-      <CardContent className="grid gap-3">
-        {message.content ? <AssistantText text={message.content} /> : null}
-        {hasBlocks ? (
-          <ChatBlocks
-            blocks={message.blocks ?? []}
-            reportText={message.content}
-            submitting={submittingForm}
-            aiAvailable={aiAvailable}
-            onSubmit={onSubmitForm}
-          />
-        ) : null}
-        {message.proposal ? (
-          <ProposalCard proposal={message.proposal} pending={pending} onConfirm={onConfirm} onDismiss={onDismiss} />
-        ) : null}
-      </CardContent>
-    </Card>
+    <div className="grid w-full max-w-[40rem] gap-3 text-sm">
+      {message.content ? <AssistantText text={message.content} /> : null}
+      {hasBlocks ? (
+        <ChatBlocks
+          blocks={message.blocks ?? []}
+          reportText={message.content}
+          submitting={submittingForm}
+          aiAvailable={aiAvailable}
+          onSubmit={onSubmitForm}
+        />
+      ) : null}
+      {message.proposal ? (
+        <ProposalCard proposal={message.proposal} pending={pending} onConfirm={onConfirm} onDismiss={onDismiss} />
+      ) : null}
+    </div>
   );
 }
 

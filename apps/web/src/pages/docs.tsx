@@ -10,6 +10,7 @@ import { useAppName } from "../brand.ts";
 import { PageTitle } from "../components/page-title.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { DataTable, type DataColumn } from "../components/ui/data-table.tsx";
+import { SubNav } from "../components/sub-nav.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { useI18n } from "../i18n/index.tsx";
 import { docsCodeBlockClass, MermaidBlock } from "./docs-mermaid.tsx";
@@ -44,17 +45,17 @@ export function DocsPage() {
           frontendPages={frontendPages}
         />
       </div>
-      <article className="min-w-0">
-        <div className="mb-4 md:hidden">
-          <Sheet open={navOpen} onOpenChange={setNavOpen}>
-            <SheetTrigger render={<Button variant="outline" size="sm" type="button" />}>
-              <Menu /> {t("Docs")}
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-72 border-sidebar-border bg-sidebar p-4 text-sidebar-foreground sm:max-w-xs"
-            >
-              <SheetTitle className="pr-8 text-sidebar-foreground">{t("Docs")}</SheetTitle>
+      <SubNav label={t("Docs")}>
+        <Sheet open={navOpen} onOpenChange={setNavOpen}>
+          <SheetTrigger render={<Button variant="ghost" size="sm" type="button" />}>
+            <Menu /> {t("Docs")}
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            className="w-72 border-sidebar-border bg-sidebar p-4 pb-0 text-sidebar-foreground sm:max-w-xs"
+          >
+            <SheetTitle className="pr-8 text-sidebar-foreground">{t("Docs")}</SheetTitle>
+            <div data-slot="docs-sheet-list" className="-mx-4 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
               {navOpen ? (
                 <DocsNav
                   slug={slug}
@@ -64,9 +65,11 @@ export function DocsPage() {
                   onNavigate={() => setNavOpen(false)}
                 />
               ) : null}
-            </SheetContent>
-          </Sheet>
-        </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </SubNav>
+      <article className="min-w-0">
         {slug === "api" ? (
           <ApiReference />
         ) : slug === "developer/tests" ? (
