@@ -41,7 +41,10 @@ import {
 } from "../api.ts";
 import { useAppName } from "../brand.ts";
 import { EmptyState } from "../components/empty-state.tsx";
-import { AnalyticsSummary, useReportRange } from "../components/analytics-summary.tsx";
+import {
+  AnalyticsSummary,
+  useReportRange,
+} from "../components/analytics-summary.tsx";
 import { BulkLinksDialog } from "../components/bulk-links.tsx";
 import { RouteSuggest } from "../components/route-suggest.tsx";
 import { SuggestButton } from "../components/suggest-button.tsx";
@@ -68,7 +71,10 @@ import { Field, FieldMessage } from "../components/ui/field.tsx";
 import { FieldGroup, FieldGroupLine } from "../components/ui/field-group.tsx";
 import { Section } from "../components/ui/section.tsx";
 import { toast, toastCaught } from "../components/ui/toast.tsx";
-import { MediaField, type MediaFieldValue } from "../components/media-field.tsx";
+import {
+  MediaField,
+  type MediaFieldValue,
+} from "../components/media-field.tsx";
 import { Input } from "../components/ui/input.tsx";
 import {
   Table,
@@ -149,7 +155,6 @@ export function LinksPage() {
   return <LinkOverview />;
 }
 
-
 export const defaultRedirectDomain = "default";
 
 export function redirectDomainPayload(value: string): string | null {
@@ -219,7 +224,12 @@ export function RedirectDomainField({
   );
 }
 
-type EditorFolder = { id: string; name: string; parentId?: string | null; icon?: string | null };
+type EditorFolder = {
+  id: string;
+  name: string;
+  parentId?: string | null;
+  icon?: string | null;
+};
 
 function folderTreeOptions(folders: EditorFolder[]) {
   const byParent = new Map<string | null, EditorFolder[]>();
@@ -227,8 +237,18 @@ function folderTreeOptions(folders: EditorFolder[]) {
     const key = folder.parentId ?? null;
     byParent.set(key, [...(byParent.get(key) ?? []), folder]);
   }
-  const options: { value: string; label: string; depth: number; icon: ReactNode }[] = [
-    { value: "root", label: "Links", depth: 0, icon: <AppIcon name={defaultFolderIcon} /> },
+  const options: {
+    value: string;
+    label: string;
+    depth: number;
+    icon: ReactNode;
+  }[] = [
+    {
+      value: "root",
+      label: "Links",
+      depth: 0,
+      icon: <AppIcon name={defaultFolderIcon} />,
+    },
   ];
   function walk(parentId: string | null, depth: number) {
     for (const folder of byParent.get(parentId) ?? []) {
@@ -269,7 +289,13 @@ function LinkIdentity({
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        {showIcon ? <IconPicker value={icon} fallback={defaultLinkIcon} onChange={onIcon} /> : null}
+        {showIcon ? (
+          <IconPicker
+            value={icon}
+            fallback={defaultLinkIcon}
+            onChange={onIcon}
+          />
+        ) : null}
         <div className="min-w-48 flex-1">
           <Field label="Folder">
             <Select
@@ -316,7 +342,11 @@ function TitleSuggestButton({
       setHint(true);
     } catch (caught) {
       setHint(false);
-      setError(caught instanceof ApiError ? caught.message : "Could not suggest a title for that page.");
+      setError(
+        caught instanceof ApiError
+          ? caught.message
+          : "Could not suggest a title for that page.",
+      );
     } finally {
       setPending(false);
     }
@@ -357,7 +387,12 @@ function LinkTitleRow({
   const { t } = useI18n();
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <IconPicker large value={icon} fallback={defaultLinkIcon} onChange={onIcon} />
+      <IconPicker
+        large
+        value={icon}
+        fallback={defaultLinkIcon}
+        onChange={onIcon}
+      />
       <input
         aria-label={t("Title")}
         className="min-w-0 max-w-full [field-sizing:content] truncate bg-transparent font-heading text-3xl font-medium tracking-tight outline-none placeholder:text-muted-foreground"
@@ -367,7 +402,11 @@ function LinkTitleRow({
         onChange={(event) => onTitle(event.target.value)}
       />
       {aiAvailable && !disabled ? (
-        <TitleSuggestButton destinationUrl={destinationUrl} linkId={linkId} onTitle={onTitle} />
+        <TitleSuggestButton
+          destinationUrl={destinationUrl}
+          linkId={linkId}
+          onTitle={onTitle}
+        />
       ) : null}
     </div>
   );
@@ -418,7 +457,10 @@ export function LinkFormPage() {
           slug,
           icon,
           folderId: folderId === "root" ? null : folderId,
-          tags: tagsRef.current.map((tag) => ({ name: tag.name, color: tag.color })),
+          tags: tagsRef.current.map((tag) => ({
+            name: tag.name,
+            color: tag.color,
+          })),
           redirectType,
           redirectDomainId: redirectDomainPayload(redirectDomainId),
           utm,
@@ -447,73 +489,73 @@ export function LinkFormPage() {
         />
       </div>
       <form className="grid gap-4" onSubmit={(event) => void submit(event)}>
-            <LinkIdentity
-              icon={icon}
-              folderId={folderId}
-              folders={folders}
-              tags={tags}
-              showIcon={false}
-              onIcon={setIcon}
-              onFolder={setFolderId}
-              onTags={(next) => {
-                tagsRef.current = next;
-                setTags(next);
-              }}
+        <LinkIdentity
+          icon={icon}
+          folderId={folderId}
+          folders={folders}
+          tags={tags}
+          showIcon={false}
+          onIcon={setIcon}
+          onFolder={setFolderId}
+          onTags={(next) => {
+            tagsRef.current = next;
+            setTags(next);
+          }}
+        />
+        <LinkSuggestFields
+          aiAvailable={aiAvailable}
+          destinationUrl={destinationUrl}
+          slug={slug}
+          title={title}
+          hideTitle
+          destinationFirst
+          quietLabels
+          destinationInfo={
+            conflicts.length > 0
+              ? t(
+                  "Saving will replace {fields} already present on the destination.",
+                  { fields: conflicts.join(", ") },
+                )
+              : undefined
+          }
+          onDestination={setDestinationUrl}
+          onSlug={setSlug}
+          onTitle={setTitle}
+        >
+          <RedirectDomainField
+            srOnly
+            value={redirectDomainId}
+            onValueChange={setRedirectDomainId}
+          />
+        </LinkSuggestFields>
+        <Section title={t("Settings")}>
+          <Field label="Redirect">
+            <Select
+              value={redirectType}
+              options={[...redirectOptions]}
+              onValueChange={setRedirectType}
             />
-            <LinkSuggestFields
-              aiAvailable={aiAvailable}
-              destinationUrl={destinationUrl}
-              slug={slug}
-              title={title}
-              hideTitle
-              destinationFirst
-              quietLabels
-              destinationInfo={
-                conflicts.length > 0
-                  ? t(
-                      "Saving will replace {fields} already present on the destination.",
-                      { fields: conflicts.join(", ") },
-                    )
-                  : undefined
-              }
-              onDestination={setDestinationUrl}
-              onSlug={setSlug}
-              onTitle={setTitle}
-            >
-              <RedirectDomainField
-                srOnly
-                value={redirectDomainId}
-                onValueChange={setRedirectDomainId}
-              />
-            </LinkSuggestFields>
-            <Section title={t("Settings")}>
-              <Field label="Redirect">
-                <Select
-                  value={redirectType}
-                  options={[...redirectOptions]}
-                  onValueChange={setRedirectType}
-                />
-              </Field>
-            </Section>
-            <Section title={t("UTM")}>
-              <UtmSuggest
-                aiAvailable={aiAvailable}
-                destinationUrl={destinationUrl}
-                onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
-              />
-              <UtmFields utm={utm} onChange={setUtm} />
-            </Section>
-            {settings ? (
-              <p className="text-sm text-muted-foreground">
-                {t("Preview: {url}", {
-                  url: previewDestination(destinationUrl, utm),
-                })}
-              </p>
-            ) : null}
-            <Button type="submit" disabled={pending}>
-              <Plus /> {pending ? t("Creating…") : t("Create link")}
-            </Button>
-          </form>
+          </Field>
+        </Section>
+        <Section title={t("UTM")}>
+          <UtmSuggest
+            aiAvailable={aiAvailable}
+            destinationUrl={destinationUrl}
+            onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
+          />
+          <UtmFields utm={utm} onChange={setUtm} />
+        </Section>
+        {settings ? (
+          <p className="text-sm text-muted-foreground">
+            {t("Preview: {url}", {
+              url: previewDestination(destinationUrl, utm),
+            })}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={pending}>
+          <Plus /> {pending ? t("Creating…") : t("Create link")}
+        </Button>
+      </form>
     </section>
   );
 }
@@ -562,7 +604,11 @@ export function LinkSuggestFields({
     if (field === "slug") setSlugError("");
     else setTitleError("");
     try {
-      const result = await api<{ slug: string | null; title: string; fromTitle: boolean }>("/api/ai/suggest-slug", {
+      const result = await api<{
+        slug: string | null;
+        title: string;
+        fromTitle: boolean;
+      }>("/api/ai/suggest-slug", {
         method: "POST",
         body: JSON.stringify({ destinationUrl, linkId }),
       });
@@ -584,13 +630,20 @@ export function LinkSuggestFields({
       onTitle(result.title);
       setTitleHint(true);
     } catch (caught) {
-      const message = caught instanceof ApiError ? caught.message : "Could not suggest a slug for that page.";
+      const message =
+        caught instanceof ApiError
+          ? caught.message
+          : "Could not suggest a slug for that page.";
       if (field === "slug") {
         setSlugHint(null);
         setSlugError(message);
       } else {
         setTitleHint(false);
-        setTitleError(caught instanceof ApiError ? message : "Could not suggest a title for that page.");
+        setTitleError(
+          caught instanceof ApiError
+            ? message
+            : "Could not suggest a title for that page.",
+        );
       }
     } finally {
       setSuggesting(null);
@@ -614,7 +667,13 @@ export function LinkSuggestFields({
           {aiAvailable ? (
             <SuggestButton
               label="Suggest a slug"
-              hint={slugHint === "title" ? "Suggested from the page title." : slugHint === "page" ? "Suggested from the page." : null}
+              hint={
+                slugHint === "title"
+                  ? "Suggested from the page title."
+                  : slugHint === "page"
+                    ? "Suggested from the page."
+                    : null
+              }
               error={slugError}
               disabled={!ready || suggesting === "slug"}
               onClick={() => void suggest("slug")}
@@ -652,7 +711,11 @@ export function LinkSuggestFields({
   );
   const destinationField = (
     <Field label="Destination" info={destinationInfo}>
-      <Input value={destinationUrl} onChange={(event) => onDestination(event.target.value)} required />
+      <Input
+        value={destinationUrl}
+        onChange={(event) => onDestination(event.target.value)}
+        required
+      />
     </Field>
   );
   return (
@@ -662,7 +725,13 @@ export function LinkSuggestFields({
       <FieldGroup label="Short link">
         <FieldGroupLine className={quietLabels ? "items-center" : undefined}>
           <div className="min-w-0 flex-1">{children}</div>
-          <span className={cn("px-2 font-mono text-muted-foreground", quietLabels ? "self-center" : "pb-2.5")} aria-hidden>
+          <span
+            className={cn(
+              "px-2 font-mono text-muted-foreground",
+              quietLabels ? "self-center" : "pb-2.5",
+            )}
+            aria-hidden
+          >
             /
           </span>
           <div className="min-w-0 flex-[1.4]">{slugFields}</div>
@@ -829,7 +898,10 @@ export function LinkDetailPage() {
           title,
           icon,
           folderId: folderId === "root" ? null : folderId,
-          tags: tagsRef.current.map((tag) => ({ name: tag.name, color: tag.color })),
+          tags: tagsRef.current.map((tag) => ({
+            name: tag.name,
+            color: tag.color,
+          })),
           redirectType,
           status,
           expiresAt: fromDatetimeLocal(expiresAt),
@@ -902,7 +974,11 @@ export function LinkDetailPage() {
     setTrackingVariantId(code.trackingVariantId ?? noVariant);
     setLogo(
       code.logoMediaId && code.logoUrl
-        ? { id: code.logoMediaId, url: code.logoUrl, name: logoName(code.logoUrl) }
+        ? {
+            id: code.logoMediaId,
+            url: code.logoUrl,
+            name: logoName(code.logoUrl),
+          }
         : null,
     );
   }
@@ -952,7 +1028,12 @@ export function LinkDetailPage() {
     if (activeQr?.hasLogo) {
       try {
         await api(`/api/qr/${activeQr.id}/logo`, { method: "DELETE" });
-        const next = { ...activeQr, hasLogo: false, logoMediaId: null, logoUrl: null };
+        const next = {
+          ...activeQr,
+          hasLogo: false,
+          logoMediaId: null,
+          logoUrl: null,
+        };
         setActiveQr(next);
         setQrCodes((current) =>
           current.map((code) => (code.id === next.id ? next : code)),
@@ -1011,7 +1092,8 @@ export function LinkDetailPage() {
                 {t("Created by")} {link.owner?.username ?? t("Unknown")}
               </p>
               <p>
-                {t("Last changed by")} {link.updatedBy?.username ?? t("Unknown")}
+                {t("Last changed by")}{" "}
+                {link.updatedBy?.username ?? t("Unknown")}
               </p>
             </div>
             {locked ? (
@@ -1029,7 +1111,7 @@ export function LinkDetailPage() {
               form="link-editor"
               disabled={saving || loading || !link}
             >
-              <Save /> {saving ? t("Saving…") : t("Save")}
+              <Save /> {t("Save")}
             </Button>
           )}
           <Button
@@ -1064,8 +1146,12 @@ export function LinkDetailPage() {
       {loading ? (
         <DetailSkeleton label="Loading link…" />
       ) : (
-      <>
-      <form id="link-editor" className="grid gap-4" onSubmit={(event) => void save(event)}>
+        <>
+          <form
+            id="link-editor"
+            className="grid gap-4"
+            onSubmit={(event) => void save(event)}
+          >
             <fieldset
               disabled={locked}
               className="m-0 grid min-w-0 gap-3 border-0 p-0"
@@ -1111,395 +1197,414 @@ export function LinkDetailPage() {
                 />
               </LinkSuggestFields>
               <Section title={t("Settings")}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Redirect">
-                  <Select
-                    value={redirectType}
-                    options={redirectOptions.map(({ value, label }) => ({
-                      value,
-                      label,
-                    }))}
-                    onValueChange={setRedirectType}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Redirect">
+                    <Select
+                      value={redirectType}
+                      options={redirectOptions.map(({ value, label }) => ({
+                        value,
+                        label,
+                      }))}
+                      onValueChange={setRedirectType}
+                    />
+                    <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
+                      {t(choiceNote(redirectOptions, redirectType))}
+                    </p>
+                  </Field>
+                  <Field label="Status">
+                    <Select
+                      value={status}
+                      options={[...statusOptions]}
+                      onValueChange={setStatus}
+                    />
+                  </Field>
+                </div>
+                <Field label="Expires">
+                  <Input
+                    type="datetime-local"
+                    value={expiresAt}
+                    onChange={(event) => setExpiresAt(event.target.value)}
                   />
-                  <p className="sr-only text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
-                    {t(choiceNote(redirectOptions, redirectType))}
+                </Field>
+                <Field
+                  label={link?.hasPassword ? "Replace password" : "Password"}
+                >
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder={
+                      link?.hasPassword ? "Leave blank to keep it." : "Optional"
+                    }
+                    autoComplete="new-password"
+                  />
+                  <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
+                    {t(
+                      "Visitors must enter this password before the short link redirects.",
+                    )}
+                    {link?.hasPassword
+                      ? t(" A password is already saved.")
+                      : ""}
                   </p>
                 </Field>
-                <Field label="Status">
-                  <Select
-                    value={status}
-                    options={[...statusOptions]}
-                    onValueChange={setStatus}
-                  />
-                </Field>
-              </div>
-              <Field label="Expires">
-                <Input
-                  type="datetime-local"
-                  value={expiresAt}
-                  onChange={(event) => setExpiresAt(event.target.value)}
-                />
-              </Field>
-              <Field
-                label={link?.hasPassword ? "Replace password" : "Password"}
-              >
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder={
-                    link?.hasPassword ? "Leave blank to keep it." : "Optional"
-                  }
-                  autoComplete="new-password"
-                />
-                <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
-                  {t(
-                    "Visitors must enter this password before the short link redirects.",
-                  )}
-                  {link?.hasPassword ? t(" A password is already saved.") : ""}
-                </p>
-              </Field>
-              {link?.hasPassword && !locked ? (
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => void clearPassword()}
-                >
-                  <Trash2 /> {t("Remove password")}
-                </Button>
-              ) : null}
+                {link?.hasPassword && !locked ? (
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => void clearPassword()}
+                  >
+                    <Trash2 /> {t("Remove password")}
+                  </Button>
+                ) : null}
               </Section>
               <Section title={t("UTM")}>
-              <UtmSuggest
-                aiAvailable={aiAvailable && !locked}
-                destinationUrl={destinationUrl}
-                onApply={(next) => setUtm((current) => ({ ...current, ...next }))}
-              />
-              <UtmFields utm={utm} onChange={setUtm} />
-              <p className="text-sm text-muted-foreground truncate">
-                {t("Tracked URL: {url}", {
-                  url: previewDestination(destinationUrl, utm),
-                })}
-              </p>
+                <UtmSuggest
+                  aiAvailable={aiAvailable && !locked}
+                  destinationUrl={destinationUrl}
+                  onApply={(next) =>
+                    setUtm((current) => ({ ...current, ...next }))
+                  }
+                />
+                <UtmFields utm={utm} onChange={setUtm} />
+                <p className="text-sm text-muted-foreground truncate">
+                  {t("Tracked URL: {url}", {
+                    url: previewDestination(destinationUrl, utm),
+                  })}
+                </p>
               </Section>
               <Section title={t("Routing")}>
-              <RouteBuilder
-                rules={routes}
-                choices={routingChoices}
-                utm={utm}
-                locale={locale}
-                onChange={setRoutes}
-                leading={
-                  aiAvailable && !locked ? (
-                    <RouteSuggest
-                      onAppend={(drafts) =>
-                        setRoutes((current) => [...current, ...drafts].slice(0, MAX_ROUTING_RULES))
-                      }
-                    />
-                  ) : null
-                }
-              />
+                <RouteBuilder
+                  rules={routes}
+                  choices={routingChoices}
+                  utm={utm}
+                  locale={locale}
+                  onChange={setRoutes}
+                  leading={
+                    aiAvailable && !locked ? (
+                      <RouteSuggest
+                        onAppend={(drafts) =>
+                          setRoutes((current) =>
+                            [...current, ...drafts].slice(0, MAX_ROUTING_RULES),
+                          )
+                        }
+                      />
+                    ) : null
+                  }
+                />
               </Section>
               {locked ? null : (
                 <Button type="submit" disabled={saving}>
-                  <Save /> {saving ? t("Saving…") : t("Save link")}
+                  <Save /> {t("Save link")}
                 </Button>
               )}
             </fieldset>
           </form>
-      <Section title={t("QR code")}>
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="lg:col-start-2 lg:row-start-1">
-              <Card>
-                <CardContent>
-              <QrPreview
-                url={previewUrl || "https://example.com"}
-                style={style}
-                logoUrl={logoUrl}
-              />
-                </CardContent>
-              </Card>
-            </div>
-            <form
-              className="grid min-w-0 gap-3 lg:col-start-1 lg:row-start-1"
-              onSubmit={(event) => void createQr(event)}
-            >
-              <fieldset
-                disabled={locked}
-                className="m-0 grid min-w-0 gap-3 border-0 p-0"
-              >
-                <Field label="Name">
-                  <Input
-                    value={qrName}
-                    onChange={(event) => setQrName(event.target.value)}
-                    required
-                  />
-                </Field>
-                <Field label="Campaign variant">
-                  <Select
-                    value={trackingVariantId}
-                    placeholder="No variant"
-                    options={[
-                      { value: noVariant, label: t("No variant") },
-                      ...variants.map((variant) => ({
-                        value: variant.id,
-                        label: variant.name,
-                      })),
-                    ]}
-                    onValueChange={setTrackingVariantId}
-                  />
-                  <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
-                    {t(
-                      "The QR code uses this variant’s UTM values when someone scans it.",
-                    )}
-                  </p>
-                </Field>
-                <Field label="Modules">
-                  <Select
-                    value={style.dotsType}
-                    options={[...moduleOptions]}
-                    onValueChange={(dotsType) =>
-                      setStyle({ ...style, dotsType })
-                    }
-                  />
-                </Field>
-                <Field label="Finder">
-                  <Select
-                    value={style.cornersSquareType}
-                    options={[...finderOptions]}
-                    onValueChange={(cornersSquareType) =>
-                      setStyle({ ...style, cornersSquareType })
-                    }
-                  />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Foreground" info={scanWarning("contrast")}>
-                    <Input
-                      type="color"
-                      value={style.dotsColor}
-                      onChange={(event) =>
-                        setStyle({
-                          ...style,
-                          dotsColor: event.target.value,
-                          cornersSquareColor: event.target.value,
-                          cornersDotColor: event.target.value,
-                        })
-                      }
+          <Section title={t("QR code")}>
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="lg:col-start-2 lg:row-start-1">
+                <Card>
+                  <CardContent>
+                    <QrPreview
+                      url={previewUrl || "https://example.com"}
+                      style={style}
+                      logoUrl={logoUrl}
                     />
-                  </Field>
-                  <Field label="Background">
-                    <Input
-                      type="color"
-                      value={style.backgroundColor}
-                      onChange={(event) =>
-                        setStyle({
-                          ...style,
-                          backgroundColor: event.target.value,
-                        })
-                      }
-                    />
-                  </Field>
-                </div>
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <Checkbox
-                    checked={style.backgroundTransparent}
-                    onCheckedChange={(checked) =>
-                      setStyle({
-                        ...style,
-                        backgroundTransparent: checked === true,
-                      })
-                    }
-                  />{" "}
-                  {t("Transparent background")}
-                  {transparentWarning ? (
-                    <FieldMessage tone="info" message={transparentWarning} />
-                  ) : null}
-                </label>
-                <Field
-                  label="Center image scale"
-                  info={scanWarning("imageSize")}
-                >
-                  <Input
-                    type="number"
-                    min="0"
-                    max="0.45"
-                    step="0.01"
-                    value={style.imageSize}
-                    onChange={(event) =>
-                      setStyle({
-                        ...style,
-                        imageSize: Number(event.target.value),
-                      })
-                    }
-                  />
-                </Field>
-                <Field
-                  label="Error correction"
-                  info={scanWarning("errorCorrection")}
-                >
-                  <Select
-                    value={style.errorCorrectionLevel}
-                    options={[...correctionOptions]}
-                    onValueChange={(errorCorrectionLevel) =>
-                      setStyle({ ...style, errorCorrectionLevel })
-                    }
-                  />
-                  <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
-                    {t(
-                      choiceNote(correctionOptions, style.errorCorrectionLevel),
-                    )}
-                  </p>
-                </Field>
-                <Field label="Quiet zone" info={scanWarning("margin")}>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="16"
-                    value={style.margin}
-                    onChange={(event) =>
-                      setStyle({ ...style, margin: Number(event.target.value) })
-                    }
-                  />
-                </Field>
-                <Field label="Center image">
-                  <MediaField
-                    value={logo}
-                    accept={rasterImageMimes}
-                    acceptLabel={t("PNG, JPEG, or WebP")}
-                    disabled={locked}
-                    removeLabel={t("Remove center image")}
-                    onChange={(media) => {
-                      if (!media) {
-                        void removeCenterImage();
-                        return;
-                      }
-                      setLogo({ id: media.id, url: media.path, name: media.name });
-                      setStyle((current) => ({ ...current, errorCorrectionLevel: "H" }));
-                    }}
-                  />
-                </Field>
-                {locked ? null : (
-                  <Button type="submit" disabled={savingQr}>
-                    <Save /> {savingQr ? t("Saving…") : t("Save QR style")}
-                  </Button>
-                )}
-              </fieldset>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() =>
-                    void downloadQr(
-                      previewUrl,
-                      style,
-                      logoUrl,
-                      "svg",
-                      slug || appSlug(appName),
-                    )
-                  }
-                >
-                  <Download /> SVG
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() =>
-                    void downloadQr(
-                      previewUrl,
-                      style,
-                      logoUrl,
-                      "png",
-                      slug || appSlug(appName),
-                    )
-                  }
-                >
-                  <Download /> PNG
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() =>
-                    void downloadQr(
-                      previewUrl,
-                      { ...style, backgroundTransparent: false },
-                      logoUrl,
-                      "jpeg",
-                      slug || appSlug(appName),
-                    )
-                  }
-                >
-                  <Download /> JPEG
-                </Button>
+                  </CardContent>
+                </Card>
               </div>
-            </form>
-          </div>
-      </Section>
-      {qrCodes.length > 0 ? (
-        <Section title={t("Saved codes")}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("Name")}</TableHead>
-                  <TableHead>{t("URL")}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {qrCodes.map((code) => {
-                  const selected = activeQr?.id === code.id;
-                  return (
-                    <TableRow
-                      key={code.id}
-                      data-state={selected ? "selected" : undefined}
-                    >
-                      <TableCell className="font-medium">
-                        <button
-                          type="button"
-                          aria-pressed={selected}
-                          className="text-left font-medium"
-                          onClick={() => showQr(code)}
-                        >
-                          {code.name}
-                        </button>
-                      </TableCell>
-                      <TableCell
-                        className="font-mono text-muted-foreground"
-                        title={code.url}
-                      >
-                        {code.url}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-        </Section>
-      ) : null}
-      {analytics ? (
-        <div className="grid gap-4">
-          <Section title={t("Clicks")}>
-              {aiAvailable ? (
-                <AnalyticsSummary
-                  linkId={id}
-                  earliest={earliest}
-                  range={report.range}
-                  onRange={(from, to) => report.setRange({ from, to })}
-                />
-              ) : null}
-              <ClickChart series={analytics.series} />
+              <form
+                className="grid min-w-0 gap-3 lg:col-start-1 lg:row-start-1"
+                onSubmit={(event) => void createQr(event)}
+              >
+                <fieldset
+                  disabled={locked}
+                  className="m-0 grid min-w-0 gap-3 border-0 p-0"
+                >
+                  <Field label="Name">
+                    <Input
+                      value={qrName}
+                      onChange={(event) => setQrName(event.target.value)}
+                      required
+                    />
+                  </Field>
+                  <Field label="Campaign variant">
+                    <Select
+                      value={trackingVariantId}
+                      placeholder="No variant"
+                      options={[
+                        { value: noVariant, label: t("No variant") },
+                        ...variants.map((variant) => ({
+                          value: variant.id,
+                          label: variant.name,
+                        })),
+                      ]}
+                      onValueChange={setTrackingVariantId}
+                    />
+                    <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
+                      {t(
+                        "The QR code uses this variant’s UTM values when someone scans it.",
+                      )}
+                    </p>
+                  </Field>
+                  <Field label="Modules">
+                    <Select
+                      value={style.dotsType}
+                      options={[...moduleOptions]}
+                      onValueChange={(dotsType) =>
+                        setStyle({ ...style, dotsType })
+                      }
+                    />
+                  </Field>
+                  <Field label="Finder">
+                    <Select
+                      value={style.cornersSquareType}
+                      options={[...finderOptions]}
+                      onValueChange={(cornersSquareType) =>
+                        setStyle({ ...style, cornersSquareType })
+                      }
+                    />
+                  </Field>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Foreground" info={scanWarning("contrast")}>
+                      <Input
+                        type="color"
+                        value={style.dotsColor}
+                        onChange={(event) =>
+                          setStyle({
+                            ...style,
+                            dotsColor: event.target.value,
+                            cornersSquareColor: event.target.value,
+                            cornersDotColor: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Background">
+                      <Input
+                        type="color"
+                        value={style.backgroundColor}
+                        onChange={(event) =>
+                          setStyle({
+                            ...style,
+                            backgroundColor: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <Checkbox
+                      checked={style.backgroundTransparent}
+                      onCheckedChange={(checked) =>
+                        setStyle({
+                          ...style,
+                          backgroundTransparent: checked === true,
+                        })
+                      }
+                    />{" "}
+                    {t("Transparent background")}
+                    {transparentWarning ? (
+                      <FieldMessage tone="info" message={transparentWarning} />
+                    ) : null}
+                  </label>
+                  <Field
+                    label="Center image scale"
+                    info={scanWarning("imageSize")}
+                  >
+                    <Input
+                      type="number"
+                      min="0"
+                      max="0.45"
+                      step="0.01"
+                      value={style.imageSize}
+                      onChange={(event) =>
+                        setStyle({
+                          ...style,
+                          imageSize: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field
+                    label="Error correction"
+                    info={scanWarning("errorCorrection")}
+                  >
+                    <Select
+                      value={style.errorCorrectionLevel}
+                      options={[...correctionOptions]}
+                      onValueChange={(errorCorrectionLevel) =>
+                        setStyle({ ...style, errorCorrectionLevel })
+                      }
+                    />
+                    <p className="text-sm leading-snug font-normal text-muted-foreground md:text-[13px]">
+                      {t(
+                        choiceNote(
+                          correctionOptions,
+                          style.errorCorrectionLevel,
+                        ),
+                      )}
+                    </p>
+                  </Field>
+                  <Field label="Quiet zone" info={scanWarning("margin")}>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="16"
+                      value={style.margin}
+                      onChange={(event) =>
+                        setStyle({
+                          ...style,
+                          margin: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Center image">
+                    <MediaField
+                      value={logo}
+                      accept={rasterImageMimes}
+                      acceptLabel={t("PNG, JPEG, or WebP")}
+                      disabled={locked}
+                      removeLabel={t("Remove center image")}
+                      onChange={(media) => {
+                        if (!media) {
+                          void removeCenterImage();
+                          return;
+                        }
+                        setLogo({
+                          id: media.id,
+                          url: media.path,
+                          name: media.name,
+                        });
+                        setStyle((current) => ({
+                          ...current,
+                          errorCorrectionLevel: "H",
+                        }));
+                      }}
+                    />
+                  </Field>
+                  {locked ? null : (
+                    <Button type="submit" disabled={savingQr}>
+                      <Save /> {t("Save QR style")}
+                    </Button>
+                  )}
+                </fieldset>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() =>
+                      void downloadQr(
+                        previewUrl,
+                        style,
+                        logoUrl,
+                        "svg",
+                        slug || appSlug(appName),
+                      )
+                    }
+                  >
+                    <Download /> SVG
+                  </Button>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() =>
+                      void downloadQr(
+                        previewUrl,
+                        style,
+                        logoUrl,
+                        "png",
+                        slug || appSlug(appName),
+                      )
+                    }
+                  >
+                    <Download /> PNG
+                  </Button>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() =>
+                      void downloadQr(
+                        previewUrl,
+                        { ...style, backgroundTransparent: false },
+                        logoUrl,
+                        "jpeg",
+                        slug || appSlug(appName),
+                      )
+                    }
+                  >
+                    <Download /> JPEG
+                  </Button>
+                </div>
+              </form>
+            </div>
           </Section>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Breakdown
-              title={t("QR codes")}
-              rows={analytics.qrCodes.map((row) => ({
-                name: row.name,
-                clicks: row.clicks,
-              }))}
-            />
-            <UtmBreakdowns analytics={analytics} />
-          </div>
-        </div>
-      ) : null}
-      </>
+          {qrCodes.length > 0 ? (
+            <Section title={t("Saved codes")}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("Name")}</TableHead>
+                    <TableHead>{t("URL")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {qrCodes.map((code) => {
+                    const selected = activeQr?.id === code.id;
+                    return (
+                      <TableRow
+                        key={code.id}
+                        data-state={selected ? "selected" : undefined}
+                      >
+                        <TableCell className="font-medium">
+                          <button
+                            type="button"
+                            aria-pressed={selected}
+                            className="text-left font-medium"
+                            onClick={() => showQr(code)}
+                          >
+                            {code.name}
+                          </button>
+                        </TableCell>
+                        <TableCell
+                          className="font-mono text-muted-foreground"
+                          title={code.url}
+                        >
+                          {code.url}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Section>
+          ) : null}
+          {analytics ? (
+            <div className="grid gap-4">
+              <Section title={t("Clicks")}>
+                {aiAvailable ? (
+                  <AnalyticsSummary
+                    linkId={id}
+                    earliest={earliest}
+                    range={report.range}
+                    onRange={(from, to) => report.setRange({ from, to })}
+                  />
+                ) : null}
+                <ClickChart series={analytics.series} />
+              </Section>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Breakdown
+                  title={t("QR codes")}
+                  rows={analytics.qrCodes.map((row) => ({
+                    name: row.name,
+                    clicks: row.clicks,
+                  }))}
+                />
+                <UtmBreakdowns analytics={analytics} />
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
       <ConfirmDialog
         open={confirmDelete}

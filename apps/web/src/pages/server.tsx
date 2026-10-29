@@ -87,9 +87,9 @@ export function ServerPage() {
           >
             <RefreshCw />{" "}
             {pending && !snapshot
-              ? t("Loading…")
+              ? t("Refresh")
               : pending
-                ? t("Refreshing…")
+                ? t("Refresh")
                 : t("Refresh")}
           </Button>
         }

@@ -1014,7 +1014,7 @@ export function CampaignDetailPage() {
                 />
               </Field>
               <Button type="submit" disabled={savingCampaign}>
-                <Save /> {savingCampaign ? t("Saving…") : t("Save campaign")}
+                <Save /> {t("Save campaign")}
               </Button>
             </form>
           </Section>
@@ -1073,11 +1073,7 @@ export function CampaignDetailPage() {
               <div className="flex flex-wrap items-center gap-2.5">
                 <Button type="submit" disabled={savingVariant}>
                   {editingId ? <Save /> : <Plus />}{" "}
-                  {savingVariant
-                    ? t("Saving…")
-                    : editingId
-                      ? t("Save variant")
-                      : t("Add variant")}
+                  {editingId ? t("Save variant") : t("Add variant")}
                 </Button>
                 {editingId ? (
                   <Button

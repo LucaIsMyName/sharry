@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, ExternalLink, Eye, EyeOff, Save, Send, Settings, Trash2 } from "lucide-react";
+import {
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Save,
+  Send,
+  Settings,
+  Trash2,
+} from "lucide-react";
 import { useBlocker, useNavigate, useParams } from "react-router";
 import {
   blockDefinition,
@@ -20,10 +29,19 @@ import { EmptyState } from "../components/empty-state.tsx";
 import { IconAction } from "../components/icon-action.tsx";
 import { AddBlockDialog } from "../components/page-builder/add-block-dialog.tsx";
 import { BlockIcon } from "../components/page-builder/block-icons.tsx";
-import { BlockTree, type AddTarget } from "../components/page-builder/block-tree.tsx";
-import { FieldsEditor, type MediaRefs } from "../components/page-builder/field-editor.tsx";
+import {
+  BlockTree,
+  type AddTarget,
+} from "../components/page-builder/block-tree.tsx";
+import {
+  FieldsEditor,
+  type MediaRefs,
+} from "../components/page-builder/field-editor.tsx";
 import { PagePreview } from "../components/page-builder/page-preview.tsx";
-import { PageSettingsSheet, type PageDraft } from "../components/page-builder/page-settings-sheet.tsx";
+import {
+  PageSettingsSheet,
+  type PageDraft,
+} from "../components/page-builder/page-settings-sheet.tsx";
 import { PageStatusBadge } from "../components/page-builder/page-status.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { Badge } from "../components/ui/badge.tsx";
@@ -99,7 +117,12 @@ export function PageEditorPage() {
     };
   }, [id, accept]);
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && !leaving.current && currentLocation.pathname !== nextLocation.pathname);
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty &&
+      !leaving.current &&
+      currentLocation.pathname !== nextLocation.pathname,
+  );
 
   useEffect(() => {
     if (!dirty) return;
@@ -117,13 +140,25 @@ export function PageEditorPage() {
     try {
       const next =
         kind === "save"
-          ? await api<LandingPage>(`/api/pages/${id}`, { method: "PATCH", body: JSON.stringify(body) })
-          : await api<LandingPage>(`/api/pages/${id}/publish`, { method: "POST", body: JSON.stringify({ ...body, hidden: undefined }) });
+          ? await api<LandingPage>(`/api/pages/${id}`, {
+              method: "PATCH",
+              body: JSON.stringify(body),
+            })
+          : await api<LandingPage>(`/api/pages/${id}/publish`, {
+              method: "POST",
+              body: JSON.stringify({ ...body, hidden: undefined }),
+            });
       accept(next);
       toast.success(kind === "save" ? t("Page saved.") : t("Page published."));
     } catch (caught) {
-      if (caught instanceof ApiError && caught.code === "slug_taken") setSettingsOpen(true);
-      toastCaught(caught, kind === "save" ? t("Could not save the page") : t("Could not publish the page"));
+      if (caught instanceof ApiError && caught.code === "slug_taken")
+        setSettingsOpen(true);
+      toastCaught(
+        caught,
+        kind === "save"
+          ? t("Could not save the page")
+          : t("Could not publish the page"),
+      );
     } finally {
       setBusy(null);
     }
@@ -133,7 +168,8 @@ export function PageEditorPage() {
   saveRef.current = send;
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s")
+        return;
       event.preventDefault();
       void saveRef.current("save");
     }
@@ -144,7 +180,9 @@ export function PageEditorPage() {
   async function hide() {
     setBusy("hide");
     try {
-      const next = await api<LandingPage>(`/api/pages/${id}/hide`, { method: "POST" });
+      const next = await api<LandingPage>(`/api/pages/${id}/hide`, {
+        method: "POST",
+      });
       setPage(next);
       setDraft((current) => (current ? { ...current, hidden: true } : current));
       toast.success(t("Page hidden. Visitors now get a “not found” page."));
@@ -158,7 +196,9 @@ export function PageEditorPage() {
   async function duplicate() {
     setBusy("duplicate");
     try {
-      const copy = await api<LandingPage>(`/api/pages/${id}/duplicate`, { method: "POST" });
+      const copy = await api<LandingPage>(`/api/pages/${id}/duplicate`, {
+        method: "POST",
+      });
       toast.success(t("Copy created from the last saved version."));
       void navigate(`/pages/${copy.id}`);
     } catch (caught) {
@@ -180,7 +220,11 @@ export function PageEditorPage() {
   }
 
   function setBlocks(update: (blocks: PageBlock[]) => PageBlock[]) {
-    setDraft((current) => (current ? { ...current, content: { blocks: update(current.content.blocks) } } : current));
+    setDraft((current) =>
+      current
+        ? { ...current, content: { blocks: update(current.content.blocks) } }
+        : current,
+    );
   }
 
   function addBlock(type: string) {
@@ -188,7 +232,10 @@ export function PageEditorPage() {
     const block = createBlock(type);
     const blocks = draft.content.blocks;
     const parent = adding.parentId ? findBlock(blocks, adding.parentId) : null;
-    const index = adding.parentId === null ? blocks.length : (parent?.slots?.[adding.slot ?? ""]?.length ?? 0);
+    const index =
+      adding.parentId === null
+        ? blocks.length
+        : (parent?.slots?.[adding.slot ?? ""]?.length ?? 0);
     const place = { ...adding, index };
     const problem = insertProblem(blocks, place, block);
     if (problem) {
@@ -204,7 +251,10 @@ export function PageEditorPage() {
     if (!draft) return;
     const result = duplicateBlock(draft.content.blocks, blockId);
     if (!result.copyId) {
-      toastCaught(new Error(t("A page can hold at most 300 blocks")), t("Could not duplicate the block"));
+      toastCaught(
+        new Error(t("A page can hold at most 300 blocks")),
+        t("Could not duplicate the block"),
+      );
       return;
     }
     setBlocks(() => result.blocks);
@@ -213,13 +263,21 @@ export function PageEditorPage() {
 
   function removeSelected(blockId: string) {
     setBlocks((current) => removeBlock(current, blockId));
-    if (selectedId && draft && (selectedId === blockId || !findBlock(removeBlock(draft.content.blocks, blockId), selectedId))) setSelectedId(null);
+    if (
+      selectedId &&
+      draft &&
+      (selectedId === blockId ||
+        !findBlock(removeBlock(draft.content.blocks, blockId), selectedId))
+    )
+      setSelectedId(null);
   }
 
   if (failed) return <EmptyState>{t("Could not load the page.")}</EmptyState>;
   if (!page || !draft) return <RowSkeleton label="Loading page…" />;
 
-  const selected = selectedId ? findBlock(draft.content.blocks, selectedId) : null;
+  const selected = selectedId
+    ? findBlock(draft.content.blocks, selectedId)
+    : null;
   const definition = selected ? blockDefinition(selected.type) : undefined;
   const live = page.status === "published" || page.status === "changed";
   const publishLabel = page.publishedAt ? t("Publish changes") : t("Publish");
@@ -229,9 +287,15 @@ export function PageEditorPage() {
       <PageHeader
         title={
           <span className="inline-flex min-w-0 flex-wrap items-center gap-3">
-            <span className="truncate">{draft.title.trim() || t("Untitled page")}</span>
+            <span className="truncate">
+              {draft.title.trim() || t("Untitled page")}
+            </span>
             <PageStatusBadge status={page.status} />
-            <Badge variant="outline" className={cn(!dirty && "invisible")} aria-hidden={!dirty}>
+            <Badge
+              variant="outline"
+              className={cn(!dirty && "invisible")}
+              aria-hidden={!dirty}
+            >
               {t("Unsaved")}
             </Badge>
           </span>
@@ -240,42 +304,92 @@ export function PageEditorPage() {
         label={draft.title.trim() || t("Untitled page")}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <IconAction label={t("View live")} disabled={!live} onClick={() => window.open(page.url, "_blank", "noopener")}>
+            <IconAction
+              label={t("View live")}
+              disabled={!live}
+              onClick={() => window.open(page.url, "_blank", "noopener")}
+            >
               <ExternalLink />
             </IconAction>
             {editable ? (
-              <IconAction label={t("Hide from visitors")} disabled={!live || busy !== null} onClick={() => void hide()}>
+              <IconAction
+                label={t("Hide from visitors")}
+                disabled={!live || busy !== null}
+                onClick={() => void hide()}
+              >
                 <EyeOff />
               </IconAction>
             ) : null}
-            <IconAction label={t("Duplicate page")} disabled={busy !== null} onClick={() => void duplicate()}>
+            <IconAction
+              label={t("Duplicate page")}
+              disabled={busy !== null}
+              onClick={() => void duplicate()}
+            >
               <Copy />
             </IconAction>
             {editable ? (
-              <IconAction label={t("Delete page")} onClick={() => setDeleting(true)}>
+              <IconAction
+                label={t("Delete page")}
+                onClick={() => setDeleting(true)}
+              >
                 <Trash2 />
               </IconAction>
             ) : null}
-            <Button variant="outline" size="sm" type="button" onClick={() => setSettingsOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+            >
               <Settings /> {t("Settings")}
             </Button>
-            <Button variant="outline" size="sm" type="button" title={t("Opens the last saved draft")} onClick={() => window.open(`/api/pages/${page.id}/preview`, "_blank", "noopener")}>
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              title={t("Opens the last saved draft")}
+              onClick={() =>
+                window.open(
+                  `/api/pages/${page.id}/preview`,
+                  "_blank",
+                  "noopener",
+                )
+              }
+            >
               <Eye /> {t("Preview")}
             </Button>
             {editable ? (
               <>
-                <Button variant="outline" size="sm" type="button" disabled={!dirty || busy !== null} onClick={() => void send("save")}>
-                  <Save /> {busy === "save" ? t("Saving…") : t("Save")}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  disabled={!dirty || busy !== null}
+                  onClick={() => void send("save")}
+                >
+                  <Save /> {t("Save")}
                 </Button>
-                <Button size="sm" type="button" disabled={busy !== null || (!dirty && page.status === "published")} onClick={() => void send("publish")}>
-                  <Send /> {busy === "publish" ? t("Publishing…") : publishLabel}
+                <Button
+                  size="sm"
+                  type="button"
+                  disabled={
+                    busy !== null || (!dirty && page.status === "published")
+                  }
+                  onClick={() => void send("publish")}
+                >
+                  <Send />{" "}
+                  {busy === "publish" ? t("Publishing…") : publishLabel}
                 </Button>
               </>
             ) : null}
           </div>
         }
       />
-      {!editable ? <p className="mb-4 text-sm text-muted-foreground">{t("You can view this page but not change it.")}</p> : null}
+      {!editable ? (
+        <p className="mb-4 text-sm text-muted-foreground">
+          {t("You can view this page but not change it.")}
+        </p>
+      ) : null}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
         <div className="grid min-w-0 gap-5">
           <div className="grid min-w-0 gap-2">
@@ -287,12 +401,17 @@ export function PageEditorPage() {
               onSelect={setSelectedId}
               onChange={(blocks) => setBlocks(() => blocks)}
               onAdd={setAdding}
-              onShift={(blockId, delta) => setBlocks((current) => shiftBlock(current, blockId, delta))}
+              onShift={(blockId, delta) =>
+                setBlocks((current) => shiftBlock(current, blockId, delta))
+              }
               onDuplicate={duplicateSelected}
               onRemove={removeSelected}
             />
           </div>
-          <div className="grid min-w-0 gap-3 border-t border-border pt-4" inert={!editable}>
+          <div
+            className="grid min-w-0 gap-3 border-t border-border pt-4"
+            inert={!editable}
+          >
             {selected && definition ? (
               <>
                 <div className="flex items-start gap-3">
@@ -300,8 +419,12 @@ export function PageEditorPage() {
                     <BlockIcon name={definition.icon} />
                   </span>
                   <span className="grid gap-0.5">
-                    <h2 className="text-sm font-medium">{t(definition.label)}</h2>
-                    <span className="text-sm text-muted-foreground">{t(definition.description)}</span>
+                    <h2 className="text-sm font-medium">
+                      {t(definition.label)}
+                    </h2>
+                    <span className="text-sm text-muted-foreground">
+                      {t(definition.description)}
+                    </span>
                   </span>
                 </div>
                 <FieldsEditor
@@ -309,17 +432,30 @@ export function PageEditorPage() {
                   fields={definition.fields}
                   values={selected.props}
                   media={media}
-                  onMedia={(ref: PageMediaRef) => setMedia((current) => ({ ...current, [ref.id]: ref }))}
-                  onChange={(props) => setBlocks((current) => updateBlockProps(current, selected.id, props))}
+                  onMedia={(ref: PageMediaRef) =>
+                    setMedia((current) => ({ ...current, [ref.id]: ref }))
+                  }
+                  onChange={(props) =>
+                    setBlocks((current) =>
+                      updateBlockProps(current, selected.id, props),
+                    )
+                  }
                 />
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">{t("Select a block to change its content and style.")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("Select a block to change its content and style.")}
+              </p>
             )}
           </div>
         </div>
         <div className="min-w-0 lg:sticky lg:top-5">
-          <PagePreview title={draft.title} settings={draft.settings} content={draft.content} media={media} />
+          <PagePreview
+            title={draft.title}
+            settings={draft.settings}
+            content={draft.content}
+            media={media}
+          />
         </div>
       </div>
       <AddBlockDialog
@@ -333,9 +469,13 @@ export function PageEditorPage() {
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         draft={draft}
-        onChange={(next) => setDraft((current) => (current ? { ...current, ...next } : current))}
+        onChange={(next) =>
+          setDraft((current) => (current ? { ...current, ...next } : current))
+        }
         media={media}
-        onMedia={(ref) => setMedia((current) => ({ ...current, [ref.id]: ref }))}
+        onMedia={(ref) =>
+          setMedia((current) => ({ ...current, [ref.id]: ref }))
+        }
         url={page.url}
         published={Boolean(page.publishedAt)}
         readOnly={!editable}
