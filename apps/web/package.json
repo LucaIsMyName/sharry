@@ -21,7 +21,7 @@
     "cn": "^0.5.0",
     "dayjs": "^1.11.23",
     "lucide-react": "^1.59.0",
-    "mermaid": "^11.17.2",
+    "mermaid": "^12.2.0",
     "qr-code-styling": "^1.9.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
