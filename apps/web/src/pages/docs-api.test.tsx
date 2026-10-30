@@ -37,6 +37,28 @@ describe("API reference examples", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(list.textContent));
   });
 
+  it("highlights a TypeScript sample and clears the color on curl", async () => {
+    await renderApiDocs();
+    fireEvent.click(screen.getByRole("button", { name: "TypeScript" }));
+    await waitFor(() => {
+      const sample = routeExample("GET", "/api/links");
+      expect(sample.querySelector("span[style*='color']")).not.toBeNull();
+    }, { timeout: 10000 });
+    const colored = routeExample("GET", "/api/links");
+    expect(colored.textContent).toContain('await fetch("https://your-domain/api/links');
+
+    const writeText = vi.fn(async () => undefined);
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    fireEvent.click(colored.parentElement?.querySelector("button") as HTMLButtonElement);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(colored.textContent));
+
+    fireEvent.click(screen.getByRole("button", { name: "curl" }));
+    const plain = routeExample("GET", "/api/links");
+    expect(plain.querySelector("span")).toBeNull();
+    expect(plain.textContent?.startsWith("curl ")).toBe(true);
+  });
+
   it("switches every sample to TypeScript and stores the choice", async () => {
     await renderApiDocs();
     fireEvent.click(screen.getByRole("button", { name: "TypeScript" }));
@@ -89,6 +111,32 @@ function routeExample(method: string, path: string): HTMLElement {
   if (!pre) throw new Error(`missing example ${method} ${path}`);
   return pre;
 }
+
+it("highlights a TypeScript fence on a guide page", async () => {
+  const router = createMemoryRouter(
+    [
+      {
+        id: "root",
+        path: "/",
+        loader: () => ({ appName: "Sharry" }),
+        children: [{ path: "docs/*", element: <DocsPage /> }],
+      },
+    ],
+    { initialEntries: ["/docs/developer/frontend/page-blocks"] },
+  );
+  render(
+    <HelmetProvider>
+      <RouterProvider router={router} />
+    </HelmetProvider>,
+  );
+  await screen.findByRole("heading", { name: "Page builder blocks" });
+  await waitFor(() => {
+    const block = [...document.querySelectorAll("pre")].find((pre) =>
+      pre.textContent?.includes("defineBlock"),
+    );
+    expect(block?.querySelector("span[style*='color']")).not.toBeNull();
+  }, { timeout: 10000 });
+});
 
 async function renderApiDocs() {
   const router = createMemoryRouter(

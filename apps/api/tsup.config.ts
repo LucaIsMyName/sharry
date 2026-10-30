@@ -8,5 +8,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   noExternal: ['@sharry/shared', '@sharry/database'],
-  external: ['qrcode', 'pg', 'drizzle-orm'],
+  // undici uses Node's require(). Bundling it into this ESM build crashes startup
+  // with "Dynamic require of assert is not supported".
+  external: ['qrcode', 'pg', 'drizzle-orm', 'undici'],
 })

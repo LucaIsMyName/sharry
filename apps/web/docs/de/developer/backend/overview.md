@@ -57,4 +57,4 @@ Das Körperlimit ist 1 MB. Hochgeladene Bilder haben ein eigenes Limit von 512 K
 | `scripts` | Dev-Server, Migrate, Deploy, Backup, create-admin |
 | `deploy` | systemd-Unit und Caddy-Beispiel |
 
-Lokale Entwicklung und das Deployment in Produktion sind auf den nächsten Seiten beschrieben.
+Lokale Entwicklung und das Deployment in Produktion sind auf den nächsten Seiten beschrieben. Eine Route oder eine gemeinsame Vorgabe hinzuzufügen beschreibt [Die API erweitern](/docs/developer/backend/extending).

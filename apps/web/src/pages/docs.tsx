@@ -15,6 +15,7 @@ import { DataTable, type DataColumn } from "../components/ui/data-table.tsx";
 import { SubNav } from "../components/sub-nav.tsx";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "../components/ui/sheet.tsx";
 import { useI18n } from "../i18n/index.tsx";
+import { highlightTypeScript, type HighlightToken } from "./docs-highlight.ts";
 import { docsCodeBlockClass, MermaidBlock } from "./docs-mermaid.tsx";
 import { DocsNav } from "./docs-nav.tsx";
 import { docsForLocale } from "./docs-pages.ts";
@@ -233,7 +234,9 @@ function ApiReference() {
                   ))}
                 </ul>
               ) : null}
-              <DocsCodeBlock>{doc.examples[language].replaceAll("TOKEN", token)}</DocsCodeBlock>
+              <DocsCodeBlock language={language === "ts" ? "ts" : undefined}>
+                {doc.examples[language].replaceAll("TOKEN", token)}
+              </DocsCodeBlock>
             </div>
           ))}
         </section>
@@ -377,7 +380,7 @@ const markdownComponents: Components = {
   pre: ({ children }) => {
     const chart = mermaidSource(children);
     if (chart !== null) return <MermaidBlock source={chart} />;
-    return <DocsCodeBlock>{children}</DocsCodeBlock>;
+    return <DocsCodeBlock language={fenceLanguage(children)}>{children}</DocsCodeBlock>;
   },
   blockquote: ({ children }) => (
     <blockquote className="mt-3 border-l-2 border-border pl-3 text-base text-muted-foreground md:text-sm">
@@ -400,6 +403,15 @@ function mermaidSource(children: ReactNode): string | null {
   return String(node.props.children ?? "").replace(/\n$/, "");
 }
 
+function fenceLanguage(children: ReactNode): string | undefined {
+  const node = Array.isArray(children) ? children[0] : children;
+  if (!isValidElement<{ className?: string }>(node)) return undefined;
+  const match = /language-([\w-]+)/.exec(node.props.className ?? "");
+  const language = match?.[1];
+  if (language === "ts" || language === "typescript") return language;
+  return undefined;
+}
+
 function nodeText(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(nodeText).join("");
@@ -407,9 +419,34 @@ function nodeText(node: ReactNode): string {
   return "";
 }
 
-function DocsCodeBlock({ children }: { children?: ReactNode }) {
+function DocsCodeBlock({
+  children,
+  language,
+}: {
+  children?: ReactNode;
+  language?: string;
+}) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
+  const source = nodeText(children);
+  const highlight = language === "ts" || language === "typescript";
+  const [lines, setLines] = useState<HighlightToken[][] | null>(null);
+  useEffect(() => {
+    if (!highlight) {
+      setLines(null);
+      return;
+    }
+    let current = true;
+    setLines(null);
+    void highlightTypeScript(source)
+      .then((next) => {
+        if (current) setLines(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [highlight, source]);
   return (
     <div className="relative mt-3 min-w-0 max-w-full">
       <Button
@@ -419,7 +456,7 @@ function DocsCodeBlock({ children }: { children?: ReactNode }) {
         className="absolute top-1.5 right-1.5 z-10 text-[#f1f1f1] hover:bg-white/10 hover:text-white"
         aria-label={copied ? t("Copied") : t("Copy code")}
         onClick={() => {
-          void copyText(nodeText(children).replace(/\n$/, ""))
+          void copyText(source.replace(/\n$/, ""))
             .then(() => {
               setCopied(true);
               window.setTimeout(() => setCopied(false), 2000);
@@ -429,7 +466,23 @@ function DocsCodeBlock({ children }: { children?: ReactNode }) {
       >
         {copied ? <Check /> : <Copy />}
       </Button>
-      <pre className={cn(docsCodeBlockClass, "mt-0 pr-12")}>{children}</pre>
+      <pre className={cn(docsCodeBlockClass, "mt-0 pr-12")}>
+        {lines
+          ? lines.map((line, index) => (
+              <span key={index}>
+                {line.map((token, tokenIndex) => (
+                  <span
+                    key={tokenIndex}
+                    style={token.color ? { color: token.color } : undefined}
+                  >
+                    {token.content}
+                  </span>
+                ))}
+                {index < lines.length - 1 ? "\n" : null}
+              </span>
+            ))
+          : children}
+      </pre>
     </div>
   );
 }

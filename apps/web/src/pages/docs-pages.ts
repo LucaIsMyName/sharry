@@ -27,10 +27,12 @@ const pageOrder = [
   "developer/backend/deploy",
   "developer/backend/auth",
   "developer/backend/redirects",
+  "developer/backend/extending",
   "developer/frontend/overview",
   "developer/frontend/routing",
   "developer/frontend/api-client",
   "developer/frontend/page-blocks",
+  "developer/frontend/extending",
 ];
 
 const rawPages = import.meta.glob("../../docs/*/**/*.md", {

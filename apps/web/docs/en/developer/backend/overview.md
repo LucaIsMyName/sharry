@@ -57,4 +57,4 @@ The body limit is 1 MB. Uploaded images are a separate limit of 512 KB and one f
 | `scripts` | Dev server, migrate, deploy, backup, create-admin |
 | `deploy` | systemd unit and Caddy example |
 
-Local development and production deploy are documented on the next pages.
+Local development and production deploy are documented on the next pages. Adding a route or a shared preset is described in [Extending the API](/docs/developer/backend/extending).
