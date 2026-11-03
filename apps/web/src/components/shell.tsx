@@ -168,16 +168,19 @@ export function Shell() {
 function SidebarBrand({ appName }: { appName: string }) {
   const { t } = useI18n();
   const { open } = useSidebar();
-  const mark = appName.trim().charAt(0).toUpperCase() || "S";
+  const mark = appName.trim().charAt(0) || "S";
   return (
-    <SidebarHeader>
-      <div data-sidebar="brand" className="flex h-10 items-center gap-2 overflow-hidden px-1">
-        <span className="flex size-4 shrink-0 items-center justify-center text-sm font-bold group-data-[state=expanded]/sidebar:hidden group-hover/sidebar-panel:hidden">
+    <SidebarHeader className="mb-2">
+      <div data-sidebar="brand" className="flex h-8 items-center overflow-hidden">
+        <span
+          data-sidebar="mark"
+          className="flex size-8 shrink-0 items-center justify-center font-heading text-xl font-bold leading-none tracking-tight group-data-[state=expanded]/sidebar:hidden group-hover/sidebar-panel:hidden"
+        >
           {mark}
         </span>
         <NavLink
           to="/"
-          className="hidden min-w-0 flex-1 truncate font-heading text-xl font-bold tracking-tight group-data-[state=expanded]/sidebar:block group-hover/sidebar-panel:block"
+          className="hidden h-full min-w-0 flex-1 items-center truncate pl-2 font-heading text-xl font-bold leading-none tracking-tight group-data-[state=expanded]/sidebar:flex group-hover/sidebar-panel:flex"
         >
           {appName}
         </NavLink>
@@ -265,6 +268,10 @@ function Navigation({
   );
 }
 
+/** Closed rail content is 2rem. `h-8` plus `px-2` makes that row a square with a centered 1rem icon. */
+const railItemClass =
+  "flex h-11 w-full min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md px-2 text-sm outline outline-1 -outline-offset-1 outline-transparent md:h-8 md:pointer-coarse:h-8";
+
 function Item({
   to,
   end,
@@ -284,14 +291,15 @@ function Item({
       end={end}
       className={({ isActive }) =>
         cn(
-          "flex h-11 min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-9",
-          isActive && cn("border-muted-foreground bg-sidebar-accent text-sidebar-accent-foreground", cardBevel),
+          railItemClass,
+          "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          isActive && cn("bg-sidebar-accent text-sidebar-accent-foreground outline-muted-foreground", cardBevel),
           className,
         )
       }
     >
-      <span className="shrink-0">{icon}</span>
-      <span className="truncate">{children}</span>
+      <span className="flex size-4 shrink-0 items-center justify-center">{icon}</span>
+      <span className="min-w-0 truncate">{children}</span>
     </NavLink>
   );
 }
@@ -303,10 +311,10 @@ function SearchButton({ onOpen }: { onOpen: () => void }) {
       type="button"
       aria-label={t("Search")}
       onClick={onOpen}
-      className="flex h-11 min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-9"
+      className={cn(railItemClass, "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")}
     >
       <SearchIcon className="size-4 shrink-0" />
-      <span className="truncate">{t("Search")}</span>
+      <span className="min-w-0 truncate">{t("Search")}</span>
       <kbd className="ml-auto hidden font-mono text-[10px] text-sidebar-foreground/60 group-data-[state=expanded]/sidebar:inline group-hover/sidebar-panel:inline">
         {commandShortcut()}
       </kbd>
@@ -322,9 +330,9 @@ function commandShortcut(): string {
 }
 
 const themeOptions: { value: ThemeChoice; label: string | ReactNode }[] = [
-  { value: "light", label: <Sun size={14} /> },
-  { value: "dark", label: <Moon size={14} /> },
-  { value: "system", label: <Monitor size={14} /> },
+  { value: "light", label: <Sun className="size-4" /> },
+  { value: "dark", label: <Moon className="size-4" /> },
+  { value: "system", label: <Monitor className="size-4" /> },
 ];
 
 function ThemeSwitch() {
@@ -339,7 +347,7 @@ function ThemeSwitch() {
       size="icon-sm"
       variant="outline"
       aria-label={`${t("Appearance")}, ${t(mode)}`}
-      className="border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      className="size-11 border-0 bg-transparent p-0 text-sidebar-foreground outline outline-1 -outline-offset-1 outline-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8 md:pointer-coarse:size-8"
       onClick={() => {
         const index = order.indexOf(choice);
         const next = order[(index + 1) % order.length] ?? "system";
@@ -366,10 +374,10 @@ function AccountFoot({
     <img
       src={`/api/auth/avatar?v=${encodeURIComponent(user.updatedAt)}`}
       alt=""
-      className="size-[18px] rounded-md object-cover"
+      className="size-4 shrink-0 rounded-md object-cover"
     />
   ) : (
-    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] leading-none font-medium text-sidebar-accent-foreground">
+    <span className="flex size-4 shrink-0 items-center justify-center rounded-md bg-sidebar-accent text-[10px] leading-none font-medium text-sidebar-accent-foreground">
       {initial}
     </span>
   );
@@ -380,7 +388,8 @@ function AccountFoot({
         to="/account"
         className={({ isActive }) =>
           cn(
-            "inline-flex h-8 min-w-0 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-1.5 text-sm font-medium whitespace-nowrap text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground pointer-coarse:h-11",
+            railItemClass,
+            "gap-2 font-medium text-sidebar-foreground outline-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             cardBevel,
             isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
           )
@@ -394,15 +403,17 @@ function AccountFoot({
           render={
             <Button
               variant="outline"
-              size="sm"
               type="button"
               aria-label={t("Sign out")}
-              className="w-full justify-start overflow-hidden border-sidebar-border bg-transparent px-1.5 whitespace-nowrap text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className={cn(
+                railItemClass,
+                "justify-start border-0 bg-transparent text-sm font-medium text-sidebar-foreground outline-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
               onClick={onLogout}
             />
           }
         >
-          <LogOut className="shrink-0" />
+          <LogOut className="size-4 shrink-0" />
           <span className="truncate">{t("Sign out")}</span>
         </TooltipTrigger>
         <TooltipContent>{t("Sign out")}</TooltipContent>

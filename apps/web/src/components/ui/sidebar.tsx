@@ -17,7 +17,8 @@ import { cn } from "cn";
 import { Button } from "./button.tsx";
 
 const SIDEBAR_WIDTH = "15rem";
-const SIDEBAR_WIDTH_ICON = "3.5rem";
+// The 1px border sits inside the border box. Adding it keeps the closed content exactly 2rem square.
+const SIDEBAR_WIDTH_ICON = "calc(3.5rem + 1px)";
 
 type SidebarContextValue = {
   state: "expanded" | "collapsed";
