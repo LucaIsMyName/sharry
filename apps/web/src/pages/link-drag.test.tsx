@@ -91,7 +91,16 @@ describe("link drag and drop", () => {
       expect.objectContaining({ method: "PATCH", body: JSON.stringify({ parentId: "folder-1" }) }),
     );
 
-    fireEvent.drop(screen.getByRole("button", { name: "Links" }), {
+  });
+
+  it("drops a link on the root crumb from inside a folder", async () => {
+    installApi();
+    render(
+      <MemoryRouter initialEntries={["/?folder=folder-1"]}>
+        <LinksPage />
+      </MemoryRouter>,
+    );
+    fireEvent.drop(await screen.findByRole("button", { name: "Links" }), {
       dataTransfer: { getData: () => "link:summer" },
     });
     await vi.waitFor(() => {

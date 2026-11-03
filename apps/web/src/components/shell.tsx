@@ -33,10 +33,23 @@ import { Button } from "./ui/button.tsx";
 import { cardBevel } from "./ui/card.tsx";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip.tsx";
 import { CommandMenu } from "./command-menu.tsx";
+import { ShellTitleContext } from "./page-header.tsx";
 import { useRouteTitle } from "./page-title.tsx";
+import { readSidebarOpen, writeSidebarOpen } from "./sidebar-state.ts";
 import { SubNavSlotContext } from "./sub-nav.tsx";
 import { RouteErrorBoundary } from "./route-error-boundary.tsx";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet.tsx";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from "./ui/sidebar.tsx";
 
 export function Shell() {
   const me = useLoaderData() as Me;
@@ -49,6 +62,7 @@ export function Shell() {
   const chat = pathname === "/chat" || pathname.startsWith("/chat/");
   const builder = pathname.startsWith("/pages/");
   const [open, setOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const [searchOpen, setSearchOpen] = useState(false);
   const [subNavSlot, setSubNavSlot] = useState<HTMLDivElement | null>(null);
   const admin = me.user.role === "admin";
@@ -78,19 +92,26 @@ export function Shell() {
   );
 
   return (
-    <div className="min-h-svh">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col gap-4 border-r border-sidebar-border bg-sidebar px-4 py-5 text-sidebar-foreground md:flex">
-        <p className="font-heading text-xl font-bold tracking-tight">
-          <NavLink to="/">{appName}</NavLink>
-        </p>
-        {navigation}
-        <AccountFoot
-          user={me.user}
-          onLogout={() => void logout()}
-          onNavigate={() => setOpen(false)}
-        />
-      </aside>
-      <main className={cn("md:ml-60", chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
+    <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={(next) => {
+        setSidebarOpen(next);
+        writeSidebarOpen(next);
+      }}
+      className={cn("min-h-svh", chat && "h-svh overflow-hidden")}
+    >
+      <Sidebar collapsible="icon">
+        <SidebarBrand appName={appName} />
+        <SidebarContent>{navigation}</SidebarContent>
+        <SidebarFooter>
+          <AccountFoot
+            user={me.user}
+            onLogout={() => void logout()}
+            onNavigate={() => setOpen(false)}
+          />
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset className={cn(chat ? "flex h-svh flex-col overflow-hidden" : "min-h-svh")}>
         <div className="sticky top-0 z-30 shrink-0 md:hidden">
           <div className="grid h-12 grid-cols-[auto_auto_1fr] items-center gap-2 border-b border-border bg-background px-3 pointer-coarse:h-14 pointer-coarse:px-1.5">
             <Sheet open={open} onOpenChange={setOpen}>
@@ -130,15 +151,42 @@ export function Shell() {
           <div ref={setSubNavSlot} />
         </div>
         <div className={cn(chat ? "flex min-h-0 flex-1 flex-col overflow-hidden" : cn("page px-5 py-5 md:px-7 md:py-7", builder && "page-wide"))}>
-          <SubNavSlotContext.Provider value={subNavSlot}>
-            <Outlet context={{ admin }} />
-          </SubNavSlotContext.Provider>
+          <ShellTitleContext.Provider value={routeTitle}>
+            <SubNavSlotContext.Provider value={subNavSlot}>
+              <Outlet context={{ admin }} />
+            </SubNavSlotContext.Provider>
+          </ShellTitleContext.Provider>
         </div>
-      </main>
+      </SidebarInset>
       <RouteErrorBoundary resetKey={pathname} message={t("Search could not be opened.")}>
         <CommandMenu open={searchOpen} onOpenChange={setSearchOpen} admin={admin} />
       </RouteErrorBoundary>
-    </div>
+    </SidebarProvider>
+  );
+}
+
+function SidebarBrand({ appName }: { appName: string }) {
+  const { t } = useI18n();
+  const { open } = useSidebar();
+  const mark = appName.trim().charAt(0).toUpperCase() || "S";
+  return (
+    <SidebarHeader>
+      <div data-sidebar="brand" className="flex h-10 items-center gap-2 overflow-hidden px-1">
+        <span className="flex size-4 shrink-0 items-center justify-center text-sm font-bold group-data-[state=expanded]/sidebar:hidden group-hover/sidebar-panel:hidden">
+          {mark}
+        </span>
+        <NavLink
+          to="/"
+          className="hidden min-w-0 flex-1 truncate font-heading text-xl font-bold tracking-tight group-data-[state=expanded]/sidebar:block group-hover/sidebar-panel:block"
+        >
+          {appName}
+        </NavLink>
+        <SidebarTrigger
+          aria-label={open ? t("Hide sidebar") : t("Show sidebar")}
+          className="ml-auto hidden group-data-[state=expanded]/sidebar:inline-flex group-hover/sidebar-panel:inline-flex"
+        />
+      </div>
+    </SidebarHeader>
   );
 }
 
@@ -153,67 +201,67 @@ function Navigation({
 }) {
   const { t } = useI18n();
   return (
-    <nav
-      className="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto overscroll-contain"
+    <SidebarMenu
+      className="min-h-0 flex-1 content-start overflow-y-auto overscroll-contain"
       onClick={onNavigate}
     >
-      <Item to="/" end icon={<LayoutDashboard size={18} />}>
+      <Item to="/" end icon={<LayoutDashboard className="size-4" />}>
         {t("Overview")}
       </Item>
-      <Item to="/links" icon={<Link size={18} />}>
+      <Item to="/links" icon={<Link className="size-4" />}>
         {t("Links")}
       </Item>
-      <Item to="/campaigns" icon={<Megaphone size={18} />}>
+      <Item to="/campaigns" icon={<Megaphone className="size-4" />}>
         {t("Campaigns")}
       </Item>
-      <Item to="/pages" icon={<LayoutTemplate size={18} />}>
+      <Item to="/pages" icon={<LayoutTemplate className="size-4" />}>
         {t("Pages")}
       </Item>
-      <Item to="/media" icon={<Images size={18} />}>
+      <Item to="/media" icon={<Images className="size-4" />}>
         {t("Media")}
       </Item>
-      <Item to="/analytics" icon={<ChartColumn size={18} />}>
+      <Item to="/analytics" icon={<ChartColumn className="size-4" />}>
         {t("Analytics")}
       </Item>
-      <Item to="/chat" icon={<MessageSquare size={18} />}>
+      <Item to="/chat" icon={<MessageSquare className="size-4" />}>
         {t("Chat")}
       </Item>
       <SearchButton onOpen={onSearch} />
       <hr className="my-2 border-0 border-t border-sidebar-border" />
-      <Item compact to="/docs" icon={<BookOpen size={14} />}>
+      <Item to="/docs" icon={<BookOpen className="size-4" />}>
         {t("Docs")}
       </Item>
       {admin ? (
-        <Item compact to="/admin/users" icon={<Users size={14} />}>
+        <Item to="/admin/users" icon={<Users className="size-4" />}>
           {t("Users")}
         </Item>
       ) : null}
       {admin ? (
-        <Item compact to="/admin/api-keys" icon={<KeyRound size={14} />}>
+        <Item to="/admin/api-keys" icon={<KeyRound className="size-4" />}>
           {t("API keys")}
         </Item>
       ) : null}
       {admin ? (
-        <Item compact to="/admin/settings" icon={<Settings size={14} />}>
+        <Item to="/admin/settings" icon={<Settings className="size-4" />}>
           {t("Settings")}
         </Item>
       ) : null}
       {admin ? (
-        <Item compact to="/admin/domains" icon={<Globe size={14} />}>
+        <Item to="/admin/domains" icon={<Globe className="size-4" />}>
           {t("Domains")}
         </Item>
       ) : null}
       {admin ? (
-        <Item compact to="/admin/server" icon={<Server size={14} />}>
+        <Item to="/admin/server" icon={<Server className="size-4" />}>
           {t("Server")}
         </Item>
       ) : null}
       {admin ? (
-        <Item compact to="/admin/audit" icon={<ScrollText size={14} />}>
+        <Item to="/admin/audit" icon={<ScrollText className="size-4" />}>
           {t("Audit")}
         </Item>
       ) : null}
-    </nav>
+    </SidebarMenu>
   );
 }
 
@@ -221,14 +269,12 @@ function Item({
   to,
   end,
   icon,
-  compact = false,
   children,
   className,
 }: {
   to: string;
   end?: boolean;
   icon: ReactNode;
-  compact?: boolean;
   children: ReactNode;
   className?: string;
 }) {
@@ -238,19 +284,16 @@ function Item({
       end={end}
       className={({ isActive }) =>
         cn(
-          "flex min-w-0 items-center  border rounded-md border-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-          compact
-            ? "gap-2 px-2.5 py-1.5 text-sm md:text-xs"
-            : "gap-2.5 px-2.5 py-2 text-base md:text-sm",
+          "flex h-11 min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-9",
           isActive && cn("border-muted-foreground bg-sidebar-accent text-sidebar-accent-foreground", cardBevel),
           className,
         )
       }
     >
-      {icon}
+      <span className="shrink-0">{icon}</span>
       <span className="truncate">{children}</span>
     </NavLink>
-    );
+  );
 }
 
 function SearchButton({ onOpen }: { onOpen: () => void }) {
@@ -260,11 +303,11 @@ function SearchButton({ onOpen }: { onOpen: () => void }) {
       type="button"
       aria-label={t("Search")}
       onClick={onOpen}
-      className="flex min-w-0 items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-base text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:text-sm"
+      className="flex h-11 min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap rounded-md border border-transparent px-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-9"
     >
-      <SearchIcon size={18} />
+      <SearchIcon className="size-4 shrink-0" />
       <span className="truncate">{t("Search")}</span>
-      <kbd className="ml-auto font-mono text-[10px] text-sidebar-foreground/60">
+      <kbd className="ml-auto hidden font-mono text-[10px] text-sidebar-foreground/60 group-data-[state=expanded]/sidebar:inline group-hover/sidebar-panel:inline">
         {commandShortcut()}
       </kbd>
     </button>
@@ -331,40 +374,39 @@ function AccountFoot({
     </span>
   );
   return (
-    <div className="mt-auto grid w-full min-w-0 gap-2" onClick={onNavigate}>
+    <div className="mt-auto grid w-full min-w-0 gap-2 overflow-hidden" onClick={onNavigate}>
       <ThemeSwitch />
-      <div className="flex min-w-0 items-center gap-1">
-        <NavLink
-          to="/account"
-          className={({ isActive }) =>
-            cn(
-              "inline-flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-2 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-7 md:text-xs pointer-coarse:h-11 pointer-coarse:text-sm",
-              cardBevel,
-              isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-            )
+      <NavLink
+        to="/account"
+        className={({ isActive }) =>
+          cn(
+            "inline-flex h-8 min-w-0 items-center gap-1.5 overflow-hidden rounded-md border border-sidebar-border bg-transparent px-1.5 text-sm font-medium whitespace-nowrap text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground pointer-coarse:h-11",
+            cardBevel,
+            isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          )
+        }
+      >
+        {icon}
+        <span className="truncate">{user.username}</span>
+      </NavLink>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              aria-label={t("Sign out")}
+              className="w-full justify-start overflow-hidden border-sidebar-border bg-transparent px-1.5 whitespace-nowrap text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={onLogout}
+            />
           }
         >
-          {icon}
-          <span className="truncate">{user.username}</span>
-        </NavLink>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant="outline"
-                size="icon-sm"
-                type="button"
-                aria-label={t("Sign out")}
-                className="shrink-0 border-sidebar-border bg-transparent text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                onClick={onLogout}
-              />
-            }
-          >
-            <LogOut />
-          </TooltipTrigger>
-          <TooltipContent>{t("Sign out")}</TooltipContent>
-        </Tooltip>
-      </div>
+          <LogOut className="shrink-0" />
+          <span className="truncate">{t("Sign out")}</span>
+        </TooltipTrigger>
+        <TooltipContent>{t("Sign out")}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

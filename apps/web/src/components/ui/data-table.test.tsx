@@ -4,7 +4,7 @@ import { useState } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { DataTable, loadTableView, type DataColumn, type TableView } from "./data-table.tsx";
+import { DataTable, defaultColumnWidths, laptopTableWidth, loadTableView, type DataColumn, type TableView } from "./data-table.tsx";
 
 afterEach(() => {
   cleanup();
@@ -56,6 +56,27 @@ function Harness() {
 }
 
 describe("DataTable", () => {
+  it("fits the unsaved layout to a laptop and keeps a saved width", () => {
+    const fitted = defaultColumnWidths(["title", "status", "actions"], false);
+    const fittedSum = Object.values(fitted).reduce((sum, width) => sum + width, 0);
+    expect(fittedSum).toBeLessThanOrEqual(laptopTableWidth);
+    const wide = defaultColumnWidths(
+      ["a", "b", "c", "d", "e", "f", "g", "h", "i", "actions"],
+      true,
+    );
+    const wideSum = 40 + Object.values(wide).reduce((sum, width) => sum + width, 0);
+    expect(wideSum).toBeGreaterThan(laptopTableWidth);
+
+    render(<Harness />);
+    const table = document.querySelector("[data-slot=table]") as HTMLTableElement;
+    expect(table.className).toContain("table-fixed");
+    expect(table.style.minWidth).toBe(`${laptopTableWidth}px`);
+    fireEvent.pointerDown(screen.getByRole("separator", { name: "Resize Name" }), { button: 0, clientX: 100 });
+    fireEvent.pointerMove(window, { clientX: 180 });
+    fireEvent.pointerUp(window);
+    expect(loadTableView("sample").widths.name).toBeGreaterThan(0);
+  });
+
   it("keeps columns readable on a narrow screen by giving them a minimum width", () => {
     render(<Harness />);
     const table = document.querySelector("[data-slot=table]") as HTMLElement;

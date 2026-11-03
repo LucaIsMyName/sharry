@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Copy,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  Save,
-  Send,
-  Settings,
-  Trash2,
-} from "lucide-react";
+import { Ellipsis, Eye, Save, Send, Settings } from "lucide-react";
 import { useBlocker, useNavigate, useParams } from "react-router";
 import {
   blockDefinition,
@@ -26,7 +17,6 @@ import {
 } from "@sharry/shared";
 import { ApiError, api, type LandingPage } from "../api.ts";
 import { EmptyState } from "../components/empty-state.tsx";
-import { IconAction } from "../components/icon-action.tsx";
 import { AddBlockDialog } from "../components/page-builder/add-block-dialog.tsx";
 import { BlockIcon } from "../components/page-builder/block-icons.tsx";
 import {
@@ -43,7 +33,7 @@ import {
   type PageDraft,
 } from "../components/page-builder/page-settings-sheet.tsx";
 import { PageStatusBadge } from "../components/page-builder/page-status.tsx";
-import { PageHeader } from "../components/page-header.tsx";
+import { BackLink, PageHeader } from "../components/page-header.tsx";
 import { Badge } from "../components/ui/badge.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { ConfirmDialog } from "../components/ui/confirm-dialog.tsx";
@@ -283,7 +273,8 @@ export function PageEditorPage() {
   const publishLabel = page.publishedAt ? t("Publish changes") : t("Publish");
 
   return (
-    <section>
+    <section className="grid gap-4">
+      <BackLink to="/pages">{t("Pages")}</BackLink>
       <PageHeader
         title={
           <span className="inline-flex min-w-0 flex-wrap items-center gap-3">
@@ -304,37 +295,42 @@ export function PageEditorPage() {
         label={draft.title.trim() || t("Untitled page")}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <IconAction
-              label={t("View live")}
-              disabled={!live}
-              onClick={() => window.open(page.url, "_blank", "noopener")}
-            >
-              <ExternalLink />
-            </IconAction>
-            {editable ? (
-              <IconAction
-                label={t("Hide from visitors")}
-                disabled={!live || busy !== null}
-                onClick={() => void hide()}
-              >
-                <EyeOff />
-              </IconAction>
-            ) : null}
-            <IconAction
-              label={t("Duplicate page")}
-              disabled={busy !== null}
-              onClick={() => void duplicate()}
-            >
-              <Copy />
-            </IconAction>
-            {editable ? (
-              <IconAction
-                label={t("Delete page")}
-                onClick={() => setDeleting(true)}
-              >
-                <Trash2 />
-              </IconAction>
-            ) : null}
+            <MoreMenu
+              items={[
+                {
+                  id: "live",
+                  label: t("View live"),
+                  disabled: !live,
+                  onSelect: () => window.open(page.url, "_blank", "noopener"),
+                },
+                ...(editable
+                  ? [
+                      {
+                        id: "hide",
+                        label: t("Hide from visitors"),
+                        disabled: !live || busy !== null,
+                        onSelect: () => void hide(),
+                      },
+                    ]
+                  : []),
+                {
+                  id: "duplicate",
+                  label: t("Duplicate page"),
+                  disabled: busy !== null,
+                  onSelect: () => void duplicate(),
+                },
+                ...(editable
+                  ? [
+                      {
+                        id: "delete",
+                        label: t("Delete page"),
+                        destructive: true,
+                        onSelect: () => setDeleting(true),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -390,7 +386,8 @@ export function PageEditorPage() {
           {t("You can view this page but not change it.")}
         </p>
       ) : null}
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
+      <div className="@container">
+      <div className="grid min-w-0 items-start gap-5 @min-[45rem]:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
         <div className="grid min-w-0 gap-5">
           <div className="grid min-w-0 gap-2">
             <h2 className="text-sm font-medium">{t("Blocks")}</h2>
@@ -449,7 +446,7 @@ export function PageEditorPage() {
             )}
           </div>
         </div>
-        <div className="min-w-0 lg:sticky lg:top-5">
+        <div className="min-w-0 @min-[45rem]:sticky @min-[45rem]:top-5">
           <PagePreview
             title={draft.title}
             settings={draft.settings}
@@ -457,6 +454,7 @@ export function PageEditorPage() {
             media={media}
           />
         </div>
+      </div>
       </div>
       <AddBlockDialog
         open={adding !== null}
@@ -503,5 +501,77 @@ export function PageEditorPage() {
         }}
       />
     </section>
+  );
+}
+
+function MoreMenu({
+  items,
+}: {
+  items: {
+    id: string;
+    label: string;
+    disabled?: boolean;
+    destructive?: boolean;
+    onSelect: () => void;
+  }[];
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: PointerEvent) {
+      if (root.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("pointerdown", onPointer);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onPointer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={root} className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={t("More actions")}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Ellipsis /> {t("More")}
+      </Button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 z-50 mt-1 min-w-44 rounded-md border border-border bg-popover p-1 shadow-md"
+        >
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              className={cn(
+                "flex w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:items-center",
+                item.destructive && "text-destructive",
+              )}
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }

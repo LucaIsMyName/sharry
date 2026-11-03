@@ -29,7 +29,7 @@ import {
   type EditorTag,
 } from "../components/tag-field.tsx";
 import { EmptyState } from "../components/empty-state.tsx";
-import { ActionBar, PageHeader } from "../components/page-header.tsx";
+import { ActionBar, BackLink, PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { useAiAvailable } from "../components/use-ai.ts";
@@ -947,6 +947,7 @@ export function CampaignDetailPage() {
         title={campaign?.name ?? "Campaign"}
         literal={Boolean(campaign?.name)}
       />
+      <BackLink to="/campaigns">{t("Campaigns")}</BackLink>
       <div className="grid gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <IconPicker
@@ -981,6 +982,7 @@ export function CampaignDetailPage() {
             variant="destructive"
             size="sm"
             type="button"
+            className="ml-auto"
             onClick={() => setConfirmDelete(true)}
           >
             <Trash2 /> {t("Delete")}
@@ -1013,9 +1015,6 @@ export function CampaignDetailPage() {
                   }
                 />
               </Field>
-              <Button type="submit" disabled={savingCampaign}>
-                <Save /> {t("Save campaign")}
-              </Button>
             </form>
           </Section>
           <Section title={t("Variants")}>

@@ -368,7 +368,7 @@ When Settings require two-factor authentication, a key works only after that use
 
 Admin routes add a loader that allows only the admin role. Anyone else is sent to `/`. Each route sets the browser title to `Page · APP_NAME`. The dashboard sends `noindex, nofollow`.
 
-Search is in the sidebar under Chat. Cmd+K on a Mac, and Ctrl+K elsewhere, opens the same palette. It lists the pages a person can open, then matches links, campaigns, media, landing pages, chats, docs, and, for an administrator, users, domains, API keys, and audit rows.
+The desktop sidebar collapses to icons. Hovering the collapsed rail expands it over the page, and the browser remembers the open or closed choice. Search is in the sidebar under Chat. Cmd+K on a Mac, and Ctrl+K elsewhere, opens the same palette. It lists the pages a person can open, then matches links, campaigns, media, landing pages, chats, docs, and, for an administrator, users, domains, API keys, and audit rows.
 
 ## Short links and extra domains
 

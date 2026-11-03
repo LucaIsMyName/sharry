@@ -53,7 +53,7 @@ import { useAiAvailable } from "../components/use-ai.ts";
 import { UtmSuggest } from "../components/utm-suggest.tsx";
 import { AppIcon } from "../components/app-icon.tsx";
 import { IconPicker } from "../components/icon-picker.tsx";
-import { ActionBar, PageHeader } from "../components/page-header.tsx";
+import { ActionBar, BackLink, PageHeader } from "../components/page-header.tsx";
 import { PageTitle } from "../components/page-title.tsx";
 import { DetailSkeleton, RowSkeleton } from "../components/ui/skeleton.tsx";
 import { choiceNote, correctionOptions, redirectOptions } from "../choices.ts";
@@ -477,6 +477,7 @@ export function LinkFormPage() {
   const conflicts = utmConflicts(destinationUrl, utm);
   return (
     <section className="grid gap-4">
+      <BackLink to="/links">{t("Links")}</BackLink>
       <div className="border-b border-border pb-4">
         <LinkTitleRow
           icon={icon}
@@ -1064,6 +1065,7 @@ export function LinkDetailPage() {
         title={link?.title?.trim() || link?.slug || "Link"}
         literal={Boolean(link?.title?.trim() || link?.slug)}
       />
+      <BackLink to="/links">{t("Links")}</BackLink>
       <div className="grid gap-3 border-b border-border pb-4">
         <LinkTitleRow
           icon={icon}
@@ -1136,6 +1138,7 @@ export function LinkDetailPage() {
               variant="destructive"
               size="sm"
               type="button"
+              className="ml-auto"
               onClick={() => setConfirmDelete(true)}
             >
               <Trash2 /> {t("Delete")}
@@ -1292,11 +1295,6 @@ export function LinkDetailPage() {
                   }
                 />
               </Section>
-              {locked ? null : (
-                <Button type="submit" disabled={saving}>
-                  <Save /> {t("Save link")}
-                </Button>
-              )}
             </fieldset>
           </form>
           <Section title={t("QR code")}>

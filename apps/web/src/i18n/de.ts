@@ -1469,4 +1469,8 @@ export const de: Record<string, string> = {
   "Show captions": "Bildunterschriften zeigen",
   "Open full image on click": "Ganzes Bild beim Klick öffnen",
   "Each image opens on its own in a new tab.": "Jedes Bild öffnet sich allein in einem neuen Tab.",
+  "Hide sidebar": "Seitenleiste ausblenden",
+  "Show sidebar": "Seitenleiste einblenden",
+  "More": "Mehr",
+  "More actions": "Weitere Aktionen",
 };

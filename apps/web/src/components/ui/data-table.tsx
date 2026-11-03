@@ -22,6 +22,24 @@ export type TableView = {
 
 export const emptyTableView: TableView = { sort: null, filters: {}, widths: {} };
 
+/** Content width of a 1280px laptop with the sidebar open and page padding. */
+export const laptopTableWidth = 960;
+
+/** Widths used only when the user has not saved any. Many columns may still scroll. */
+export function defaultColumnWidths(columnIds: string[], selectable: boolean): Record<string, number> {
+  const actionWidth = 156;
+  const checkWidth = selectable ? 40 : 0;
+  const actions = columnIds.filter((id) => id === "actions");
+  const rest = columnIds.filter((id) => id !== "actions");
+  const reserved = checkWidth + actions.length * actionWidth;
+  const share = Math.floor((laptopTableWidth - reserved) / Math.max(1, rest.length));
+  const dataWidth = share >= 112 ? share : 128;
+  const widths: Record<string, number> = {};
+  for (const id of rest) widths[id] = dataWidth;
+  for (const id of actions) widths[id] = actionWidth;
+  return widths;
+}
+
 export function loadTableView(key: string): TableView {
   try {
     const raw = localStorage.getItem(`sharry.table.${key}`);
@@ -256,15 +274,19 @@ export function DataTable<T>({
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
   const columnCount = columns.length + (selectable ? 1 : 0);
   const groupDrag = (meta: DataRow) => dragSelection && selectedIds.length > 1 && selectedIds.includes(meta.id);
-  const sized = Object.keys(current.widths).length > 0;
+  const customWidths = Object.keys(current.widths).length > 0;
+  const widths = customWidths
+    ? current.widths
+    : defaultColumnWidths(columns.map((column) => column.id), selectable);
+  const tableWidth = (selectable ? 40 : 0) + columns.reduce((sum, column) => sum + (widths[column.id] ?? 0), 0);
 
   return (
     <div className="min-w-0 max-w-full overflow-x-auto">
-      <Table className={sized ? "table-fixed" : undefined}>
+      <Table className="table-fixed" style={{ minWidth: tableWidth }}>
         <colgroup>
           {selectable ? <col style={{ width: 40 }} /> : null}
           {columns.map((column) => (
-            <col key={column.id} style={current.widths[column.id] ? { width: current.widths[column.id] } : undefined} />
+            <col key={column.id} style={widths[column.id] ? { width: widths[column.id] } : undefined} />
           ))}
         </colgroup>
         <TableHeader className="sticky top-0 z-10 bg-background">
@@ -299,7 +321,7 @@ export function DataTable<T>({
                       : undefined
                 }
                 className={cn("relative", column.align === "right" && "text-right")}
-                style={current.widths[column.id] ? { width: current.widths[column.id] } : undefined}
+                style={widths[column.id] ? { width: widths[column.id] } : undefined}
               >
                 <span className={cn("inline-flex max-w-full items-center gap-1", column.align === "right" && "float-right")}>
                   {column.sortable ? (

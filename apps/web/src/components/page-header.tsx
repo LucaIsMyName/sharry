@@ -1,6 +1,12 @@
-import { useContext, useSyncExternalStore, type ReactNode } from "react";
+import { cn } from "cn";
+import { ArrowLeft } from "lucide-react";
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
+import { Link } from "react-router";
 import { useI18n } from "../i18n/index.tsx";
 import { SubNav, SubNavSlotContext } from "./sub-nav.tsx";
+
+/** The shell's current route title, so a list can hide a heading the top bar already shows. */
+export const ShellTitleContext = createContext("");
 
 const narrowQuery = "(max-width: 767px)";
 
@@ -33,15 +39,17 @@ export function PageHeader({
   label?: string;
 }) {
   const { t } = useI18n();
+  const routeTitle = useContext(ShellTitleContext);
   const slot = useContext(SubNavSlotContext);
   const narrow = useNarrowScreen();
   const inSubNav = Boolean(action) && narrow && slot !== null;
   const navLabel = label ?? (typeof title === "string" ? title : t("Actions"));
+  const hideTitle = narrow && typeof title === "string" && title === routeTitle;
   return (
     <>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className={cn("mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2", hideTitle && inSubNav && "sr-only mb-0")}>
         <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-medium tracking-tight">{title}</h1>
+          <h1 className={cn("font-heading text-2xl font-medium tracking-tight", hideTitle && "sr-only")}>{title}</h1>
           {lede ? <p className="sr-only mt-1.5 text-base text-muted-foreground md:text-sm">{lede}</p> : null}
           {detail ? <div className="sr-only mt-1 text-sm text-muted-foreground">{detail}</div> : null}
         </div>
@@ -57,5 +65,14 @@ export function ActionBar({ label, children }: { label: string; children: ReactN
   const slot = useContext(SubNavSlotContext);
   const narrow = useNarrowScreen();
   if (narrow && slot) return <SubNav label={label}>{children}</SubNav>;
-  return <div className="flex shrink-0 flex-wrap items-center gap-2.5">{children}</div>;
+  return <div className="flex w-full shrink-0 flex-wrap items-center gap-2.5">{children}</div>;
+}
+
+export function BackLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link to={to} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <ArrowLeft className="size-3.5" />
+      {children}
+    </Link>
+  );
 }

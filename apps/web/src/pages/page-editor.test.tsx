@@ -179,7 +179,7 @@ describe("page editor", () => {
     renderEditor();
 
     const row = await screen.findByTestId("block-t1");
-    const column = row.closest(".lg\\:grid-cols-\\[minmax\\(300px\\,380px\\)_minmax\\(0\\,1fr\\)\\]");
+    const column = row.closest(".\\@container");
     expect(column).toBeTruthy();
     for (let element: Element | null = row; element && element.parentElement !== column; element = element.parentElement) {
       expect(element.classList.contains("min-w-0"), element.outerHTML.slice(0, 80)).toBe(true);

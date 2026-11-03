@@ -13,6 +13,7 @@ import {
 import { api, type Analytics, type LinkStat } from "../api.ts";
 import { EmptyState } from "../components/empty-state.tsx";
 import { PageHeader } from "../components/page-header.tsx";
+import { Badge } from "../components/ui/badge.tsx";
 import { Button, buttonVariants } from "../components/ui/button.tsx";
 import { RowSkeleton, Skeleton, StatSkeleton } from "../components/ui/skeleton.tsx";
 import { toastCaught } from "../components/ui/toast.tsx";
@@ -102,22 +103,23 @@ export function AnalyticsPage() {
   return (
     <section>
       <PageHeader
-        title={
-          selected ? (
-            <Link to={`/links/${selected.id}`}>{selected.title?.trim() || selected.slug}</Link>
-          ) : (
-            t("Analytics")
-          )
-        }
+        title={t("Analytics")}
         lede={t(
           "Visitor addresses are not stored. Country appears only when a local GeoIP database is configured.",
         )}
         label={t("Analytics")}
         action={
           linkIds.length > 0 ? (
-            <Button variant="outline" size="sm" type="button" onClick={clearLinks}>
-              <ArrowLeft /> {t("All links")}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {selected ? (
+                <Badge variant="outline" render={<Link to={`/links/${selected.id}`} />}>
+                  {selected.title?.trim() || selected.slug}
+                </Badge>
+              ) : null}
+              <Button variant="outline" size="sm" type="button" onClick={clearLinks}>
+                <ArrowLeft /> {t("All links")}
+              </Button>
+            </div>
           ) : null
         }
       />

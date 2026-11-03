@@ -21,6 +21,7 @@ export function FolderCrumbs({
   className?: string;
 }) {
   const { t } = useI18n();
+  if (folder === "root" && breadcrumb.length === 0) return null;
   return (
     <nav className={cn("flex flex-wrap items-center gap-1 text-sm", className)} aria-label={t("Folder")}>
       <Crumb

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ActionBar, PageHeader } from "./page-header.tsx";
+import { ActionBar, PageHeader, ShellTitleContext } from "./page-header.tsx";
 import { SubNavSlotContext } from "./sub-nav.tsx";
 
 const originalMatchMedia = window.matchMedia;
@@ -48,6 +48,22 @@ function Header({ slot = false }: { slot?: boolean }) {
 }
 
 describe("page header actions", () => {
+  it("keeps the description for screen readers", () => {
+    setNarrow(false);
+    render(<PageHeader title="Links" lede="The slug stays put." />);
+    expect(screen.getByText("The slug stays put.").className).toContain("sr-only");
+  });
+
+  it("hides a list heading on a small screen when the shell already shows it", () => {
+    setNarrow(true);
+    render(
+      <ShellTitleContext.Provider value="Links">
+        <Header slot />
+      </ShellTitleContext.Provider>,
+    );
+    expect(screen.getByRole("heading", { name: "Links" }).className).toContain("sr-only");
+  });
+
   it("keeps the action on the same row as the heading on a wide screen", () => {
     setNarrow(false);
     render(<Header slot />);
